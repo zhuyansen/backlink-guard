@@ -12,11 +12,11 @@ python -m backlink_guard vet mcpservers.org turbo0.com navi.tools
 
 | 站点 | 结论 | 触达 | 评分 | 月访问 | 垃圾分 | 原因 |
 |---|---|---|---|---|---|---|
-| mcpservers.org | ⚠️ 留意 | 高 | 71 | 715,667 | 12 | 出售传权重的链接或文章 |
-| turbo0.com | ⚠️ 留意 | 中 | 81 | 2,218 | 5 | 评分高但几乎没人访问；出售链接；要求回链 |
-| navi.tools | ⛔ 别发 | 中 | 4.2 | 3,225 | 23 | 域名已停放或待售 |
+| mcpservers.org | ⚠️ caution | high | 71 | 715,667 | 12 | 出售传权重的链接或文章 |
+| turbo0.com | ⚠️ caution | medium | 81 | 2,218 | 5 | 评分高但几乎没人访问；出售链接；要求回链 |
+| navi.tools | ⛔ avoid | medium | 4.2 | 3,225 | 23 | 域名已停放或待售 |
 
-每条结论都带着它的依据（页面原文或数字）：
+结论一栏是工具的原样输出：`ok`、`caution`（留意）、`avoid`（别发）。每条结论都带着它的依据（页面原文或数字）：
 
 > **turbo0.com** — ⚠️ 评分高但几乎没人访问：评分是靠链接堆出来的，不是读者。*评分 81，月访问约 2,218。* ⚠️ 以回链或挂徽章为收录条件。*"Free $0 … Backlink to our site is required."*（Google：过度的链接交换，或把链接作为某种安排的条件）
 

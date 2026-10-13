@@ -24,6 +24,9 @@ def flag_lines(flags: list[dict]) -> list[str]:
 
 
 def missing_sources(sources: dict) -> list[str]:
+    if sources.get("free"):
+        return ["- Run with `--free`: rating, visits, index status and spam scores were not checked. "
+                "A site can pass the page checks and still have no audience."]
     lines = []
     if not sources.get("goanyapi"):
         lines.append("- No `GOANYAPI_API_KEY`: rating, visits and index status were not checked. A site can pass the page checks and still have no audience.")

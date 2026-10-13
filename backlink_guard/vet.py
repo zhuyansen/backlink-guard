@@ -298,4 +298,5 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
             r["flags"].append(flag("spam_score", f"{score} of 100 (DataForSEO)"))
         r["flags"], r["grade"], r["reach"] = ranked(r["flags"]), grade(r["flags"]), reach(r["metrics"])
     return {"rows": rows, "cost": cost, "errors": errors,
-            "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "aisa": bool(paid_sources and aisa.key())}}
+            "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "aisa": bool(paid_sources and aisa.key()),
+                        "free": not paid_sources}}

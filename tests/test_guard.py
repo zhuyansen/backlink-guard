@@ -187,10 +187,12 @@ def test_without_keys_the_page_checks_still_run(monkeypatch):
     monkeypatch.setattr(vet, "read_site", lambda url: read_of("Dofollow backlink for $39."))
     monkeypatch.setattr(vet, "first_seen", lambda d: "")
     result = vet.vet(["dir.example"], today=TODAY)
-    assert result["rows"][0]["grade"] == "caution" and result["sources"] == {"goanyapi": False, "aisa": False}
+    assert result["rows"][0]["grade"] == "caution" and result["sources"] == {"goanyapi": False, "aisa": False, "free": False}
     from backlink_guard import report
     text = report.vet(result)
     assert "No `GOANYAPI_API_KEY`" in text and "not Google's judgment" in text
+    asked_free = report.vet(vet.vet(["dir.example"], paid_sources=False, today=TODAY))
+    assert "Run with `--free`" in asked_free and "No `GOANYAPI_API_KEY`" not in asked_free
 
 
 # ── your own profile ────────────────────────────────────────────────────────
