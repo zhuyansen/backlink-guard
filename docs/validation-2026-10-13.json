@@ -1,0 +1,856 @@
+{
+ "date": "2026-10-13",
+ "note": "31 sites checked with both keys; see README",
+ "rows": [
+  {
+   "input": "producthunt.com",
+   "domain": "producthunt.com",
+   "url": "https://producthunt.com",
+   "title": "Product Hunt – The best new products in tech.",
+   "flags": [],
+   "metrics": {
+    "external_links": 3,
+    "qualified_share": 0.67,
+    "first_seen": "",
+    "dr": 91,
+    "visits": 4339954,
+    "visits_vs_earlier": 0.98,
+    "spam_score": 6
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "alternativeto.net",
+   "domain": "alternativeto.net",
+   "url": "https://alternativeto.net",
+   "title": "AlternativeTo - Crowdsourced software recommendations | AlternativeTo",
+   "flags": [],
+   "metrics": {
+    "external_links": 42,
+    "qualified_share": 0.24,
+    "first_seen": "",
+    "dr": 81,
+    "visits": 2198818,
+    "visits_vs_earlier": 0.84,
+    "spam_score": 12
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "glama.ai",
+   "domain": "glama.ai",
+   "url": "https://glama.ai",
+   "title": "The MCP Server Registry, Inspector & Gateway | Glama",
+   "flags": [
+    {
+     "flag": "paid_listing",
+     "level": "note",
+     "meaning": "It charges for a listing or for faster review",
+     "evidence": "s audience · Based on first-party analytics. Boosted listings ( $ 49 /month per listing ) Boost an open-source MCP server or hosted MCP connector you maintain.",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 6,
+    "qualified_share": 0.0,
+    "first_seen": "2024-08-28",
+    "dr": 76,
+    "visits": 252499,
+    "visits_vs_earlier": 1.32,
+    "spam_score": 4
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "pulsemcp.com",
+   "domain": "pulsemcp.com",
+   "url": "https://pulsemcp.com",
+   "title": "PulseMCP | Keep up-to-date with MCP",
+   "flags": [],
+   "metrics": {
+    "external_links": 13,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 72,
+    "visits": 175498,
+    "visits_vs_earlier": 0.67,
+    "spam_score": 5
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "skills.sh",
+   "domain": "skills.sh",
+   "url": "https://skills.sh",
+   "title": "The Agent Skills Directory",
+   "flags": [],
+   "metrics": {
+    "external_links": 4,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 82,
+    "visits": 2425525,
+    "visits_vs_earlier": 0.64,
+    "spam_score": 2
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "dev.to",
+   "domain": "dev.to",
+   "url": "https://dev.to",
+   "title": "DEV Community",
+   "flags": [],
+   "metrics": {
+    "external_links": 18,
+    "qualified_share": 0.0,
+    "first_seen": "2011-02-20",
+    "dr": 91,
+    "visits": 5062281,
+    "visits_vs_earlier": 0.66,
+    "spam_score": 11
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "libhunt.com",
+   "domain": "libhunt.com",
+   "url": "https://libhunt.com",
+   "title": "LibHunt - Trending open-source projects and their alternatives",
+   "flags": [],
+   "metrics": {
+    "external_links": 11,
+    "qualified_share": 0.73,
+    "first_seen": "2016-04-15",
+    "dr": 66,
+    "visits": 254394,
+    "visits_vs_earlier": 0.76,
+    "spam_score": 27
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "saashub.com",
+   "domain": "saashub.com",
+   "url": "https://saashub.com",
+   "title": "SaaSHub - Software Alternatives & Startups",
+   "flags": [
+    {
+     "flag": "paid_listing",
+     "level": "note",
+     "meaning": "It charges for a listing or for faster review",
+     "evidence": "space — from $2/user/month. 1 28 days How to add your product here? You need to submit and verify your product on SaaSHub. Then, from within the management page",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 27,
+    "qualified_share": 0.85,
+    "first_seen": "2010-06-10",
+    "dr": 80,
+    "visits": 395908,
+    "visits_vs_earlier": 0.99,
+    "spam_score": 7
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "futurepedia.io",
+   "domain": "futurepedia.io",
+   "url": "https://futurepedia.io",
+   "title": "Find The Best AI Tools & Software, Futurepedia.io",
+   "flags": [],
+   "metrics": {
+    "external_links": 14,
+    "qualified_share": 0.43,
+    "first_seen": "2022-11-08",
+    "dr": 73,
+    "visits": 439710,
+    "visits_vs_earlier": 0.63,
+    "spam_score": 28
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "theresanaiforthat.com",
+   "domain": "theresanaiforthat.com",
+   "url": "https://theresanaiforthat.com",
+   "title": "",
+   "flags": [
+    {
+     "flag": "blocked",
+     "level": "note",
+     "meaning": "The site refused the check; the page signals are missing",
+     "evidence": "HTTP 403",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 0,
+    "qualified_share": null,
+    "first_seen": "",
+    "dr": 78,
+    "visits": 4418962,
+    "visits_vs_earlier": 0.69,
+    "spam_score": 8
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "mcpservers.org",
+   "domain": "mcpservers.org",
+   "url": "https://mcpservers.org",
+   "title": "Awesome MCP Servers",
+   "flags": [
+    {
+     "flag": "paid_follow",
+     "level": "caution",
+     "meaning": "It sells links or posts that pass ranking credit",
+     "evidence": "review fee Review within 24 hours. Official badge & priority in search results. Dofollow link (DR 71). Submit MCP Servers A directory of Model Context Protocol",
+     "policy": "Buying or selling links for ranking purposes"
+    }
+   ],
+   "metrics": {
+    "external_links": 3,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 71,
+    "visits": 715667,
+    "visits_vs_earlier": 1.21,
+    "spam_score": 12
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "mcp.so",
+   "domain": "mcp.so",
+   "url": "https://mcp.so",
+   "title": "MCP Servers, Clients & AI Tools | MCP.so",
+   "flags": [
+    {
+     "flag": "paid_follow",
+     "level": "caution",
+     "meaning": "It sells links or posts that pass ranking credit",
+     "evidence": "st. Continue to payment ($1,299) Why advertise on MCP.so High domain authority, dofollow placement, and millions of developer visits — your product gets discove",
+     "policy": "Buying or selling links for ranking purposes"
+    }
+   ],
+   "metrics": {
+    "external_links": 11,
+    "qualified_share": 1.0,
+    "first_seen": "",
+    "dr": 73,
+    "visits": 320876,
+    "visits_vs_earlier": 1.03,
+    "spam_score": 6
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "mcpmarket.com",
+   "domain": "mcpmarket.com",
+   "url": "https://mcpmarket.com",
+   "title": "MCP Market | Discover Top MCP Servers & Agent Skills",
+   "flags": [
+    {
+     "flag": "spam_score",
+     "level": "caution",
+     "meaning": "Its own backlink profile scores high for spam",
+     "evidence": "40 of 100 (DataForSEO)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "paid_listing",
+     "level": "note",
+     "meaning": "It charges for a listing or for faster review",
+     "evidence": "emote MCP Enter the full URL to the GitHub repository for the MCP you'd like to submit We'll email you the moment your listing goes live. Choose how it goes liv",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 1,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 62,
+    "visits": 1572277,
+    "visits_vs_earlier": 0.99,
+    "spam_score": 40
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "mcp.directory",
+   "domain": "mcp.directory",
+   "url": "https://mcp.directory",
+   "title": "MCP.Directory — 3,000+ MCP Servers & Skills",
+   "flags": [
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 57% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 3,
+    "qualified_share": 0.33,
+    "first_seen": "",
+    "dr": 39,
+    "visits": 74306,
+    "visits_vs_earlier": 0.52,
+    "spam_score": 25
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "agentskill.sh",
+   "domain": "agentskill.sh",
+   "url": "https://agentskill.sh",
+   "title": "AI Agent Skills Directory & Marketplace — 275,000+ Skills for Claude, Cursor, Copilot & More",
+   "flags": [
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-08: down 80% on the month before. Google updates around then: August 2026 spam update (2026-08-18 to 2026-08-21); June 2026 spam update (2026-06-24 to 2026-06-26)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 4,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 48,
+    "visits": 5647,
+    "visits_vs_earlier": 0.14,
+    "spam_score": 8
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "skillsmp.com",
+   "domain": "skillsmp.com",
+   "url": "https://skillsmp.com",
+   "title": "Agent Skills Marketplace | Codex & Claude Skills | SkillsMP",
+   "flags": [
+    {
+     "flag": "traffic_decline",
+     "level": "note",
+     "meaning": "Its visits are less than half of their level earlier in the year",
+     "evidence": "620,591 a month now, 1,290,532 earlier in the year",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 5,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 68,
+    "visits": 620591,
+    "visits_vs_earlier": 0.48,
+    "spam_score": 19
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "skillget.dev",
+   "domain": "skillget.dev",
+   "url": "https://skillget.dev",
+   "title": "Skillget | Skillget",
+   "flags": [
+    {
+     "flag": "spam_score",
+     "level": "caution",
+     "meaning": "Its own backlink profile scores high for spam",
+     "evidence": "60 of 100 (DataForSEO)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "no_audience",
+     "level": "note",
+     "meaning": "Almost nobody visits it",
+     "evidence": "about 0 visits a month",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 0,
+    "qualified_share": null,
+    "first_seen": "",
+    "dr": 0.1,
+    "visits": 0,
+    "visits_vs_earlier": null,
+    "indexed": 2,
+    "spam_score": 60
+   },
+   "grade": "caution",
+   "reach": "low"
+  },
+  {
+   "input": "turbo0.com",
+   "domain": "turbo0.com",
+   "url": "https://turbo0.com",
+   "title": "Turbo0 - Popular Content Creation Products Directory",
+   "flags": [
+    {
+     "flag": "paid_follow",
+     "level": "caution",
+     "meaning": "It sells links or posts that pass ranking credit",
+     "evidence": "icing plan Submit your content creator products to the directory Free $ 0 Get 3 dofollow links to boost your SEO Listing and traffic forever Backlink to our sit",
+     "policy": "Buying or selling links for ranking purposes"
+    },
+    {
+     "flag": "link_exchange",
+     "level": "caution",
+     "meaning": "It asks for a link or badge back as a condition",
+     "evidence": "ory Free $ 0 Get 3 dofollow links to boost your SEO Listing and traffic forever Backlink to our site is required Reviewed and listed within 2 week No featured l",
+     "policy": "Excessive link exchanges, or requiring a link as part of an arrangement"
+    },
+    {
+     "flag": "hollow_rating",
+     "level": "caution",
+     "meaning": "A high rating with almost no visitors: the rating comes from links, not readers",
+     "evidence": "rating 81, about 2,218 visits a month",
+     "policy": "Excessive link exchanges, or requiring a link as part of an arrangement"
+    },
+    {
+     "flag": "traffic_decline",
+     "level": "note",
+     "meaning": "Its visits are less than half of their level earlier in the year",
+     "evidence": "2,218 a month now, 26,324 earlier in the year",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 18,
+    "qualified_share": 0.0,
+    "first_seen": "2024-11-23",
+    "dr": 81,
+    "visits": 2218,
+    "visits_vs_earlier": 0.08,
+    "indexed": 10,
+    "spam_score": 5
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "toolify.ai",
+   "domain": "toolify.ai",
+   "url": "https://toolify.ai",
+   "title": "",
+   "flags": [
+    {
+     "flag": "blocked",
+     "level": "note",
+     "meaning": "The site refused the check; the page signals are missing",
+     "evidence": "HTTP 403",
+     "policy": ""
+    },
+    {
+     "flag": "traffic_decline",
+     "level": "note",
+     "meaning": "Its visits are less than half of their level earlier in the year",
+     "evidence": "1,051,842 a month now, 2,155,877 earlier in the year",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 0,
+    "qualified_share": null,
+    "first_seen": "2023-02-23",
+    "dr": 72,
+    "visits": 1051842,
+    "visits_vs_earlier": 0.49,
+    "spam_score": 26
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "aibase.com",
+   "domain": "aibase.com",
+   "url": "https://aibase.com",
+   "title": "AIBase - Your Gateway to AGI",
+   "flags": [
+    {
+     "flag": "spam_score",
+     "level": "caution",
+     "meaning": "Its own backlink profile scores high for spam",
+     "evidence": "49 of 100 (DataForSEO)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "paid_listing",
+     "level": "note",
+     "meaning": "It charges for a listing or for faster review",
+     "evidence": "s, from exploration to professional and commercial applications. Paid Open Site Submit Product Monthly Total Visits 16.0K Current website's monthly visits Avera",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 2,
+    "qualified_share": 0.0,
+    "first_seen": "1998-12-02",
+    "dr": 72,
+    "visits": 547080,
+    "visits_vs_earlier": 0.6,
+    "spam_score": 49
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "creati.ai",
+   "domain": "creati.ai",
+   "url": "https://creati.ai",
+   "title": "Discover 28,015+ AI Tools, Agents & MCPs to Power Your Workflow | Creati.ai",
+   "flags": [
+    {
+     "flag": "paid_follow",
+     "level": "caution",
+     "meaning": "It sells links or posts that pass ranking credit",
+     "evidence": "lick Advertisement! Update Your AI Keep your AI tool current with quick updates Guest Post / Link Insertion Guset post or link insertion on Creati.ai Submit You",
+     "policy": "Buying or selling links for ranking purposes"
+    },
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 48% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "spam_score",
+     "level": "caution",
+     "meaning": "Its own backlink profile scores high for spam",
+     "evidence": "54 of 100 (DataForSEO)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 68,
+    "qualified_share": 0.93,
+    "first_seen": "2023-06-28",
+    "dr": 51,
+    "visits": 271011,
+    "visits_vs_earlier": 0.46,
+    "spam_score": 54
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "aitoolnet.com",
+   "domain": "aitoolnet.com",
+   "url": "https://aitoolnet.com",
+   "title": "Aitoolnet - Best AI Tools Directory & Search Engine (2026)",
+   "flags": [
+    {
+     "flag": "paid_follow",
+     "level": "caution",
+     "meaning": "It sells links or posts that pass ranking credit",
+     "evidence": "y and impact. Pricing START Free Published within 30 days Basic tool submission Do-Follow SEO backlink POPULAR PRO $9.9 One-time payment No queue, listed within",
+     "policy": "Buying or selling links for ranking purposes"
+    },
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 46% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 26,
+    "qualified_share": 1.0,
+    "first_seen": "2023-03-01",
+    "dr": 56,
+    "visits": 77458,
+    "visits_vs_earlier": 0.97,
+    "spam_score": 6
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "topai.tools",
+   "domain": "topai.tools",
+   "url": "https://topai.tools",
+   "title": "Find the Right AI Tools for Every Task | TopAI.tools",
+   "flags": [
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 66% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "spam_score",
+     "level": "caution",
+     "meaning": "Its own backlink profile scores high for spam",
+     "evidence": "46 of 100 (DataForSEO)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "paid_listing",
+     "level": "note",
+     "meaning": "It charges for a listing or for faster review",
+     "evidence": "p 100 AI Tools Categories AI Use Cases Playbooks Dashboard Deals Search Sign in Submit Submit your AI tool Submit your AI tool and reach 1m+ qualified users act",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 21,
+    "qualified_share": 0.67,
+    "first_seen": "2023-02-08",
+    "dr": 64,
+    "visits": 506723,
+    "visits_vs_earlier": 0.64,
+    "spam_score": 46
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "navi.tools",
+   "domain": "navi.tools",
+   "url": "https://navi.tools",
+   "title": "Your domain is expired",
+   "flags": [
+    {
+     "flag": "parked",
+     "level": "avoid",
+     "meaning": "The domain is parked or for sale",
+     "evidence": "ain to activate the website Website content is unavailable due to the fact that domain has expired. Renew your domain in order to see your website online. What'",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-08: down 64% on the month before. Google updates around then: August 2026 spam update (2026-08-18 to 2026-08-21); June 2026 spam update (2026-06-24 to 2026-06-26)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 8,
+    "qualified_share": 1.0,
+    "first_seen": "2016-03-13",
+    "dr": 4.2,
+    "visits": 3225,
+    "visits_vs_earlier": 0.43,
+    "spam_score": 23
+   },
+   "grade": "avoid",
+   "reach": "medium"
+  },
+  {
+   "input": "programminginsider.com",
+   "domain": "programminginsider.com",
+   "url": "https://programminginsider.com",
+   "title": "Home - Programming Insider",
+   "flags": [
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 59% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 4,
+    "qualified_share": 0.0,
+    "first_seen": "2007-03-03",
+    "dr": 71,
+    "visits": 95888,
+    "visits_vs_earlier": 0.64,
+    "spam_score": 23
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "nerdbot.com",
+   "domain": "nerdbot.com",
+   "url": "https://nerdbot.com",
+   "title": "NERDBOT - NERDBOT",
+   "flags": [],
+   "metrics": {
+    "external_links": 8,
+    "qualified_share": 1.0,
+    "first_seen": "2002-01-22",
+    "dr": 70,
+    "visits": 154161,
+    "visits_vs_earlier": 0.66,
+    "spam_score": 33
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "thedatascientist.com",
+   "domain": "thedatascientist.com",
+   "url": "https://thedatascientist.com",
+   "title": "The Data Scientist - data science courses, data science services, tokenomics consultingBrowse Data Science & AI Topics |",
+   "flags": [
+    {
+     "flag": "paid_follow",
+     "level": "caution",
+     "meaning": "It sells links or posts that pass ranking credit",
+     "evidence": "media promotion included — reaching thousands of data science professionals ℹ️ Publishing Fee Structure We charge a dual-stage fee to ensure high-quality conte",
+     "policy": "Buying or selling links for ranking purposes"
+    },
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 64% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 11,
+    "qualified_share": 0.0,
+    "first_seen": "",
+    "dr": 64,
+    "visits": 64386,
+    "visits_vs_earlier": 0.51,
+    "spam_score": 33
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "techbullion.com",
+   "domain": "techbullion.com",
+   "url": "https://techbullion.com",
+   "title": "Same-Day Waste Removal: Clean Spaces In No Time - TechBullion",
+   "flags": [],
+   "metrics": {
+    "external_links": 19,
+    "qualified_share": 0.58,
+    "first_seen": "",
+    "dr": 81,
+    "visits": 158467,
+    "visits_vs_earlier": 0.62,
+    "spam_score": 9
+   },
+   "grade": "ok",
+   "reach": "high"
+  },
+  {
+   "input": "aijourn.com",
+   "domain": "aijourn.com",
+   "url": "https://aijourn.com",
+   "title": "The AI Journal is your ultimate channel to learn AI trends!",
+   "flags": [
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-09: down 51% on the month before. Google updates around then: September 2026 spam update (2026-09-24 to 2026-10-08); August 2026 spam update (2026-08-18 to 2026-08-21)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 16,
+    "qualified_share": 0.56,
+    "first_seen": "",
+    "dr": 78,
+    "visits": 281191,
+    "visits_vs_earlier": 0.37,
+    "spam_score": 20
+   },
+   "grade": "caution",
+   "reach": "high"
+  },
+  {
+   "input": "claw123.com",
+   "domain": "claw123.com",
+   "url": "https://claw123.com",
+   "title": "Claw123龙虾导航 - OpenClaw中文社区",
+   "flags": [
+    {
+     "flag": "traffic_cliff",
+     "level": "caution",
+     "meaning": "Its visits fell sharply within a month and have not come back",
+     "evidence": "2026-08: down 63% on the month before. Google updates around then: August 2026 spam update (2026-08-18 to 2026-08-21); June 2026 spam update (2026-06-24 to 2026-06-26)",
+     "policy": "Low-quality directory or bookmark site links"
+    },
+    {
+     "flag": "spam_score",
+     "level": "caution",
+     "meaning": "Its own backlink profile scores high for spam",
+     "evidence": "53 of 100 (DataForSEO)",
+     "policy": "Low-quality directory or bookmark site links"
+    }
+   ],
+   "metrics": {
+    "external_links": 192,
+    "qualified_share": 1.0,
+    "first_seen": "",
+    "dr": 3.6,
+    "visits": 3135,
+    "visits_vs_earlier": 0.08,
+    "indexed": 1,
+    "spam_score": 53
+   },
+   "grade": "caution",
+   "reach": "medium"
+  },
+  {
+   "input": "clawhomepage.com",
+   "domain": "clawhomepage.com",
+   "url": "https://clawhomepage.com",
+   "title": "Claw Homepage: OpenClaw Skills, Hosting, Tutorials & Resources",
+   "flags": [
+    {
+     "flag": "young",
+     "level": "note",
+     "meaning": "The domain first appeared less than a year ago",
+     "evidence": "first archived 2026-03-30",
+     "policy": ""
+    },
+    {
+     "flag": "no_audience",
+     "level": "note",
+     "meaning": "Almost nobody visits it",
+     "evidence": "about 55 visits a month",
+     "policy": ""
+    }
+   ],
+   "metrics": {
+    "external_links": 96,
+    "qualified_share": 0.0,
+    "first_seen": "2026-03-30",
+    "dr": 16,
+    "visits": 55,
+    "visits_vs_earlier": 0.06,
+    "indexed": 3,
+    "spam_score": 16
+   },
+   "grade": "ok",
+   "reach": "low"
+  }
+ ]
+}

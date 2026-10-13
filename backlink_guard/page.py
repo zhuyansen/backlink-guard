@@ -1,0 +1,123 @@
+"""Read a web page the way the checks need it: status, where it ended up, its links
+with their rel values, and its visible text. Standard library only.
+
+A site that answers with an HTTP error other than 404 or 410 has refused the request
+(dev.to answers 406 to an unknown client), which says nothing about the site: `blocked`
+is reported apart from `dead`.
+"""
+from __future__ import annotations
+
+import re
+import socket
+import urllib.error
+import urllib.parse
+import urllib.request
+from html.parser import HTMLParser
+
+from . import UA
+
+TIMEOUT = 20
+MAX_BYTES = 1_500_000
+GONE = {404, 410}             # any other HTTP error means the request was refused, not that the site is gone
+# Two-label public suffixes common among the sites people submit to; enough to tell
+# "blog.example.co.uk" from "example.co.uk" without a suffix list.
+TWO_LABEL_SUFFIXES = {"co.uk", "com.au", "com.br", "co.jp", "com.cn", "co.in", "com.tr", "co.kr", "com.mx", "co.nz"}
+SKIP_TAGS = {"script", "style", "noscript", "template", "svg"}
+
+
+def host(url: str) -> str:
+    netloc = urllib.parse.urlsplit(url if "//" in url else "//" + url).netloc.lower()
+    return netloc.split("@")[-1].split(":")[0].removeprefix("www.")
+
+
+def site(url: str) -> str:
+    """The registrable domain: blog.example.com and example.com are one site."""
+    labels = host(url).split(".")
+    keep = 3 if ".".join(labels[-2:]) in TWO_LABEL_SUFFIXES else 2
+    return ".".join(labels[-keep:])
+
+
+class _Reader(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: list[dict] = []
+        self.text: list[str] = []
+        self.title = ""
+        self._skip = 0
+        self._open: dict | None = None
+        self._in_title = False
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag in SKIP_TAGS:
+            self._skip += 1
+        elif tag == "a" and a.get("href"):
+            self._open = {"href": a["href"].strip(), "rel": set((a.get("rel") or "").lower().split()), "text": ""}
+        elif tag == "title":
+            self._in_title = True
+
+    def handle_endtag(self, tag):
+        if tag in SKIP_TAGS and self._skip:
+            self._skip -= 1
+        elif tag == "a" and self._open:
+            self._open["text"] = " ".join(self._open["text"].split())
+            self.links.append(self._open)
+            self._open = None
+        elif tag == "title":
+            self._in_title = False
+
+    def handle_data(self, data):
+        if self._skip:
+            return
+        if self._in_title:
+            self.title += data
+        if self._open is not None:
+            self._open["text"] += data
+        self.text.append(data)
+
+
+def parse(html: str, base: str) -> dict:
+    """{"title", "text", "links": [{"href" (absolute), "rel" (set), "text"}]}"""
+    reader = _Reader()
+    try:
+        reader.feed(html)
+    except Exception:  # noqa: BLE001 — a broken page still gives what was read before the break
+        pass
+    for link in reader.links:
+        link["href"] = urllib.parse.urljoin(base, link["href"])
+    links = [l for l in reader.links if l["href"].startswith(("http://", "https://"))]
+    return {"title": " ".join(reader.title.split()), "text": " ".join(" ".join(reader.text).split()), "links": links}
+
+
+def fetch(url: str) -> dict:
+    """{"url", "final", "status", "html", "error", "blocked", "dead"}. Never raises.
+    A site whose certificate fails is read over plain HTTP: parked domains often answer only there."""
+    url = url if url.startswith(("http://", "https://")) else "https://" + url
+    out = _get(url)
+    if out["dead"] and "SSL" in out["error"] and url.startswith("https://"):
+        plain = _get("http://" + url[len("https://"):])
+        if not plain["dead"]:
+            return {**plain, "error": out["error"]}
+    return out
+
+
+def _get(url: str) -> dict:
+    out = {"url": url, "final": url, "status": 0, "html": "", "error": "", "blocked": False, "dead": False}
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "text/html,*/*;q=0.8", "Accept-Language": "en"})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
+            raw = res.read(MAX_BYTES)
+            out.update(status=res.status, final=res.geturl(),
+                       html=raw.decode(res.headers.get_content_charset() or "utf-8", "replace"))
+    except urllib.error.HTTPError as exc:
+        out.update(status=exc.code, error=f"HTTP {exc.code}", blocked=exc.code not in GONE, dead=exc.code in GONE)
+    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError) as exc:
+        reason = getattr(exc, "reason", exc)
+        out.update(error=re.sub(r"\s+", " ", f"{type(reason).__name__}: {reason}")[:120], dead=True)
+    return out
+
+
+def external(links: list[dict], home: str) -> list[dict]:
+    """Links that leave the site."""
+    own = site(home)
+    return [l for l in links if site(l["href"]) != own]

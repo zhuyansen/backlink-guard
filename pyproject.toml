@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backlink-guard"
+version = "0.1.0"
+description = "Check a link source before you submit to it, verify the listing, and audit your own backlinks for link-spam patterns"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jason Zhu" }]
+keywords = ["seo", "backlinks", "link-spam", "directory-submission", "agent-skills"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/zhuyansen/backlink-guard"
+
+[project.scripts]
+backlink-guard = "backlink_guard.__main__:main"
+
+[tool.setuptools]
+packages = ["backlink_guard"]
