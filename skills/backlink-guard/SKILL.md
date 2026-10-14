@@ -22,17 +22,18 @@ Three jobs, in the order a careful person does them: check the place before you 
 python -m backlink_guard vet mcpservers.org turbo0.com navi.tools --json
 ```
 
-One call for all the sites the user is considering. Each row has `grade` (`ok`, `caution`, `avoid`), `reach` (`high`, `medium`, `low`), `metrics` and `flags`; every flag has `meaning`, `evidence` and, where one applies, the line of Google's link spam policy it stands next to.
+One call for all the sites the user is considering. When they come as a list (a competitor gap export, a paid backlink list, a note), pass the file: `--from list.xlsx --skip yoursite.com --skip competitors.txt`. A run checks 30 sites unless `--limit` is raised; say the cost of a bigger run first. Each row has `grade` (`ok`, `caution`, `avoid`), `reach` (`high`, `medium`, `low`), `metrics` and `flags`; every flag has `meaning`, `evidence` and, where one applies, the line of Google's link spam policy it stands next to.
 
 How to act on it:
 
-- `avoid` (dead, parked, not listed by Google, or linking out to gambling and similar sites): do not submit.
+- `avoid` (dead, parked, not listed by Google, a URL shortener, a link network's template page, or linking out to gambling and similar sites): do not submit. Lists of "the backlink sources other sites use" are full of these: they are there because people submit to them in bulk.
 - `caution`: read the evidence aloud to the user and let them decide.
   - **Sells followed links** (`paid_follow`): the free listing may still be fine. Never pay for a followed link: a paid link must carry `rel="sponsored"` or `nofollow`.
   - **Asks for a link or badge back** (`link_exchange`): one is a choice; a habit of it is a link exchange.
   - **Visits fell sharply in a month** (`traffic_cliff`): the evidence names the Google updates that ran around then. That is context, not proof of a penalty. Say it that way.
   - **High rating, almost no visitors** (`hollow_rating`): the rating was built with links. A listing there reaches nobody.
   - **High spam score** (`spam_score`): the site's own backlinks look manufactured.
+  - **One template across several sites** (`same_template`): one operator's network. Treat them as one site at most.
 - `ok` with `reach: low`: harmless and useless. Skip it unless it costs nothing.
 - A `blocked` note means the site refused the check: the page signals are missing, not clean.
 

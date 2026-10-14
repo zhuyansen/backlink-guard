@@ -35,7 +35,8 @@ RECOVERED = 0.7                 # back above 70% of the level before the fall: n
 DECLINE = 0.5                   # the last three months against the best earlier three
 MIN_LEVEL = 5000                # visits a month; below this a halving is noise
 NO_AUDIENCE = 1000              # visits a month
-HOLLOW_DR = 60                  # a rating this high ...
+HOLLOW_DR = 30                  # a rating this high ... (60 until 10-14: the link-network sites on
+                                # a paid list of "top AI-site backlink sources" sat at 36-49 with under 2,500 visits)
 HOLLOW_VISITS = 5000            # ... with fewer visits a month than this
 REACH_HIGH = 100_000            # visits a month
 YOUNG_DAYS = 365
@@ -55,6 +56,11 @@ EXCHANGE = re.compile(r"reciprocal link|link back to (?:us|our)|backlink to our 
 SPAM_WORDS = re.compile(r"\b(?:casino|betting|sportsbook|slots?|poker|porn|escorts?|payday loans?|essay writing|"
                         r"write my essay|replica watches|viagra|cialis|togel|judi|slot gacor)\b", re.I)
 LISTING = re.compile(r"\b(?:submit|submission|listing|featured|get listed|review fee)\b", re.I)
+# Seen on 2026-10-14 among the most-cited sources of a paid backlink list: dozens of sites titled
+# "URL Shortener" or "<domain> | Keyword Rankingss", built to be submitted to in bulk.
+SHORTENER = re.compile(r"\b(?:url|link) shortener\b|\bshorten (?:your )?(?:long )?(?:urls?|links?)\b", re.I)
+LINK_FARM = re.compile(r"\|\s*keyword rankings{1,2}\b|free domain sharing|site not yet configured", re.I)
+TEMPLATE_MIN = 12               # characters a shared title needs before it says anything
 SUBPAGE = re.compile(r"submit|pricing|advertis|sponsor|write-?for-?us|guest-?post|list-your|get-listed", re.I)
 QUALIFIED = {"nofollow", "sponsored", "ugc"}
 
@@ -103,6 +109,11 @@ def page_flags(read: dict) -> list[dict]:
     if home["blocked"]:
         return [flag("blocked", home["error"])]
     flags = []
+    title = parsed["title"]
+    if LINK_FARM.search(title):
+        flags.append(flag("link_farm", f"title: \"{title[:80]}\""))
+    elif SHORTENER.search(title) or SHORTENER.search(parsed["text"][:PARKED_MAX_TEXT]):
+        flags.append(flag("shortener", f"title: \"{title[:80]}\""))
     parked = PARKED.search(parsed["text"]) if len(parsed["text"]) < PARKED_MAX_TEXT else None
     if parked:
         flags.append(flag("parked", snippet(parsed["text"], parked.start())))
@@ -277,6 +288,30 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
     return {**t, "title": read["parsed"]["title"][:120], "flags": flags, "metrics": metrics, "cost": cost, "errors": errors}
 
 
+def template_of(row: dict) -> str:
+    """The page title with the site's own name taken out: "drjack.world | Keyword Rankingss" and
+    "quero.party | Keyword Rankingss" both become "{site} | keyword rankingss"."""
+    title, name = row.get("title", "").lower(), row["domain"].lower()
+    for variant in (name, name.split(".")[0]):
+        title = title.replace(variant, "{site}")
+    return " ".join(title.split())
+
+
+def shared_templates(rows: list[dict]) -> None:
+    """Flag the rows of a batch whose titles are one template: sites run by one operator."""
+    groups: dict[str, list[dict]] = {}
+    for r in rows:
+        key = template_of(r)
+        if len(key.replace("{site}", "").strip(" |-:")) >= TEMPLATE_MIN:
+            groups.setdefault(key, []).append(r)
+    for key, members in groups.items():
+        if len(members) < 2:
+            continue
+        names = ", ".join(m["domain"] for m in members[:5])
+        for m in members:
+            m["flags"].append(flag("same_template", f"{len(members)} sites titled \"{key[:60]}\": {names}"))
+
+
 def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False) -> dict:
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given."""
     today = today or date.today()
@@ -291,6 +326,7 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
             cost += spent
         except aisa.AisaError as exc:
             errors.append(f"spam score: {exc}")
+    shared_templates(rows)
     for r in rows:
         score = scores.get(r["domain"])
         r["metrics"]["spam_score"] = score

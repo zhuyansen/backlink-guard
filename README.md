@@ -34,8 +34,10 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | Sells followed links or posts | a price next to "dofollow", "guest post", "link insertion" on the home, submit and pricing pages | the site | free |
 | Asks for a link or badge back | the same pages | the site | free |
 | Links out to gambling, adult, loan or essay-mill sites | outbound links on the home page | the site | free |
+| A URL shortener, or a link network's template page ("<domain> \| Keyword Rankings") | the page title | the site | free |
+| Several sites in one check sharing one page template | the titles with each site's own name taken out | the batch | free |
 | First seen | the Wayback Machine's first copy | archive.org | free |
-| Rating | domain rating | GoAnyAPI | $0.002 |
+| Rating, and a rating with no readers behind it (30 or more, under 5,000 visits a month) | domain rating | GoAnyAPI | $0.002 |
 | Reach, and a fall in visits | 12 months of monthly visits; a fall within a month is shown next to the Google updates that ran around it | GoAnyAPI, Google's status feed | $0.004 |
 | Whether Google lists it | `site:` search, only for sites with few visitors, asked twice before it counts | GoAnyAPI, then AIsa | $0.004 to $0.01 |
 | Spam score of the site's own backlinks | DataForSEO, one call for the batch | AIsa | $0.025 a batch |
@@ -104,12 +106,13 @@ What this showed:
 - **Six sites say on their own pages that they sell followed links**, and the evidence quotes them: a $39 review fee with a "Dofollow link (DR 71)", a $1,299 "dofollow placement", a "Do-Follow SEO backlink" at $9.9, "Guest Post / Link Insertion", a two-stage publishing fee.
 - **Ten sites lost 46% to 80% of their visits within one month**, in August or September 2026 (the check looks at the last three months), the months of two spam updates. None of the ten well-known sites did: their September was between 74% and 181% of their August. Two cautions. It is a coincidence in time, shown as such. And seven of the ten falls are in the newest month of the data, which estimates like these sometimes revise.
 - **One rating meant nothing**: 81, with about 2,200 visits a month.
+- **A second test, on a paid list (2026-10-14)**: the top of a list of "backlink sources most cited by AI sites". Of its first fourteen, nine were URL shorteners or one network's "Keyword Rankings" template pages: rating 36 to 49, under 2,500 visits a month, several no longer listed by Google. The first version called most of them ok. The shortener, network and shared-template checks and the hollow-rating threshold lowered from 60 to 30 now mark all nine avoid; the 31 sites above came out the same.
 - **What it cannot see**: of the five media sites that publish contributed posts, one states a fee on its pages. Whether the others charge cannot be read from their sites. A site that sells links in private is not caught by reading it.
 
 ## Commands
 
 ```bash
-python -m backlink_guard vet <site> [more ...] [--free] [--fresh] [--json]
+python -m backlink_guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--free] [--fresh] [--json]
 python -m backlink_guard audit <your-domain> [--deep] [--json]
 python -m backlink_guard verify <page-url> --to <your-domain>
 python -m backlink_guard log add <site> --kind directory --anchor "Your Brand"
@@ -118,7 +121,7 @@ python -m backlink_guard log
 
 Python 3.10 or newer, standard library only.
 
-- **vet**: about $0.01 a site plus $0.025 for the batch; `--free` reads the sites only.
+- **vet**: about $0.01 a site plus $0.025 for the batch; `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised.
 - **audit**: about $0.06, with `--deep` (full anchor distribution) about $0.10.
 - **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
 - **log**: your submissions in `state/ledger.jsonl`, with a warning past five a week or when one anchor is used over and over.

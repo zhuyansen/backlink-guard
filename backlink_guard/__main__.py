@@ -1,6 +1,6 @@
 """backlink-guard: check a link source before you submit to it, and watch your own links.
 
-  python -m backlink_guard vet <site> [more ...] [--free] [--fresh] [--json]
+  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--free] [--fresh] [--json]
   python -m backlink_guard audit <your-domain> [--deep] [--fresh] [--json]
   python -m backlink_guard verify <page-url> --to <your-domain> [--json]
   python -m backlink_guard log                                  the record, with pace and anchor checks
@@ -9,6 +9,7 @@
 
 vet     reads each site, and with keys asks for its rating, a year of visits and its
         spam score: about $0.01 a site plus $0.025 for the batch. --free reads the site only.
+        --from reads the sites out of a list file; --limit caps how many are checked.
 audit   your own profile: totals, new and lost referring domains by week, anchors, and
         the spam score of the sites linking to you: about $0.06, with --deep about $0.10.
 verify  whether a page links to you and whether that link passes ranking credit. Free.
@@ -23,14 +24,30 @@ import argparse
 import json
 import sys
 
-from . import ledger, profile, report
+from pathlib import Path
+
+from . import ledger, lists, page, profile, report
 from . import verify as verification
 from . import vet as vetting
+
+LIMIT = 30          # sites a run checks unless told otherwise: about $0.30 with both keys
 
 
 def _print(args, data, text: str) -> int:
     print(json.dumps(data, ensure_ascii=False, indent=1, default=sorted) if args.json else text)
     return 0
+
+
+def targets_of(args) -> list[str]:
+    """The sites given and the sites in --from, once each, at most --limit of them."""
+    skip = {page.site(x) for s in args.skip for x in (lists.read(s) if Path(s).is_file() else [s])}
+    found = [t for t in dict.fromkeys(args.targets + (lists.read(args.from_file) if args.from_file else []))
+             if page.site(t) not in skip]
+    if not found:
+        raise SystemExit("vet: give sites, or a list with --from")
+    if len(found) > args.limit:
+        print(f"{len(found)} sites found; checking the first {args.limit} (raise --limit to check more)", file=sys.stderr)
+    return found[:args.limit]
 
 
 def cmd_log(args) -> int:
@@ -53,7 +70,11 @@ def parser() -> argparse.ArgumentParser:
     common.add_argument("--json", action="store_true")
     common.add_argument("--fresh", action="store_true", help="ignore answers cached in the last 7 days")
     v = sub.add_parser("vet", parents=[common])
-    v.add_argument("targets", nargs="+")
+    v.add_argument("targets", nargs="*")
+    v.add_argument("--from", dest="from_file", metavar="FILE", help="a list to read sites from (.txt .md .csv .json .xlsx)")
+    v.add_argument("--limit", type=int, default=LIMIT, help=f"check at most this many sites (default {LIMIT})")
+    v.add_argument("--skip", action="append", default=[], metavar="SITE_OR_FILE",
+                   help="leave out these sites (your own, competitors, ones you already have); repeatable, or a list file")
     v.add_argument("--free", action="store_true", help="read the sites only; call no paid API")
     a = sub.add_parser("audit", parents=[common])
     a.add_argument("domain")
@@ -75,7 +96,8 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.command == "vet":
-        result = vetting.vet(args.targets, paid_sources=not args.free, fresh=args.fresh)
+        targets = targets_of(args)
+        result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh)
         return _print(args, result, report.vet(result))
     if args.command == "audit":
         result = profile.audit(args.domain, deep=args.deep, fresh=args.fresh)

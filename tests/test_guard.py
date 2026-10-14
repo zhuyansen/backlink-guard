@@ -318,3 +318,60 @@ def test_verify_says_when_no_followed_link_is_in_the_text(monkeypatch):
     in_text = '<article><p>We used <a href="https://agentskillshub.top/">Agent Skills Hub</a> to check.</p></article>'
     monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": in_text, "error": "", "blocked": False, "dead": False})
     assert verify.verify("https://dir.example/x", "agentskillshub.top")["note"] == ""
+
+
+# ── link networks, shorteners and lists (10-14: the top of a paid "backlink sources" list) ──
+
+def titled(title):
+    html = f"<html><title>{title}</title><body>Some text about the site.</body></html>"
+    home = {"url": "https://x.example", "final": "https://x.example/", "status": 200, "html": html,
+            "error": "", "blocked": False, "dead": False}
+    parsed = page.parse(html, home["final"])
+    return {"home": home, "parsed": parsed, "texts": [parsed["text"]]}
+
+
+def test_shorteners_and_link_network_templates_are_avoided():
+    assert [f["flag"] for f in vet.page_flags(titled("URL Shortener"))] == ["shortener"]
+    assert [f["flag"] for f in vet.page_flags(titled("drjack.world | Keyword Rankingss"))] == ["link_farm"]
+    assert [f["flag"] for f in vet.page_flags(titled("Free domain sharing - Site not yet configured"))] == ["link_farm"]
+    assert vet.page_flags(titled("Rank Tracker: track your keyword rankings daily")) == []     # an SEO tool, not a template
+    assert policy.grade(vet.page_flags(titled("URL Shortener"))) == "avoid"
+
+
+def test_one_template_across_a_batch_is_called_a_network():
+    rows = [{"domain": d, "title": t, "flags": []} for d, t in (
+        ("drjack.world", "drjack.world | Keyword Rankingss"), ("quero.party", "quero.party | Keyword Rankingss"),
+        ("glarity.app", "Glarity - Free ChatGPT YouTube Summary"), ("a.example", "Home"), ("b.example", "Home"))]
+    vet.shared_templates(rows)
+    assert [r["domain"] for r in rows if r["flags"]] == ["drjack.world", "quero.party"]
+    assert "2 sites titled \"{site} | keyword rankingss\"" in rows[0]["flags"][0]["evidence"]
+
+
+def test_a_rating_with_no_readers_is_hollow_from_30():
+    trend = vet.visit_trend(months([1, 1, 1, 1, 1, 1, 1, 1, 1], scale=800))
+    assert "hollow_rating" in [f["flag"] for f in vet.traffic_flags(trend, 45, UPDATES)]
+    assert "hollow_rating" not in [f["flag"] for f in vet.traffic_flags(trend, 25, UPDATES)]
+
+
+def test_lists_are_read_from_notes_csv_json_and_excel(tmp_path):
+    from backlink_guard import lists
+    note = "See gap.json and run fetch_backlinks.py. Targets: https://www.toolify.ai/x, mcp.so, Dev.to; mail me@x.example"
+    assert lists.domains(note) == ["toolify.ai", "mcp.so", "dev.to"]
+    import zipfile
+    book = tmp_path / "list.xlsx"
+    with zipfile.ZipFile(book, "w") as z:
+        z.writestr("xl/sharedStrings.xml", "<sst><si><t>urls-shortener.eu</t></si><si><t>https://quero.party/</t></si></sst>")
+        z.writestr("xl/worksheets/sheet1.xml", "<worksheet><row><c><v>0</v></c></row></worksheet>")
+    assert lists.read(str(book)) == ["urls-shortener.eu", "quero.party"]
+
+
+def test_targets_skip_and_limit(tmp_path, capsys):
+    import argparse
+    from backlink_guard import __main__ as cli
+    listed = tmp_path / "gap.md"
+    listed.write_text("apiflux.ai openrouter.ai robuta.com toolidx.com dev.to")
+    have = tmp_path / "have.txt"
+    have.write_text("dev.to")
+    args = argparse.Namespace(targets=["saashub.com"], from_file=str(listed), skip=["apiflux.ai", "openrouter.ai", str(have)], limit=2)
+    assert cli.targets_of(args) == ["saashub.com", "robuta.com"]
+    assert "3 sites found; checking the first 2" in capsys.readouterr().err      # saashub, robuta, toolidx

@@ -34,8 +34,10 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 | 出售传权重的链接或文章 | 首页、提交页、价格页里，价格旁边出现 dofollow、guest post、link insertion 等字样 | 网站本身 | 免费 |
 | 要求回链或挂徽章 | 同上几个页面 | 网站本身 | 免费 |
 | 站外链接指向博彩、成人、贷款、代写类网站 | 首页的站外链接 | 网站本身 | 免费 |
+| 短链服务，或站群的模板页（「<域名> \| Keyword Rankings」） | 页面标题 | 网站本身 | 免费 |
+| 同一批里好几个站共用一个页面模板 | 去掉各自站名后的标题 | 这一批 | 免费 |
 | 最早出现时间 | Wayback Machine 的第一份存档 | archive.org | 免费 |
-| 评分 | 域名评分（DR） | GoAnyAPI | $0.002 |
+| 评分，以及没人访问的高评分（30 分以上、月访问不到 5,000） | 域名评分（DR） | GoAnyAPI | $0.002 |
 | 触达，以及访问量是否骤降 | 12 个月的逐月访问量；一个月内的骤降会和那段时间的 Google 更新并排列出 | GoAnyAPI、Google 状态页 | $0.004 |
 | Google 是否还收录 | `site:` 搜索；只对访问量很小的站查，并且查两次都为空才算 | GoAnyAPI，失败时转 AIsa | $0.004–0.01 |
 | 该站自身外链的垃圾分 | DataForSEO，一批站一次调用 | AIsa | 每批 $0.025 |
@@ -106,12 +108,13 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 - **六个站在自己的页面上写明出售传权重的链接**，依据里引的是它们的原话：39 美元审核费附带「Dofollow link (DR 71)」、1,299 美元的「dofollow placement」、9.9 美元的「Do-Follow SEO backlink」、「Guest Post / Link Insertion」、两段式发稿费。
 - **十个站在一个月内掉了 46% 到 80% 的访问量**，都发生在 2026 年 8 月或 9 月（检查只看最近三个月），正是两次垃圾更新的月份。十个知名站没有一个这样：它们 9 月的访问量是 8 月的 74% 到 181%。两点提醒：这只是时间上的重合，工具也只这样表述；十个里有七个发生在数据的最新一个月，这类估算数据的最新月份有时会被修正。
 - **有一个评分毫无意义**：81 分，月访问约 2,200。
+- **第二轮测试：一份付费外链榜（2026-10-14）**：榜单是「被最多 AI 站引用的外链来源」，前 14 名里有 9 个是短链服务或同一站群的「Keyword Rankings」模板页：评分 36 到 49，月访问不到 2,500，好几个已经不被 Google 收录。第一版把它们大多判成 ok。加上短链、站群、共用模板三项检查，并把「空壳高评分」的门槛从 60 降到 30 之后，这 9 个全部判为 avoid；上面那 31 个站的结论没有变化。
 - **它看不到的**：五个接收投稿的媒体站里，只有一个在页面上写了收费。其余几个是否收费，从网站上读不出来。私下卖链接的站靠读页面查不出来。
 
 ## 命令
 
 ```bash
-python -m backlink_guard vet <站点> [更多 ...] [--free] [--fresh] [--json]
+python -m backlink_guard vet <站点> [更多 ...] [--from 清单.xlsx] [--skip 你的域名] [--limit 30] [--free] [--fresh] [--json]
 python -m backlink_guard audit <你的域名> [--deep] [--json]
 python -m backlink_guard verify <页面地址> --to <你的域名>
 python -m backlink_guard log add <站点> --kind directory --anchor "你的品牌名"
@@ -120,7 +123,7 @@ python -m backlink_guard log
 
 Python 3.10 及以上，只用标准库。
 
-- **vet**：每个站约 $0.01，另加每批 $0.025；`--free` 只读网站本身。
+- **vet**：每个站约 $0.01，另加每批 $0.025；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。
 - **audit**：约 $0.06，加 `--deep`（完整锚文本分布）约 $0.10。
 - **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。只有那三个 rel 值会拦住权重，`noopener`、`external` 不会。每条链接还会标出位置，从它外层的元素读出来：`body text`（正文）、`main area`（主区域）、`header`、`navigation`、`sidebar`、`footer`、`comments`、`author box`。传权重的链接如果只在页脚、侧边栏或导航里，会单独提示：Google 把大范围分发的页脚、模板和小部件链接列为链接垃圾的例子，编辑放在正文里的链接分量更重。
 - **log**：你的提交记录，存在本机 `state/ledger.jsonl`；一周超过五个、或同一个锚文本反复用时会提醒。
