@@ -13,7 +13,7 @@ import binascii
 import re
 import urllib.parse
 
-from . import page
+from . import page, placement
 
 QUALIFIED = {"nofollow", "sponsored", "ugc"}
 TOKEN = re.compile(r"[A-Za-z0-9+/_\-]{16,}={0,2}")
@@ -42,7 +42,20 @@ def classify(link: dict, domain: str, own: str) -> dict | None:
         return None
     held = sorted(link["rel"] & QUALIFIED)
     return {"href": href, "anchor": link["text"][:120], "rel": sorted(link["rel"]), "how": how,
-            "passes_credit": how == "direct" and not held, "insecure": href.startswith("http://")}
+            "passes_credit": how == "direct" and not held, "insecure": href.startswith("http://"),
+            "placement": link.get("placement", "unknown")}
+
+
+def placement_note(links: list[dict]) -> str:
+    """What the positions of the links say, "" when one of them is in body text."""
+    if not links or any(l["placement"] in placement.IN_TEXT for l in links):
+        return ""
+    where = ", ".join(sorted({l["placement"] for l in links}))
+    template = {"footer", "sidebar", "navigation", "header"} & {l["placement"] for l in links}
+    return (f"None of the links is in body text ({where}). "
+            + ("Google lists widely distributed links in footers, templates and widgets among its examples of link spam; "
+               "such links count for less than one an editor put in the text." if template else
+               "A link an editor put in the text counts for more."))
 
 
 def verify(page_url: str, domain: str) -> dict:
@@ -59,7 +72,7 @@ def verify(page_url: str, domain: str) -> dict:
         out.update(verdict="not found", note="The domain appears in the page source but not as a link: a script may add it."
                    if mentioned else "No link to the domain in the page as served.")
     elif any(l["passes_credit"] for l in out["links"]):
-        out["verdict"] = "followed link"
+        out.update(verdict="followed link", note=placement_note([l for l in out["links"] if l["passes_credit"]]))
     elif any(l["how"] == "direct" for l in out["links"]):
         out.update(verdict="qualified link", note="The link is there with rel=nofollow, sponsored or ugc: visitors, no ranking credit.")
     else:

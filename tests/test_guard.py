@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from backlink_guard import ledger, page, policy, profile, updates, verify, vet
+from backlink_guard import ledger, page, placement, policy, profile, updates, verify, vet
 
 TODAY = date(2026, 10, 13)
 UPDATES = [{"name": "September 2026 spam update", "begin": "2026-09-24", "end": "2026-10-08"},
@@ -41,7 +41,7 @@ def state(tmp_path, monkeypatch):
 def test_parse_keeps_rel_and_skips_scripts():
     p = page.parse('<a href="/go" rel="NoFollow sponsored">Out</a><script>var a="<a href=x>";</script><p>Hello</p>',
                    "https://dir.example/x")
-    assert p["links"] == [{"href": "https://dir.example/go", "rel": {"nofollow", "sponsored"}, "text": "Out"}]
+    assert p["links"] == [{"href": "https://dir.example/go", "rel": {"nofollow", "sponsored"}, "text": "Out", "placement": "unknown"}]
     assert "Hello" in p["text"] and "var a" not in p["text"]
 
 
@@ -275,3 +275,46 @@ def test_the_skill_names_the_commands_and_writes_no_dollar_amounts():
     assert head and head.group(1) == "backlink-guard" and 100 < len(head.group(2)) < 1024
     assert all(c in text for c in ("backlink_guard vet", "backlink_guard audit", "backlink_guard verify", "backlink_guard log"))
     assert not re.search(r"\$\d", text)        # Claude Code replaces $0, $1 ... in a skill with the user's arguments
+
+
+# ── where a link sits ───────────────────────────────────────────────────────
+
+PAGE = """<header><nav><a href="https://x.example/1">nav</a></nav></header>
+<main><article class="post"><h1>T</h1><p>See <a href="https://x.example/2">this study</a>.
+<div class="card"><a href="https://x.example/3">Visit</a></div>
+<ul><li>item <a href="https://x.example/4">four</a></ul>
+<div class="author-bio"><a href="https://x.example/5">me</a></div>
+<div id="comments"><p><a href="https://x.example/6">spam</a></p></div></article>
+<aside class="sidebar"><div class="widget"><a href="https://x.example/7">w</a></div></aside></main>
+<footer class="site-footer"><p><a href="https://x.example/8">f</a></p></footer>
+<div><a href="https://x.example/9">loose</a></div>"""
+
+
+def test_placement_reads_the_elements_around_a_link():
+    found = {l["href"][-1]: l["placement"] for l in page.parse(PAGE, "https://x.example/")["links"]}
+    assert found == {"1": "navigation", "2": "body text", "3": "main area", "4": "body text", "5": "author box",
+                     "6": "comments", "7": "sidebar", "8": "footer", "9": "unknown"}
+
+
+def test_an_unclosed_paragraph_does_not_swallow_what_follows():
+    # The <p> is never closed; the <div> that follows ends it, as browsers do.
+    links = page.parse('<main><p>Intro text<div class="share"><a href="https://x.example/s">share</a></div></main>',
+                       "https://x.example/")["links"]
+    assert links[0]["placement"] == "main area"
+
+
+def test_class_names_are_split_on_dashes_and_underscores():
+    assert placement.region("div", "entry-content", "") == "content"
+    assert placement.region("section", "widget_text", "") == "sidebar"
+    assert placement.region("div", "authority-score", "") == ""          # "authority" is not "author"
+
+
+def test_verify_says_when_no_followed_link_is_in_the_text(monkeypatch):
+    html = '<article><p>Nothing here.</p></article><footer><a href="https://agentskillshub.top/">Agent Skills Hub</a></footer>'
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": html, "error": "", "blocked": False, "dead": False})
+    result = verify.verify("https://dir.example/x", "agentskillshub.top")
+    assert result["verdict"] == "followed link" and result["links"][0]["placement"] == "footer"
+    assert "footers, templates and widgets" in result["note"]
+    in_text = '<article><p>We used <a href="https://agentskillshub.top/">Agent Skills Hub</a> to check.</p></article>'
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": in_text, "error": "", "blocked": False, "dead": False})
+    assert verify.verify("https://dir.example/x", "agentskillshub.top")["note"] == ""

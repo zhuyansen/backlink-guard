@@ -62,7 +62,7 @@ python -m backlink_guard verify https://mcpservers.org/servers/you/your-tool --t
 python -m backlink_guard log set mcpservers.org --status live --url https://mcpservers.org/servers/you/your-tool
 ```
 
-Verdicts: `followed link` (passes ranking credit), `qualified link` (nofollow, sponsored or ugc: visitors only), `redirect only` (goes through the site's own redirect page: visitors only), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. A link a script adds after load is not seen: the result says so, and a browser check settles it. If the user paid for a placement, compare what was promised with what is there.
+Verdicts: `followed link` (passes ranking credit), `qualified link` (nofollow, sponsored or ugc: visitors only), `redirect only` (goes through the site's own redirect page: visitors only), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also has a `placement`: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. Say where it is: a link an editor put in the body text is worth more than one in a footer or sidebar, and a followed link that appears only in a footer or widget across many pages is the template-link pattern Google lists as link spam. A link a script adds after load is not seen: the result says so, and a browser check settles it. If the user paid for a placement, compare what was promised with what is there.
 
 ## 4. Now and then: audit your own profile
 

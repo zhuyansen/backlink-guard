@@ -120,7 +120,7 @@ Python 3.10 or newer, standard library only.
 
 - **vet**: about $0.01 a site plus $0.025 for the batch; `--free` reads the sites only.
 - **audit**: about $0.06, with `--deep` (full anchor distribution) about $0.10.
-- **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not.
+- **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
 - **log**: your submissions in `state/ledger.jsonl`, with a warning past five a week or when one anchor is used over and over.
 
 ## Keys

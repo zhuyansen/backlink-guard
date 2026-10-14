@@ -84,7 +84,7 @@ def verify(v: dict) -> str:
         lines.append(v["note"])
     for l in v["links"]:
         rel = " ".join(l["rel"]) or "none"
-        lines.append(f"- {l['how']}, rel: {rel}, anchor \"{l['anchor'][:60]}\"" + (" (http, redirects to https)" if l["insecure"] else ""))
+        lines.append(f"- {l['how']}, {l['placement']}, rel: {rel}, anchor \"{l['anchor'][:60]}\"" + (" (http, redirects to https)" if l["insecure"] else ""))
     return "\n".join(lines)
 
 

@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
 
-from . import UA
+from . import UA, placement
 
 TIMEOUT = 20
 MAX_BYTES = 1_500_000
@@ -23,6 +23,10 @@ GONE = {404, 410}             # any other HTTP error means the request was refus
 # "blog.example.co.uk" from "example.co.uk" without a suffix list.
 TWO_LABEL_SUFFIXES = {"co.uk", "com.au", "com.br", "co.jp", "com.cn", "co.in", "com.tr", "co.kr", "com.mx", "co.nz"}
 SKIP_TAGS = {"script", "style", "noscript", "template", "svg"}
+VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+# A <p> ends where one of these starts, even when the page never closes it.
+CLOSES_P = {"address", "article", "aside", "blockquote", "div", "dl", "fieldset", "footer", "form", "h1", "h2", "h3",
+            "h4", "h5", "h6", "header", "hr", "main", "nav", "ol", "p", "pre", "section", "table", "ul"}
 
 
 def host(url: str) -> str:
@@ -46,17 +50,27 @@ class _Reader(HTMLParser):
         self._skip = 0
         self._open: dict | None = None
         self._in_title = False
+        self._stack: list[tuple[str, str, str]] = []      # open elements: (tag, "class id", role)
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
         if tag in SKIP_TAGS:
             self._skip += 1
         elif tag == "a" and a.get("href"):
-            self._open = {"href": a["href"].strip(), "rel": set((a.get("rel") or "").lower().split()), "text": ""}
+            self._open = {"href": a["href"].strip(), "rel": set((a.get("rel") or "").lower().split()), "text": "",
+                          "placement": placement.where(self._stack)}
         elif tag == "title":
             self._in_title = True
+        if tag in VOID:
+            return
+        if tag in CLOSES_P and self._stack and self._stack[-1][0] == "p":
+            self._stack.pop()
+        self._stack.append((tag, f"{a.get('class') or ''} {a.get('id') or ''}".lower(), (a.get("role") or "").lower()))
 
     def handle_endtag(self, tag):
+        open_tags = [t for t, _, _ in self._stack]
+        if tag in open_tags:                 # close it and anything the page left open inside it
+            del self._stack[len(open_tags) - 1 - open_tags[::-1].index(tag):]
         if tag in SKIP_TAGS and self._skip:
             self._skip -= 1
         elif tag == "a" and self._open:
@@ -77,7 +91,7 @@ class _Reader(HTMLParser):
 
 
 def parse(html: str, base: str) -> dict:
-    """{"title", "text", "links": [{"href" (absolute), "rel" (set), "text"}]}"""
+    """{"title", "text", "links": [{"href" (absolute), "rel" (set), "text", "placement"}]}"""
     reader = _Reader()
     try:
         reader.feed(html)

@@ -122,7 +122,7 @@ Python 3.10 及以上，只用标准库。
 
 - **vet**：每个站约 $0.01，另加每批 $0.025；`--free` 只读网站本身。
 - **audit**：约 $0.06，加 `--deep`（完整锚文本分布）约 $0.10。
-- **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。只有那三个 rel 值会拦住权重，`noopener`、`external` 不会。
+- **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。只有那三个 rel 值会拦住权重，`noopener`、`external` 不会。每条链接还会标出位置，从它外层的元素读出来：`body text`（正文）、`main area`（主区域）、`header`、`navigation`、`sidebar`、`footer`、`comments`、`author box`。传权重的链接如果只在页脚、侧边栏或导航里，会单独提示：Google 把大范围分发的页脚、模板和小部件链接列为链接垃圾的例子，编辑放在正文里的链接分量更重。
 - **log**：你的提交记录，存在本机 `state/ledger.jsonl`；一周超过五个、或同一个锚文本反复用时会提醒。
 
 ## Key
