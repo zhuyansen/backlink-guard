@@ -14,7 +14,7 @@ Three jobs, in the order a careful person does them: check the place before you 
    - `GOANYAPI_API_KEY` (https://goanyapi.com/r/ga-95708898fb): a site's rating, a year of monthly visits, whether Google still lists it, and the summary of your own backlinks.
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu): spam scores, new and lost referring domains by week, anchors.
    Without a key the page checks still run. Say which signals are missing: a site can pass the page checks and have no audience at all.
-3. Say the cost before a paid run. `vet`: about 0.01 USD a site plus 0.025 USD for the batch; `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
+3. Say the cost before a paid run. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
 
 ## 1. Before submitting: vet
 
@@ -31,6 +31,7 @@ How to act on it:
   - **Sells followed links** (`paid_follow`): the free listing may still be fine. Never pay for a followed link: a paid link must carry `rel="sponsored"` or `nofollow`.
   - **Asks for a link or badge back** (`link_exchange`): one is a choice; a habit of it is a link exchange.
   - **Visits fell sharply in a month** (`traffic_cliff`): the evidence names the Google updates that ran around then. That is context, not proof of a penalty. Say it that way.
+  - **Lost its Google search traffic** (`search_fall`, the last 12 months; `old_search_fall` is the same before that, a note): US Google traffic and ranking keywords fell together and have not come back, with the updates around then. Strong reason not to pay for a placement: Google already rates the site lower. Still context, not proof of a penalty, and US only: a site read mostly elsewhere can fall in the US and hold at home. When `traffic_cliff` fires on the same site, the two sources agree.
   - **High rating, almost no visitors** (`hollow_rating`): the rating was built with links. A listing there reaches nobody.
   - **High spam score** (`spam_score`): the site's own backlinks look manufactured.
   - **One template across several sites** (`same_template`): one operator's network. Treat them as one site at most.

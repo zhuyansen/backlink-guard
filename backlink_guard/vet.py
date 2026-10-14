@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from statistics import mean
 
-from . import UA, aisa, cache, goanyapi, page, updates
+from . import UA, aisa, cache, goanyapi, history, page, updates
 from .policy import flag, grade, ranked
 
 WORKERS = 4
@@ -449,7 +449,7 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
         recent: bool = False, deep: bool = False) -> dict:
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given."""
     today = today or date.today()
-    known = updates.ranking_updates() if paid_sources and goanyapi.key() else []
+    known = updates.ranking_updates() if paid_sources and (goanyapi.key() or aisa.key()) else []
     with ThreadPoolExecutor(WORKERS) as pool:
         rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep), targets))
     cost, errors = sum(r["cost"] for r in rows), [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
@@ -460,6 +460,10 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
             cost += spent
         except aisa.AisaError as exc:
             errors.append(f"spam score: {exc}")
+        try:
+            cost += history.check(rows, today, known, fresh)
+        except aisa.AisaError as exc:
+            errors.append(f"search history: {exc}")
     shared_templates(rows)
     for r in rows:
         score = scores.get(r["domain"])

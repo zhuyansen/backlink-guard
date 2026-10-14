@@ -39,6 +39,7 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | First seen | the Wayback Machine's first copy | archive.org | free |
 | Rating, and a rating with no readers behind it (30 or more, under 5,000 visits a month) | domain rating | GoAnyAPI | $0.002 |
 | Reach, and a fall in visits | 12 months of monthly visits; a fall within a month is shown next to the Google updates that ran around it | GoAnyAPI, Google's status feed | $0.004 |
+| Lost its Google search traffic and has not won it back, back to 2022 (a caution within the last year, a note before that) | monthly US Google traffic and ranking keywords; a fall counts when both fall and stay down two months, measured against twelve large sites read in the same call; shown next to the Google updates around it | DataForSEO through AIsa, Google's status page | $0.12 a batch plus $0.0012 a site |
 | Whether Google lists it | `site:` search, only for sites with few visitors, asked twice before it counts | GoAnyAPI, then AIsa | $0.004 to $0.01 |
 | Spam score of the site's own backlinks | DataForSEO, one call for the batch | AIsa | $0.025 a batch |
 | Sells links as its business ("PBN", "DR/DA" packages) | the page title | the site | free |
@@ -47,7 +48,7 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 
 For your own domain (`audit`): totals and how many referring domains pass ranking credit (GoAnyAPI), new and lost referring domains by week and the anchors (AIsa), and the spam score of the sites linking to you.
 
-Prices are what the calls cost on 2026-10-13. Paid answers are cached for 7 days.
+Prices are what the calls cost on 2026-10-13 and 14. Paid answers are cached for 7 days.
 
 ## Tried on 31 sites (2026-10-13)
 
@@ -111,6 +112,7 @@ What this showed:
 - **One rating meant nothing**: 81, with about 2,200 visits a month.
 - **A second test, on a paid list (2026-10-14)**: the top of a list of "backlink sources most cited by AI sites". Of its first fourteen, nine were URL shorteners or one network's "Keyword Rankings" template pages: rating 36 to 49, under 2,500 visits a month, several no longer listed by Google. The first version called most of them ok. The shortener, network and shared-template checks and the hollow-rating threshold lowered from 60 to 30 now mark all nine avoid; the 31 sites above came out the same.
 - **A third test, against Ahrefs' own SPAM mark (2026-10-14)**: 90 sites linking to one young site, 33 of them marked SPAM in Ahrefs. External data reproduces the mark up to a cross-validated AUC of about 0.75, almost all of it from how new the site is, how few sites link to it and how few people visit; more features did not raise it. So the tool does not try to copy the mark. It names the two mechanisms behind most of it: `unproven` (23 hits, 17 marked; the other 6 look no better) and `badge_network` (7 hits, 4 marked; the other 3 have the same footer-badge profile). Together they catch 21 of the 33.
+- **A fourth test, Google's own record (2026-10-14)**: had Google already cut these sites down? Monthly estimates of US Google traffic and ranking keywords since 2022, for the 90 sites and the 31 above. Two things in that data look like a fall and are not one. The database itself moves: in December 2021 seven in ten sites "fell" more than 60% in one month, the twelve large control sites with them, and in November 2024 the median fell 46% for a month. And one site's estimate can jump a hundredfold and drop back: mcpmarket.com went from 10 thousand to 3.4 million and back to 55 thousand in 2026, while Semrush showed steady growth and its ranking keywords rose the whole time. So a fall counts only when traffic and keywords fall together, held two months, measured against the controls; none of the twelve is flagged. Result: 11 of the 90 and 7 of the 31. Of the ten recent ones that visit data can check, nine lost their visits around the same month (one has bounced back since). The tenth is glama.ai: its US keywords fell from 20,535 to 432 in April 2026, Semrush shows the same fall, and its visits kept growing. It is unrelated to the Ahrefs mark: 4 of the 11 are marked, the same share as among all 90, so it carries something the mark does not. For 6 of the 11 no fall had been flagged before, and 2 of those 6 had come out ok. Across the 39 of the 90 that had 5,000 visits a month or more in July, 13 lost 40% or more of their visits in September 2026, nearly all AI tool directories; the median site kept 83%.
 - **"No page indexed in the last 30 days"**: a check passed around for paid directories. For the three it had called zombies, the same search on the same day found 9, 10 and 2 recent pages, and 4 of 14 calls timed out: a timeout read as a zero looks exactly like a zombie. Google also says `site:` counts are incomplete and new pages can take weeks. So `--recent` treats a failure as a failure, asks a zero twice, and only calls it a problem when the site's own sitemap shows new pages Google is not taking in.
 - **What it cannot see**: of the five media sites that publish contributed posts, one states a fee on its pages. Whether the others charge cannot be read from their sites. A site that sells links in private is not caught by reading it.
 
@@ -126,7 +128,7 @@ python -m backlink_guard log
 
 Python 3.10 or newer, standard library only.
 
-- **vet**: about $0.01 a site plus $0.025 for the batch; `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds the site's own backlink profile ($0.024 a site); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement.
+- **vet**: about $0.01 a site, plus about $0.16 for the batch (spam scores and search history); `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds the site's own backlink profile ($0.024 a site); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement.
 - **audit**: about $0.06, with `--deep` (full anchor distribution) about $0.10.
 - **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
 - **log**: your submissions in `state/ledger.jsonl`, with a warning past five a week or when one anchor is used over and over.
@@ -171,6 +173,7 @@ The skill walks an agent through the same order: vet, the rules, verify, audit. 
 - Links added by script are not seen by `verify`.
 - Private link sellers are invisible to it.
 - Visit and rating numbers are third-party estimates.
+- The search history is US Google only. A site whose readers are elsewhere can fall in the US and hold at home. A fall shows once two monthly readings agree, so an update that ended last week may not show yet.
 - GoAnyAPI is a young service (first released August 2026). Treat it as an enhancement.
 
 ## Thanks

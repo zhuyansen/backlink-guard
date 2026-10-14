@@ -1,6 +1,7 @@
 """No network: pages are strings, the paid sources are replaced."""
 import base64
 import io
+import json
 import re
 import urllib.error
 from datetime import date
@@ -8,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from backlink_guard import ledger, page, placement, policy, profile, updates, verify, vet
+from backlink_guard import history, ledger, page, placement, policy, profile, updates, verify, vet
 
 TODAY = date(2026, 10, 13)
 UPDATES = [{"name": "September 2026 spam update", "begin": "2026-09-24", "end": "2026-10-08"},
@@ -132,7 +133,7 @@ def test_updates_around_a_month():
 
 # ── the whole check ─────────────────────────────────────────────────────────
 
-def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None):
+def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=None):
     asked = []
     monkeypatch.setattr(vet.goanyapi, "key", lambda: "k")
     monkeypatch.setattr(vet.aisa, "key", lambda: "k")
@@ -149,8 +150,24 @@ def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None):
             return {"EstimatedMonthlyVisits": visits}, 4000
         return {"siteCount": next(answers), "organic": []}, 4000
     monkeypatch.setattr(vet.goanyapi, "call", goany)
-    monkeypatch.setattr(vet.aisa, "call", lambda tool, body: ({"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000))
+
+    def aisa_call(tool, body):
+        if tool == history.TOOL:
+            return {"items": [hist_item(t, *(search or {}).get(t, ([500] * 34,))) for t in body["targets"]]}, 130000
+        return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
+    monkeypatch.setattr(vet.aisa, "call", aisa_call)
     return asked
+
+
+def hist_item(target, etv, count=None):
+    """A DataForSEO history item, months from January 2024 on."""
+    rows = [{"year": 2024 + i // 12, "month": i % 12 + 1, "etv": e, "count": c}
+            for i, (e, c) in enumerate(zip(etv, count or [200] * len(etv)))]
+    return {"target": target, "metrics": {"organic": rows}}
+
+
+def month_keys(n):
+    return [f"{2024 + i // 12}-{i % 12 + 1:02d}" for i in range(n)]
 
 
 def test_a_site_people_visit_is_not_asked_about_its_index(monkeypatch):
@@ -180,7 +197,66 @@ def test_paid_answers_are_bought_once(monkeypatch):
     asked = paid_world(monkeypatch, months([300] * 12))
     first = vet.vet(["dir.example"], today=TODAY)
     second = vet.vet(["dir.example"], today=TODAY)
-    assert first["cost"] == 2000 + 4000 + 25000 and second["cost"] == 0 and asked == ["dr", "traffic"]
+    assert first["cost"] == 2000 + 4000 + 25000 + 130000 and second["cost"] == 0 and asked == ["dr", "traffic"]
+
+
+# ── Google search history ───────────────────────────────────────────────────
+
+FLAT = dict.fromkeys(month_keys(34), 1.0)
+
+
+def test_a_fall_that_held_and_took_the_keywords_with_it_is_flagged():
+    item = hist_item("dir.example", [1000] * 32 + [100] * 2, [500] * 32 + [50] * 2)     # falls in 2026-09
+    metrics, found = history.flags_for(history.months(item), FLAT, TODAY, UPDATES)
+    assert [f["flag"] for f in found] == ["search_fall"] and metrics["search_fall"] == "2026-09"
+    assert "1,000 search visits a month before 2026-09, 100 after; ranking keywords 500 to 50" in found[0]["evidence"]
+    assert "September 2026 spam update" in found[0]["evidence"] and "August 2026 spam update" in found[0]["evidence"]
+
+
+def test_a_spike_that_drops_back_is_not_a_fall():
+    # mcpmarket.com, 2026: 10 thousand to 3.4 million and back, keywords steady all along
+    item = hist_item("spike.example", [50] * 20 + [5000] * 6 + [60] * 8, [300] * 34)
+    assert history.falls(history.months(item), FLAT) == []
+
+
+def test_a_fall_that_came_back_is_not_a_fall():
+    item = hist_item("back.example", [1000] * 20 + [100] * 3 + [900] * 11, [500] * 20 + [50] * 3 + [450] * 11)
+    assert history.falls(history.months(item), FLAT) == []
+
+
+def test_a_shift_of_the_whole_database_is_not_a_fall():
+    rebased = [1000] * 20 + [300] * 14                                       # every site at once
+    data = {c: history.months(hist_item(c, rebased, [800] * 20 + [300] * 14)) for c in history.CONTROLS}
+    data["dir.example"] = history.months(hist_item("dir.example", rebased, [500] * 20 + [200] * 14))
+    assert history.falls(data["dir.example"], {}) != []                     # read raw, it looks like a fall
+    assert history.falls(data["dir.example"], history.index(data)) == []
+
+
+def test_an_old_fall_is_a_note_and_leaves_the_grade():
+    item = hist_item("old.example", [1000] * 5 + [100] * 29, [500] * 5 + [50] * 29)      # 2024-06
+    _, found = history.flags_for(history.months(item), FLAT, TODAY, UPDATES)
+    assert [f["flag"] for f in found] == ["old_search_fall"] and policy.grade(found) == "ok"
+
+
+def test_the_update_list_reaches_back_when_the_feed_is_short_or_down(monkeypatch):
+    def down(*a, **k):
+        raise OSError("offline")
+    monkeypatch.setattr(updates.urllib.request, "urlopen", down)
+    offline = updates.ranking_updates()
+    assert len(offline) == len(updates.EARLIER) and offline[-1]["name"] == "November 2021 spam update"
+    feed = [{"external_desc": "September 2026 spam update", "begin": "2026-09-24T16:15:00+00:00",
+             "end": "2026-10-08T08:00:00+00:00", "affected_products": [{"title": "Ranking"}]}]
+    monkeypatch.setattr(updates.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(json.dumps(feed).encode()))
+    live = updates.ranking_updates()
+    assert len(live) == len(updates.EARLIER) and live[0]["end"] == "2026-10-08"     # the feed's own end wins
+
+
+def test_vet_adds_the_search_history(monkeypatch):
+    paid_world(monkeypatch, months([300] * 12), search={"dir.example": ([1000] * 32 + [100] * 2, [500] * 32 + [50] * 2)})
+    result = vet.vet(["dir.example"], today=TODAY)
+    row = result["rows"][0]
+    assert row["grade"] == "caution" and "search_fall" in [f["flag"] for f in row["flags"]]
+    assert row["metrics"]["search_visits"] == 100 and result["cost"] == 2000 + 4000 + 25000 + 130000
 
 
 def test_without_keys_the_page_checks_still_run(monkeypatch):
