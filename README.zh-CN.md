@@ -6,6 +6,8 @@
 
 多数外链工具帮你发得更多。这个工具告诉你哪里别发、什么时候该慢下来。
 
+![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，vet 逐个检查（读页面、GoAnyAPI、AIsa），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像](docs/flow.zh.gif)
+
 ```bash
 python -m backlink_guard vet mcpservers.org turbo0.com navi.tools
 ```

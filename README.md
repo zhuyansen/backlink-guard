@@ -6,6 +6,8 @@ Find the pages your searchers already land on, check a link source **before** yo
 
 Most backlink tools help you send more. This one tells you where not to send, and when to slow down.
 
+![How backlink-guard works: find the pages your searchers land on, vet each site (its own pages, GoAnyAPI, AIsa), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then](docs/flow.en.gif)
+
 ```bash
 python -m backlink_guard vet mcpservers.org turbo0.com navi.tools
 ```
