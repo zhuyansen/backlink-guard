@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "backlink-guard"
-version = "0.3.0"
+version = "0.4.0"
 description = "Check a link source before you submit to it, verify the listing, and audit your own backlinks for link-spam patterns"
 readme = "README.md"
 requires-python = ">=3.10"

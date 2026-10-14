@@ -29,6 +29,7 @@ FLAGS = {
     "link_seller": ("avoid", "Selling links is its business: PBN, DR and DA packages, guest posts", BUYING),
     "same_template": ("caution", "Several sites in this check share one page template: likely one operator's network", AUTOMATED),
     "traffic_cliff": ("caution", "Its visits fell sharply within a month and have not come back", DIRECTORY),
+    "scaled_pages": ("caution", "Thousands of pages listed, almost none ranking: the shape of scaled, low-value content", DIRECTORY),
     "search_fall": ("caution", "It lost most of its Google search traffic in the last year and has not won it back", DIRECTORY),
     "hollow_rating": ("caution", "A high rating with almost no visitors: the rating comes from links, not readers", EXCHANGE),
     "paid_follow": ("caution", "It sells links or posts that pass ranking credit", BUYING),

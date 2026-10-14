@@ -35,13 +35,23 @@ def missing_sources(sources: dict) -> list[str]:
     return lines
 
 
+def fit_text(m: dict) -> str:
+    """Where a site stands on your topics: it ranks for one, it writes about one, or neither."""
+    f = m.get("fit")
+    if f:
+        return f"#{f['position']} for \u201c{f['keyword']}\u201d"
+    return "writes about it" if m.get("mentions") else MISSING
+
+
 def vet(result: dict) -> str:
-    lines = ["# Link sources checked", "",
-             "| Site | Verdict | Reach | Rating | Visits a month | Spam score | Why |", "|---|---|---|---|---|---|---|"]
+    topical = any("mentions" in r["metrics"] or "fit" in r["metrics"] for r in result["rows"])
+    head = "| Site | Verdict | Reach | Rating | Visits a month | Spam score |" + (" Fit |" if topical else "") + " Why |"
+    lines = ["# Link sources checked", "", head, "|---" * head.count(" |") + "|"]
     for r in result["rows"]:
         m, why = r["metrics"], "; ".join(f["meaning"] for f in r["flags"] if f["level"] != "note") or MISSING
         lines.append(f"| {r['domain']} | {MARK[r['grade']]} | {r.get('reach') or MISSING} | {num(m.get('dr'))} | "
-                     f"{num(m.get('visits'))} | {num(m.get('spam_score'))} | {why} |")
+                     f"{num(m.get('visits'))} | {num(m.get('spam_score'))} |" + (f" {fit_text(m)} |" if topical else "")
+                     + f" {why} |")
     for r in result["rows"]:
         if r["flags"]:
             lines += ["", f"**{r['domain']}**"] + flag_lines(r["flags"])
@@ -93,3 +103,30 @@ def ledger(rows: list[dict], flags: list[dict]) -> str:
     lines += [f"| {r['date']} | {r['target']} | {r['kind']} | {r.get('anchor') or MISSING} | "
               f"{('$%g' % r['paid']) if r.get('paid') else MISSING} | {r['status']} |" for r in rows]
     return "\n".join(lines + ([""] + flag_lines(flags) if flags else []))
+
+
+def find(result: dict, vetted: dict | None = None) -> str:
+    """The pages that get your searches, busiest first, with what can be done on each."""
+    vetted = vetted or {}
+    lines = ["# Pages that get the searches you want", "", "| Keyword | Searches a month (US) | Difficulty |", "|---|---|---|"]
+    lines += [f"| {k} | {num(v.get('volume'))} | {num(v.get('kd'))} |" for k, v in result["keywords"].items()]
+    sources = [p for p in result["pages"] if p["kind"] not in ("docs", "site")]
+    others = [p for p in result["pages"] if p["kind"] in ("docs", "site")]
+    head = "| Page | Kind | Ranks | Visitors from these searches |" + (" Verdict |" if vetted else "") + " What to do |"
+    lines += ["", head, "|---" * head.count(" |") + "|"]
+    for p in sources:
+        ranks = "; ".join(f"#{x['position']} {x['keyword']}" for x in p["ranks"])
+        verdict = vetted.get(p["domain"])
+        lines.append(f"| [{p['title'] or p['domain']}]({p['url']}) | {p['kind']} | {ranks} | about {p['visitors']:,} |"
+                     + (f" {MARK[verdict] if verdict else MISSING} |" if vetted else "") + f" {p['action']} |")
+    if others:
+        lines += ["", "Not link sources (official docs, products' own pages): "
+                  + ", ".join(f"{p['domain']} (#{min(x['position'] for x in p['ranks'])})" for p in others[:12])]
+    notes = [f"- Failed: {e}" for e in result["errors"]]
+    if notes:
+        lines += ["", "**Incomplete**", *notes]
+    lines += ["", "Visitors = monthly searches times the share of clicks that position usually gets: a size, not a count. "
+              "A page on a shared platform (GitHub, Medium, YouTube, Reddit) is judged by the page and its author, "
+              "not by the platform's numbers. Never pay for a followed link: a paid mention carries rel=\"sponsored\" or nofollow.",
+              f"Cost of this run: {usd(result['cost'])}."]
+    return "\n".join(lines)

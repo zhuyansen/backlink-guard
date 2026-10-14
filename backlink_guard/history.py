@@ -34,6 +34,8 @@ KEPT = 0.4                      # traffic left, two months running
 KEPT_KEYWORDS = 0.6             # ranking keywords left: traffic alone falling is the misread-keyword case
 RECOVERED = 0.5                 # back above half the level before: not a fall any more
 RECENT_MONTHS = 12              # a fall this recent is a caution; an older one is a note
+SCALED_PAGES = 1000             # pages a site's sitemaps list before the ratio below means anything
+SCALED_RATIO = 1000             # pages listed for each keyword the site ranks for on US Google
 
 
 def months(item: dict) -> dict:
@@ -110,12 +112,27 @@ def flags_for(monthly: dict, level: dict, today: date, known: list[dict]) -> tup
     return metrics, [flag("search_fall" if age <= RECENT_MONTHS else "old_search_fall", text)]
 
 
+def scaled(pages: int | None, words: int | None, lang: str | None) -> list[dict]:
+    """Thousands of pages listed and almost none ranking: on 90 Ahrefs-labelled sites, 10 of the 14 with
+    1,000 or more pages per ranking keyword were marked spam (2026-10-14). US rankings say little about a
+    site written in another language, so those are left alone."""
+    if not pages or pages < SCALED_PAGES or words is None or (lang and not lang.startswith("en")):
+        return []
+    per = pages / max(words, 1)
+    if per < SCALED_RATIO:
+        return []
+    return [flag("scaled_pages", f"its sitemaps list {pages:,} or more pages; it ranks for {words:,} keywords on US Google "
+                                 f"(DataForSEO), about {round(per):,} pages for each")]
+
+
 def check(rows: list[dict], today: date, known: list[dict], fresh: bool) -> int:
     """Adds each row's search history to its metrics and flags; returns the cost."""
     data, cost = series(sorted({r["domain"] for r in rows}), fresh)
     level = index(data)
     for r in rows:
-        metrics, found = flags_for(data.get(r["domain"]) or {}, level, today, known)
+        monthly = data.get(r["domain"]) or {}
+        metrics, found = flags_for(monthly, level, today, known)
+        metrics["ranking_keywords"] = monthly[max(monthly)][1] if monthly else None
         r["metrics"].update(metrics)
-        r["flags"] += found
+        r["flags"] += found + scaled(r["metrics"].get("pages_listed"), metrics["ranking_keywords"], r["metrics"].get("lang"))
     return cost

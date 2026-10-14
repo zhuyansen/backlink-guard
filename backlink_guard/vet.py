@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from statistics import mean
 
-from . import UA, aisa, cache, goanyapi, history, page, updates
+from . import UA, aisa, cache, find, goanyapi, history, page, updates
 from .policy import flag, grade, ranked
 
 WORKERS = 4
@@ -44,6 +44,8 @@ WAYBACK_TIMEOUT = 25
 RECENT_DAYS = 30
 ACTIVE_MIN = 5                  # pages a sitemap must show as changed before "Google takes none" means anything
 SITEMAPS = 6                    # sitemap files read at most
+LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>")
+LANG = re.compile(r"<html[^>]*\blang=[\"']?([A-Za-z-]+)", re.I)
 SPAM_TOOL = "post_dataforseo_backlinks_bulk_spam_score_live"
 SUMMARY_TOOL = "post_dataforseo_backlinks_summary_live"
 TEMPLATE_PLACES = ("footer", "nav", "header", "aside")
@@ -270,6 +272,30 @@ def site_activity(domain: str, today: date) -> int | None:
     return sum(1 for d in stamps if d >= since)
 
 
+def pages_listed(domain: str) -> int | None:
+    """About how many pages the site's own sitemaps list: the sitemaps in robots.txt, an index followed
+    one level down; past SITEMAPS child files, the average of those read stands in for the rest.
+    Free, kept 7 days; None when there is no readable sitemap."""
+    held = cache.get(f"sitemap:pages:{domain}")
+    if held is not None:
+        return held or None
+    robots = page.fetch(f"https://{domain}/robots.txt")
+    roots = re.findall(r"(?im)^\s*sitemap:\s*(\S+)", robots["html"]) or [f"https://{domain}/sitemap.xml"]
+    total = 0
+    for root in roots[:3]:
+        got = page.fetch(root)
+        if got["dead"] or got["blocked"]:
+            continue
+        locs = LOC.findall(got["html"])
+        if "<sitemapindex" not in got["html"]:
+            total += len(locs)
+            continue
+        counts = [len(LOC.findall(page.fetch(u)["html"])) for u in locs[:SITEMAPS]]
+        total += round(sum(counts) + (len(locs) - len(counts)) * sum(counts) / len(counts)) if counts else 0
+    cache.put(f"sitemap:pages:{domain}", total)
+    return total or None
+
+
 def recent_flags(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict], int, list[str]]:
     """Whether Google is taking in the site's new pages: the friend-of-a-friend check "no page indexed
     in the last week means a paid post there will not be either", made safer. Google's own words: a
@@ -390,15 +416,28 @@ def spam_scores(domains: list[str], fresh: bool) -> tuple[dict[str, int], int]:
     return scores, cost
 
 
+def mentions(read: dict, topics: list[str]) -> bool:
+    """Whether the pages read carry every word of one of your topics."""
+    text = " ".join(read["texts"]).lower()
+    stem = lambda w: w[:-1] if len(w) > 3 and w.endswith("s") else w  # noqa: E731 — "skills" also finds "skill"
+    return any(all(stem(w) in text for w in t.lower().split()) for t in topics)
+
+
 def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh: bool, recent: bool = False,
-            deep: bool = False) -> dict:
+            deep: bool = False, topics: tuple[str, ...] = ()) -> dict:
     t = target(raw)
     read = read_site(t["url"])
     flags, metrics, cost, errors = page_flags(read), outbound(read), 0, []
+    if topics:
+        metrics["mentions"] = mentions(read, list(topics))
     seen = first_seen(t["domain"])
     metrics["first_seen"] = seen
     if seen and (today - datetime.strptime(seen, "%Y-%m-%d").date()).days < YOUNG_DAYS:
         flags.append(flag("young", f"first archived {seen}"))
+    lang = LANG.search(read["home"].get("html") or "")
+    metrics["lang"] = lang.group(1).lower() if lang else None
+    if paid_sources and aisa.key():
+        metrics["pages_listed"] = pages_listed(t["domain"])   # weighed against its rankings in history.check
     if paid_sources and goanyapi.key():
         more, found, cost, errors = market(t["domain"], known, fresh)
         metrics.update(more)
@@ -446,12 +485,12 @@ def shared_templates(rows: list[dict]) -> None:
 
 
 def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False,
-        recent: bool = False, deep: bool = False) -> dict:
+        recent: bool = False, deep: bool = False, topics: tuple[str, ...] = ()) -> dict:
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given."""
     today = today or date.today()
     known = updates.ranking_updates() if paid_sources and (goanyapi.key() or aisa.key()) else []
     with ThreadPoolExecutor(WORKERS) as pool:
-        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep), targets))
+        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics), targets))
     cost, errors = sum(r["cost"] for r in rows), [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
     scores = {}
     if paid_sources and aisa.key():
@@ -464,6 +503,11 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
             cost += history.check(rows, today, known, fresh)
         except aisa.AisaError as exc:
             errors.append(f"search history: {exc}")
+        if topics:
+            try:
+                cost += find.fit(rows, list(topics), fresh)
+            except aisa.AisaError as exc:
+                errors.append(f"fit: {exc}")
     shared_templates(rows)
     for r in rows:
         score = scores.get(r["domain"])

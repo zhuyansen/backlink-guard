@@ -1,15 +1,20 @@
 """backlink-guard: check a link source before you submit to it, and watch your own links.
 
-  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--deep] [--recent] [--free] [--fresh] [--json]
+  python -m backlink_guard find "<keyword>" [more ...] [--site yoursite.com] [--skip site|file] [--vet] [--limit 30] [--fresh] [--json]
+  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--topic "keyword"] [--deep] [--recent] [--free] [--fresh] [--json]
   python -m backlink_guard audit <your-domain> [--deep] [--fresh] [--json]
   python -m backlink_guard verify <page-url> --to <your-domain> [--json]
   python -m backlink_guard log                                  the record, with pace and anchor checks
   python -m backlink_guard log add <site> --kind directory [--anchor TEXT] [--paid USD] [--url URL] [--note TEXT]
   python -m backlink_guard log set <site> --status live [--url URL]
 
+find    the pages that rank for your keywords (directories, lists, articles, videos,
+        threads), sorted by the visitors they get from those searches, with what can be done
+        on each: $0.005 a keyword plus $0.012 for the search volumes. --vet then vets the sites.
 vet     reads each site, and with keys asks for its rating, a year of visits and its
         spam score: about $0.01 a site plus $0.025 for the batch. --free reads the site only.
         --from reads the sites out of a list file; --limit caps how many are checked.
+        --topic adds where each site ranks for your keyword ($0.005 a keyword).
 audit   your own profile: totals, new and lost referring domains by week, anchors, and
         the spam score of the sites linking to you: about $0.06, with --deep about $0.10.
 verify  whether a page links to you and whether that link passes ranking credit. Free.
@@ -26,6 +31,7 @@ import sys
 
 from pathlib import Path
 
+from . import find as finding
 from . import ledger, lists, page, profile, report
 from . import verify as verification
 from . import vet as vetting
@@ -38,9 +44,27 @@ def _print(args, data, text: str) -> int:
     return 0
 
 
+def skipped(args) -> set[str]:
+    return {page.site(x) for s in args.skip for x in (lists.read(s) if Path(s).is_file() else [s])}
+
+
+def cmd_find(args) -> int:
+    result = finding.find(args.keywords, own=args.site or "", skip=tuple(skipped(args)), fresh=args.fresh)
+    vetted = {}
+    if args.vet:
+        sites = finding.to_vet(result, args.limit)
+        checked = vetting.vet(sites, fresh=args.fresh, topics=tuple(args.keywords)) if sites else {"rows": [], "cost": 0, "errors": []}
+        result["vet"], result["cost"] = checked, result["cost"] + checked["cost"]
+        vetted = {r["domain"]: r["grade"] for r in checked["rows"]}
+    text = report.find(result, vetted)
+    if args.vet and result["vet"]["rows"]:
+        text += "\n\n" + report.vet(result["vet"])
+    return _print(args, result, text)
+
+
 def targets_of(args) -> list[str]:
     """The sites given and the sites in --from, once each, at most --limit of them."""
-    skip = {page.site(x) for s in args.skip for x in (lists.read(s) if Path(s).is_file() else [s])}
+    skip = skipped(args)
     found = [t for t in dict.fromkeys(args.targets + (lists.read(args.from_file) if args.from_file else []))
              if page.site(t) not in skip]
     if not found:
@@ -69,6 +93,13 @@ def parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--json", action="store_true")
     common.add_argument("--fresh", action="store_true", help="ignore answers cached in the last 7 days")
+    f = sub.add_parser("find", parents=[common])
+    f.add_argument("keywords", nargs="+", metavar="KEYWORD")
+    f.add_argument("--site", metavar="DOMAIN", help="your own site, left out of the results")
+    f.add_argument("--skip", action="append", default=[], metavar="SITE_OR_FILE",
+                   help="leave out these sites (competitors, ones you already have); repeatable, or a list file")
+    f.add_argument("--vet", action="store_true", help="also vet the directories and article sites found (about $0.01 a site)")
+    f.add_argument("--limit", type=int, default=LIMIT, help=f"vet at most this many sites (default {LIMIT})")
     v = sub.add_parser("vet", parents=[common])
     v.add_argument("targets", nargs="*")
     v.add_argument("--from", dest="from_file", metavar="FILE", help="a list to read sites from (.txt .md .csv .json .xlsx)")
@@ -78,6 +109,8 @@ def parser() -> argparse.ArgumentParser:
     v.add_argument("--free", action="store_true", help="read the sites only; call no paid API")
     v.add_argument("--deep", action="store_true",
                    help="also read each site's own backlink profile: badge networks, unproven sites (+$0.024 a site)")
+    v.add_argument("--topic", action="append", default=[], metavar="KEYWORD",
+                   help="your keyword: shows where each site ranks for it (+$0.005 a keyword); repeatable")
     v.add_argument("--recent", action="store_true",
                    help="also ask whether Google took in the site's pages from the last week and month (+$0.008 a site, slow)")
     a = sub.add_parser("audit", parents=[common])
@@ -101,8 +134,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.command == "vet":
         targets = targets_of(args)
-        result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh, recent=args.recent, deep=args.deep)
+        result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh, recent=args.recent, deep=args.deep,
+                             topics=tuple(args.topic))
         return _print(args, result, report.vet(result))
+    if args.command == "find":
+        return cmd_find(args)
     if args.command == "audit":
         result = profile.audit(args.domain, deep=args.deep, fresh=args.fresh)
         return _print(args, result, report.audit(result))

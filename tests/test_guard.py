@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from backlink_guard import history, ledger, page, placement, policy, profile, updates, verify, vet
+from backlink_guard import find, history, ledger, page, placement, policy, profile, report, updates, verify, vet
 
 TODAY = date(2026, 10, 13)
 UPDATES = [{"name": "September 2026 spam update", "begin": "2026-09-24", "end": "2026-10-08"},
@@ -133,12 +133,13 @@ def test_updates_around_a_month():
 
 # ── the whole check ─────────────────────────────────────────────────────────
 
-def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=None):
+def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=None, serp=None, pages=None):
     asked = []
     monkeypatch.setattr(vet.goanyapi, "key", lambda: "k")
     monkeypatch.setattr(vet.aisa, "key", lambda: "k")
     monkeypatch.setattr(vet, "read_site", lambda url: page_read or read_of("A directory."))
     monkeypatch.setattr(vet, "first_seen", lambda d: "2020-01-01")
+    monkeypatch.setattr(vet, "pages_listed", lambda d: (pages or {}).get(d))
     monkeypatch.setattr(vet.updates, "ranking_updates", lambda: UPDATES)
     answers = iter(index)
 
@@ -152,6 +153,12 @@ def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=N
     monkeypatch.setattr(vet.goanyapi, "call", goany)
 
     def aisa_call(tool, body):
+        if tool == find.SERP_TOOL:
+            return {"items": [{"type": "organic", "url": u, "title": t, "rank_absolute": n}
+                              for u, t, n in (serp or {}).get(body["keyword"], [])]}, 5000
+        if tool == find.VOLUME_TOOL:
+            return {"items": [{"keyword": k, "keyword_info": {"search_volume": 1000}, "keyword_properties": {"keyword_difficulty": 20}}
+                              for k in body["keywords"]]}, 12000
         if tool == history.TOOL:
             return {"items": [hist_item(t, *(search or {}).get(t, ([500] * 34,))) for t in body["targets"]]}, 130000
         return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
@@ -537,3 +544,82 @@ def test_link_sellers_and_badge_requirements_read_from_the_page():
     assert vet.EXCHANGE.search("Start with Free Listing if you are happy to add a Navai backlink first.")
     assert not vet.EXCHANGE.search("PRO Member Extra Features Display a PRO badge next to your username")       # v2ex
     assert not vet.page_flags(titled("Discover Startup Launches from all over the web, Everyday - StartupTile"))
+
+
+# ── where your searches land (find) ─────────────────────────────────────────
+
+SERP = {"claude skills": [
+    ("https://platform.claude.com/docs/en/agent-skills/overview", "Agent Skills - Claude Platform Docs", 1),
+    ("https://github.com/someone/awesome-claude-skills", "awesome-claude-skills: a curated list", 2),
+    ("https://agentskillshub.top/best/claude-skills/", "Claude skills, reviewed", 3),
+    ("https://skilldir.example/", "Skill Directory - every Claude skill", 4),
+    ("https://blog.example/posts/the-10-claude-skills/", "The 10 Claude Skills I Use", 5),
+    ("https://writer.example/what-is-a-claude-skill", "What Is a Claude Skill?", 12),
+    ("https://www.youtube.com/watch?v=x", "Claude Skills tutorial", 14),
+    ("https://acme.example/", "Acme - build skills for Claude", 25)]}
+
+
+def test_kinds_of_pages():
+    assert [find.kind_of(u, t) for u, t, _ in SERP["claude skills"]] == [
+        "docs", "list", "list", "directory", "list", "article", "video", "site"]
+    assert find.kind_of("https://www.reddit.com/r/ClaudeAI/comments/1/x/", "What are skills?") == "community"
+    assert find.kind_of("https://skillsllm.com/skill/education-skills", "education-skills") == "directory"
+    assert find.kind_of("https://github.com/onewave/claude-skills", "200+ skills") == "repo"
+    assert find.kind_of("https://www.mdskills.ai/skills/game-studios", "Game Studios — 36 Skills") == "directory"
+    assert find.kind_of("https://www.claudefluent.com/skills", "Skills Explorer") == "directory"
+    assert find.kind_of("https://www.firecrawl.dev/blog/best-claude-code-skills", "14 Best Claude Code Skills") == "list"
+    assert find.kind_of("https://github.com/topics/agent-skills", "agent-skills · GitHub Topics") == "directory"
+
+
+def test_find_sorts_by_visitors_and_leaves_out_your_site(monkeypatch):
+    paid_world(monkeypatch, months([300] * 12), serp=SERP)
+    result = find.find(["claude skills"], own="agentskillshub.top")
+    urls = [p["url"] for p in result["pages"]]
+    assert not any("agentskillshub.top" in u for u in urls)
+    assert urls[0] == "https://github.com/someone/awesome-claude-skills" and result["pages"][0]["visitors"] == 158
+    assert [p["kind"] for p in result["pages"]][-2:] == ["docs", "site"]          # not sources: last
+    assert result["cost"] == 5000 + 12000 and result["keywords"]["claude skills"]["volume"] == 1000
+    assert find.to_vet(result, 10) == ["skilldir.example", "blog.example", "writer.example"]   # platforms left out
+    text = report.find(result)
+    assert "| about 158 |" in text and "Not link sources" in text and "rel=\"sponsored\"" in text
+
+
+def test_vet_shows_where_a_site_ranks_for_your_topic(monkeypatch):
+    paid_world(monkeypatch, months([300] * 12), serp=SERP, page_read=read_of("Every Claude skill, sorted."))
+    result = vet.vet(["skilldir.example", "other.example"], today=TODAY, topics=("claude skills",))
+    fit = {r["domain"]: r["metrics"].get("fit") for r in result["rows"]}
+    assert fit["skilldir.example"]["position"] == 4 and fit["other.example"] is None
+    assert all(r["metrics"]["mentions"] for r in result["rows"])        # both pages carry "claude" and "skills"
+    text = report.vet(result)
+    assert "| Fit |" in text and "#4 for \u201cclaude skills\u201d" in text and "writes about it" in text
+
+
+# ── many pages, no rankings (scaled_pages) ───────────────────────────────────
+
+def test_pages_listed_reads_the_index_and_extrapolates(monkeypatch):
+    def fetch(url):
+        if url.endswith("robots.txt"):
+            body = "Sitemap: https://farm.example/sitemap_index.xml"
+        elif url.endswith("sitemap_index.xml"):
+            body = "<sitemapindex>" + "".join(f"<sitemap><loc>https://farm.example/s{i}.xml</loc></sitemap>" for i in range(10)) + "</sitemapindex>"
+        else:
+            body = "<urlset>" + "<url><loc>https://farm.example/p</loc></url>" * 500 + "</urlset>"
+        return {"html": body, "dead": False, "blocked": False}
+    monkeypatch.setattr(vet.page, "fetch", fetch)
+    assert vet.pages_listed("farm.example") == 5000          # six files read, four more at their average
+    monkeypatch.setattr(vet.page, "fetch", lambda url: (_ for _ in ()).throw(AssertionError("read twice")))
+    assert vet.pages_listed("farm.example") == 5000          # kept for a week
+
+
+def test_thousands_of_pages_and_no_rankings_is_flagged_in_english_only():
+    assert [f["flag"] for f in history.scaled(105021, 2, "en-us")] == ["scaled_pages"]
+    assert history.scaled(105021, 2, "it") == []               # Italian site: US rankings say little
+    assert history.scaled(800, 0, None) == [] and history.scaled(146670, 219, None) == []   # too few pages; 670 a keyword
+    assert "about 52,510 pages for each" in history.scaled(105021, 2, None)[0]["evidence"]
+
+
+def test_vet_weighs_pages_against_rankings(monkeypatch):
+    paid_world(monkeypatch, months([300] * 12), pages={"farm.example": 43680},
+               search={"farm.example": ([0] * 34, [0] * 34)})
+    row = vet.vet(["farm.example"], today=TODAY)["rows"][0]
+    assert "scaled_pages" in [f["flag"] for f in row["flags"]] and row["metrics"]["ranking_keywords"] == 0
