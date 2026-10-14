@@ -14,7 +14,7 @@ Three jobs, in the order a careful person does them: check the place before you 
    - `GOANYAPI_API_KEY` (https://goanyapi.com/r/ga-95708898fb): a site's rating, a year of monthly visits, whether Google still lists it, and the summary of your own backlinks.
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu): spam scores, new and lost referring domains by week, anchors.
    Without a key the page checks still run. Say which signals are missing: a site can pass the page checks and have no audience at all.
-3. Say the cost before a paid run. `vet`: about 0.01 USD a site plus 0.025 USD for the batch. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
+3. Say the cost before a paid run. `vet`: about 0.01 USD a site plus 0.025 USD for the batch; `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
 
 ## 1. Before submitting: vet
 
@@ -26,7 +26,7 @@ One call for all the sites the user is considering. When they come as a list (a 
 
 How to act on it:
 
-- `avoid` (dead, parked, not listed by Google, a URL shortener, a link network's template page, or linking out to gambling and similar sites): do not submit. Lists of "the backlink sources other sites use" are full of these: they are there because people submit to them in bulk.
+- `avoid` (dead, parked, not listed by Google, a URL shortener, a link network's template page, a link seller, or linking out to gambling and similar sites): do not submit. Lists of "the backlink sources other sites use" are full of these: they are there because people submit to them in bulk.
 - `caution`: read the evidence aloud to the user and let them decide.
   - **Sells followed links** (`paid_follow`): the free listing may still be fine. Never pay for a followed link: a paid link must carry `rel="sponsored"` or `nofollow`.
   - **Asks for a link or badge back** (`link_exchange`): one is a choice; a habit of it is a link exchange.
@@ -34,6 +34,9 @@ How to act on it:
   - **High rating, almost no visitors** (`hollow_rating`): the rating was built with links. A listing there reaches nobody.
   - **High spam score** (`spam_score`): the site's own backlinks look manufactured.
   - **One template across several sites** (`same_template`): one operator's network. Treat them as one site at most.
+  - **Badge network** (`badge_network`, with `--deep`): its rating comes from the badges every listed site must show. A listing there is a link exchange; never pay for it.
+  - **Unproven** (`unproven`, with `--deep`): new, almost nobody links to it, almost nobody visits. Ahrefs marks most such sites spam. Free to submit if it costs nothing; never pay.
+  - **Not indexing** (`not_indexing`, with `--recent`): it keeps adding pages and Google shows none from the last 30 days. Say that `site:` counts are incomplete, and suggest checking again in a week before paying. `inactive` only means no new pages; it is not a fault. A failed search is reported as failed, never as zero.
 - `ok` with `reach: low`: harmless and useless. Skip it unless it costs nothing.
 - A `blocked` note means the site refused the check: the page signals are missing, not clean.
 

@@ -1,6 +1,6 @@
 """backlink-guard: check a link source before you submit to it, and watch your own links.
 
-  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--free] [--fresh] [--json]
+  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--deep] [--recent] [--free] [--fresh] [--json]
   python -m backlink_guard audit <your-domain> [--deep] [--fresh] [--json]
   python -m backlink_guard verify <page-url> --to <your-domain> [--json]
   python -m backlink_guard log                                  the record, with pace and anchor checks
@@ -76,6 +76,10 @@ def parser() -> argparse.ArgumentParser:
     v.add_argument("--skip", action="append", default=[], metavar="SITE_OR_FILE",
                    help="leave out these sites (your own, competitors, ones you already have); repeatable, or a list file")
     v.add_argument("--free", action="store_true", help="read the sites only; call no paid API")
+    v.add_argument("--deep", action="store_true",
+                   help="also read each site's own backlink profile: badge networks, unproven sites (+$0.024 a site)")
+    v.add_argument("--recent", action="store_true",
+                   help="also ask whether Google took in the site's pages from the last week and month (+$0.008 a site, slow)")
     a = sub.add_parser("audit", parents=[common])
     a.add_argument("domain")
     a.add_argument("--deep", action="store_true", help="also the full anchor distribution")
@@ -97,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.command == "vet":
         targets = targets_of(args)
-        result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh)
+        result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh, recent=args.recent, deep=args.deep)
         return _print(args, result, report.vet(result))
     if args.command == "audit":
         result = profile.audit(args.domain, deep=args.deep, fresh=args.fresh)

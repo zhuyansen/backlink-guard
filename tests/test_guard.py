@@ -375,3 +375,89 @@ def test_targets_skip_and_limit(tmp_path, capsys):
     args = argparse.Namespace(targets=["saashub.com"], from_file=str(listed), skip=["apiflux.ai", "openrouter.ai", str(have)], limit=2)
     assert cli.targets_of(args) == ["saashub.com", "robuta.com"]
     assert "3 sites found; checking the first 2" in capsys.readouterr().err      # saashub, robuta, toolidx
+
+
+# ── recent indexing (10-14: a "no page indexed in 30 days" verdict that did not reproduce) ──
+
+def test_a_failed_search_is_not_a_zero(monkeypatch):
+    monkeypatch.setattr(vet.goanyapi, "call", lambda path, **p: (_ for _ in ()).throw(vet.goanyapi.GoAnyError("timed out")))
+    metrics, flags, cost, errors = vet.recent_flags("dir.example", TODAY, False)
+    assert flags == [] and "indexed_month" not in metrics and len(errors) == 2
+
+
+def test_no_recent_pages_needs_two_zeros_and_an_active_sitemap(monkeypatch):
+    answers = {"w": iter([0, 0]), "m": iter([0, 0])}
+    monkeypatch.setattr(vet.goanyapi, "call", lambda path, site, qdr: ({"siteCount": next(answers[qdr]), "organic": []}, 4000))
+    monkeypatch.setattr(vet, "site_activity", lambda domain, today: 120)
+    metrics, flags, cost, _ = vet.recent_flags("dir.example", TODAY, False)
+    assert [f["flag"] for f in flags] == ["not_indexing"] and "120 pages" in flags[0]["evidence"] and cost == 16000
+
+    answers = {"w": iter([0, 0]), "m": iter([0, 0])}
+    monkeypatch.setattr(vet, "site_activity", lambda domain, today: 0)
+    _, quiet, _, _ = vet.recent_flags("quiet.example", TODAY, True)
+    assert [f["flag"] for f in quiet] == ["inactive"] and policy.grade(quiet) == "ok"
+
+
+def test_a_second_look_can_find_pages(monkeypatch):
+    answers = {"w": iter([0, 9]), "m": iter([25])}
+
+    def search(path, site, qdr):
+        n = next(answers[qdr])
+        return {"siteCount": n, "organic": [{"extensions": [{"text": "20 hours ago"}]}] if n else []}, 4000
+    monkeypatch.setattr(vet.goanyapi, "call", search)
+    metrics, flags, _, _ = vet.recent_flags("findly.example", TODAY, True)
+    assert flags == [] and metrics["indexed_week"] == 9 and metrics["indexed_month"] == 25 and metrics["newest_indexed"] == "20 hours ago"
+
+
+def test_sitemap_activity_counts_recent_lastmod(monkeypatch):
+    pages = {"https://s.example/robots.txt": "User-agent: *\nSitemap: https://s.example/index.xml\n",
+             "https://s.example/index.xml": "<sitemapindex><sitemap><loc>https://s.example/a.xml</loc></sitemap></sitemapindex>",
+             "https://s.example/a.xml": "<urlset><url><lastmod>2026-10-10</lastmod></url><url><lastmod>2026-09-20</lastmod></url>"
+                                         "<url><lastmod>2026-08-01</lastmod></url></urlset>"}
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": pages.get(url, ""),
+                                                    "error": "", "blocked": False, "dead": url not in pages})
+    assert vet.site_activity("s.example", TODAY) == 2
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 404, "html": "", "error": "HTTP 404", "blocked": False, "dead": True})
+    assert vet.site_activity("none.example", TODAY) is None
+
+
+# ── badge networks, unproven sites, link sellers (10-14: Ahrefs' SPAM mark on 90 referring domains) ──
+
+def test_badge_network_and_unproven_from_the_link_profile():
+    badge = {"referring_domains": 200, "links_per_domain": 630.0, "template_link_share": 0.76,
+             "nofollow_domain_share": 0.08, "indexed_since": "2025-07-29"}
+    assert [f["flag"] for f in vet.profile_flags(badge, TODAY)] == ["badge_network"]
+    editorial = {**badge, "links_per_domain": 9.5, "template_link_share": 0.03}          # links in articles, a few each
+    assert vet.profile_flags(editorial, TODAY) == []
+    new = {"referring_domains": 12, "links_per_domain": 1.4, "template_link_share": 0.0,
+           "nofollow_domain_share": 0.1, "indexed_since": "2026-05-01"}
+    assert [f["flag"] for f in vet.profile_flags(new, TODAY)] == ["unproven"]
+    old_small = {**new, "indexed_since": "2019-01-01"}
+    assert vet.profile_flags(old_small, TODAY) == []
+
+
+def test_deep_reads_the_profile_and_spares_a_site_people_visit(monkeypatch):
+    paid_world(monkeypatch, months([300] * 12))
+    summary = {"referring_domains": 12, "backlinks": 20, "referring_domains_nofollow": 1, "first_seen": "2026-05-01 00:00:00 +00:00",
+               "referring_links_semantic_locations": {"main": 10}}
+    calls = []
+    def router(tool, body):
+        calls.append(tool)
+        if tool == vet.SUMMARY_TOOL:
+            return summary, 24000
+        return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
+    monkeypatch.setattr(vet.aisa, "call", router)
+    busy = vet.vet(["dir.example"], today=TODAY, deep=True)["rows"][0]
+    assert vet.SUMMARY_TOOL in calls and "unproven" not in [f["flag"] for f in busy["flags"]]     # 300K visits a month
+    paid_world(monkeypatch, months([0.1] * 12))
+    monkeypatch.setattr(vet.aisa, "call", router)
+    quiet = vet.vet(["quiet.example"], today=TODAY, deep=True, fresh=True)["rows"][0]
+    assert "unproven" in [f["flag"] for f in quiet["flags"]] and quiet["metrics"]["referring_domains"] == 12
+
+
+def test_link_sellers_and_badge_requirements_read_from_the_page():
+    assert [f["flag"] for f in vet.page_flags(titled("LinkBuildSEO.com — Premium DR, DA, TF, PBN & Guest Posts"))] == ["link_seller"]
+    assert vet.EXCHANGE.search("Mandatory Badge: You must place our badge on your site permanently")
+    assert vet.EXCHANGE.search("Start with Free Listing if you are happy to add a Navai backlink first.")
+    assert not vet.EXCHANGE.search("PRO Member Extra Features Display a PRO badge next to your username")       # v2ex
+    assert not vet.page_flags(titled("Discover Startup Launches from all over the web, Everyday - StartupTile"))

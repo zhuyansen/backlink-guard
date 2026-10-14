@@ -41,6 +41,9 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | Reach, and a fall in visits | 12 months of monthly visits; a fall within a month is shown next to the Google updates that ran around it | GoAnyAPI, Google's status feed | $0.004 |
 | Whether Google lists it | `site:` search, only for sites with few visitors, asked twice before it counts | GoAnyAPI, then AIsa | $0.004 to $0.01 |
 | Spam score of the site's own backlinks | DataForSEO, one call for the batch | AIsa | $0.025 a batch |
+| Sells links as its business ("PBN", "DR/DA" packages) | the page title | the site | free |
+| `--deep`: a badge network (hundreds of links from each listed site, most in footers, nearly all followed), or an unproven site (under a year old, under 100 linking sites, under 1,000 visits) | DataForSEO backlink summary | AIsa | $0.024 a site |
+| `--recent`: whether Google takes in the pages it keeps adding | `site:` search for the last week and month, each zero asked twice, checked against the site's own sitemap | GoAnyAPI | $0.008 a site |
 
 For your own domain (`audit`): totals and how many referring domains pass ranking credit (GoAnyAPI), new and lost referring domains by week and the anchors (AIsa), and the spam score of the sites linking to you.
 
@@ -107,12 +110,14 @@ What this showed:
 - **Ten sites lost 46% to 80% of their visits within one month**, in August or September 2026 (the check looks at the last three months), the months of two spam updates. None of the ten well-known sites did: their September was between 74% and 181% of their August. Two cautions. It is a coincidence in time, shown as such. And seven of the ten falls are in the newest month of the data, which estimates like these sometimes revise.
 - **One rating meant nothing**: 81, with about 2,200 visits a month.
 - **A second test, on a paid list (2026-10-14)**: the top of a list of "backlink sources most cited by AI sites". Of its first fourteen, nine were URL shorteners or one network's "Keyword Rankings" template pages: rating 36 to 49, under 2,500 visits a month, several no longer listed by Google. The first version called most of them ok. The shortener, network and shared-template checks and the hollow-rating threshold lowered from 60 to 30 now mark all nine avoid; the 31 sites above came out the same.
+- **A third test, against Ahrefs' own SPAM mark (2026-10-14)**: 90 sites linking to one young site, 33 of them marked SPAM in Ahrefs. External data reproduces the mark up to a cross-validated AUC of about 0.75, almost all of it from how new the site is, how few sites link to it and how few people visit; more features did not raise it. So the tool does not try to copy the mark. It names the two mechanisms behind most of it: `unproven` (23 hits, 17 marked; the other 6 look no better) and `badge_network` (7 hits, 4 marked; the other 3 have the same footer-badge profile). Together they catch 21 of the 33.
+- **"No page indexed in the last 30 days"**: a check passed around for paid directories. For the three it had called zombies, the same search on the same day found 9, 10 and 2 recent pages, and 4 of 14 calls timed out: a timeout read as a zero looks exactly like a zombie. Google also says `site:` counts are incomplete and new pages can take weeks. So `--recent` treats a failure as a failure, asks a zero twice, and only calls it a problem when the site's own sitemap shows new pages Google is not taking in.
 - **What it cannot see**: of the five media sites that publish contributed posts, one states a fee on its pages. Whether the others charge cannot be read from their sites. A site that sells links in private is not caught by reading it.
 
 ## Commands
 
 ```bash
-python -m backlink_guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--free] [--fresh] [--json]
+python -m backlink_guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--deep] [--recent] [--free] [--fresh] [--json]
 python -m backlink_guard audit <your-domain> [--deep] [--json]
 python -m backlink_guard verify <page-url> --to <your-domain>
 python -m backlink_guard log add <site> --kind directory --anchor "Your Brand"
@@ -121,7 +126,7 @@ python -m backlink_guard log
 
 Python 3.10 or newer, standard library only.
 
-- **vet**: about $0.01 a site plus $0.025 for the batch; `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised.
+- **vet**: about $0.01 a site plus $0.025 for the batch; `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds the site's own backlink profile ($0.024 a site); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement.
 - **audit**: about $0.06, with `--deep` (full anchor distribution) about $0.10.
 - **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
 - **log**: your submissions in `state/ledger.jsonl`, with a warning past five a week or when one anchor is used over and over.

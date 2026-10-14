@@ -15,7 +15,7 @@ import re
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from statistics import mean
 
 from . import UA, aisa, cache, goanyapi, page, updates
@@ -41,7 +41,18 @@ HOLLOW_VISITS = 5000            # ... with fewer visits a month than this
 REACH_HIGH = 100_000            # visits a month
 YOUNG_DAYS = 365
 WAYBACK_TIMEOUT = 25
+RECENT_DAYS = 30
+ACTIVE_MIN = 5                  # pages a sitemap must show as changed before "Google takes none" means anything
+SITEMAPS = 6                    # sitemap files read at most
 SPAM_TOOL = "post_dataforseo_backlinks_bulk_spam_score_live"
+SUMMARY_TOOL = "post_dataforseo_backlinks_summary_live"
+TEMPLATE_PLACES = ("footer", "nav", "header", "aside")
+BADGE_MIN_DOMAINS = 21
+BADGE_LINKS_PER_DOMAIN = 100
+BADGE_TEMPLATE_SHARE = 0.3
+BADGE_MAX_NOFOLLOW = 0.15
+UNPROVEN_DAYS = 365
+UNPROVEN_DOMAINS = 100
 SERP_TOOL = "post_dataforseo_serp_google_organic_live_regular"
 US, ENGLISH = 2840, "en"
 
@@ -51,8 +62,14 @@ PARKED = re.compile(r"domain (?:name )?(?:is|may be) for sale|buy this domain|th
 SELLS = re.compile(r"do-?follow|backlinks?|link insertion|guest posts?|sponsored (?:posts?|articles?)|write for us|"
                    r"publishing fee|paid (?:posts?|articles?)|article submission", re.I)
 PRICE = re.compile(r"[$€£]\s?(?!0(?![.,\d]))\d{1,5}(?:[.,]\d+)?|\b[1-9]\d{0,4}\s?(?:usd|dollars)\b", re.I)   # "$0" is the free tier
+# "Our badge on your site", not any badge: v2ex's "display a PRO badge next to your username" is not an exchange.
 EXCHANGE = re.compile(r"reciprocal link|link back to (?:us|our)|backlink to our (?:site|website)|"
-                      r"(?:add|place|embed|display|put)\b[^.]{0,60}\b(?:badge|backlink|our link)\b", re.I)
+                      r"(?:add|place|embed|display|put)\b[^.]{0,30}\bour (?:dofollow )?(?:badge|backlink|link|widget)\b|"
+                      r"(?:add|place|embed|display|put)\b[^.]{0,40}\b(?:badge|backlink)\b[^.]{0,40}\b(?:on|to) (?:your|my) "
+                      r"(?:site|website|homepage)\b|if you (?:are happy to )?add (?:a|an|our) [\w.]+ (?:badge|backlink)", re.I)
+# A site whose business is selling links says so in its title: "Premium DR, DA, TF, PBN & Guest Posts".
+LINK_SELLER = re.compile(r"\bpbn\b|\b(?:dr|da)\b[^|]{0,12}\b(?:da|tf|dr)\b[^|]{0,20}\b(?:pbn|backlinks?|guest)|"
+                         r"\bbuy (?:dofollow |quality )?backlinks?\b|\bbacklinks? (?:service|package|shop)s?\b", re.I)
 SPAM_WORDS = re.compile(r"\b(?:casino|betting|sportsbook|slots?|poker|porn|escorts?|payday loans?|essay writing|"
                         r"write my essay|replica watches|viagra|cialis|togel|judi|slot gacor)\b", re.I)
 LISTING = re.compile(r"\b(?:submit|submission|listing|featured|get listed|review fee)\b", re.I)
@@ -112,8 +129,10 @@ def page_flags(read: dict) -> list[dict]:
     title = parsed["title"]
     if LINK_FARM.search(title):
         flags.append(flag("link_farm", f"title: \"{title[:80]}\""))
-    elif SHORTENER.search(title) or SHORTENER.search(parsed["text"][:PARKED_MAX_TEXT]):
+    elif SHORTENER.search(title):         # the title only: directories list shorteners among their tools
         flags.append(flag("shortener", f"title: \"{title[:80]}\""))
+    if LINK_SELLER.search(title):
+        flags.append(flag("link_seller", f"title: \"{title[:80]}\""))
     parked = PARKED.search(parsed["text"]) if len(parsed["text"]) < PARKED_MAX_TEXT else None
     if parked:
         flags.append(flag("parked", snippet(parsed["text"], parked.start())))
@@ -220,6 +239,107 @@ def index_check(domain: str, fresh: bool) -> tuple[int, int]:
     return again, cost + more
 
 
+def recent_count(domain: str, window: str, fresh: bool) -> tuple[int, str, int]:
+    """(results Google has for site:domain from the last week "w" or month "m", the newest result's
+    date as Google words it, cost). A failure raises: it is never a zero."""
+    data, cost = paid("goanyapi", f"recent:{window}:{domain}",
+                      lambda: goanyapi.call("google-site-search", site=domain, qdr=window), fresh)
+    found = data.get("organic") or []
+    newest = next((e.get("text", "") for o in found for e in o.get("extensions") or [] if e.get("text")), "")
+    count = data.get("siteCount")
+    return (int(count) if count is not None else len(found)), newest, cost
+
+
+def site_activity(domain: str, today: date) -> int | None:
+    """URLs the site's own sitemaps say changed in the last 30 days, None when it has no readable sitemap.
+    Reads robots.txt for the sitemaps, follows an index one level down, at most SITEMAPS files."""
+    robots = page.fetch(f"https://{domain}/robots.txt")
+    maps = re.findall(r"(?im)^\s*sitemap:\s*(\S+)", robots["html"]) or [f"https://{domain}/sitemap.xml"]
+    stamps, read = [], 0
+    while maps and read < SITEMAPS:
+        got = page.fetch(maps.pop(0))
+        read += 1
+        if got["dead"] or got["blocked"]:
+            continue
+        if "<sitemapindex" in got["html"]:
+            maps += re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", got["html"])[:SITEMAPS]
+        stamps += re.findall(r"<lastmod>\s*(\d{4}-\d{2}-\d{2})", got["html"])
+    if not stamps:              # no sitemap, or one without dates: activity unknown
+        return None
+    since = (today - timedelta(days=RECENT_DAYS)).isoformat()
+    return sum(1 for d in stamps if d >= since)
+
+
+def recent_flags(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict], int, list[str]]:
+    """Whether Google is taking in the site's new pages: the friend-of-a-friend check "no page indexed
+    in the last week means a paid post there will not be either", made safer. Google's own words: a
+    site: search is not a full count, and new pages take days to weeks. So: a week and a month are both
+    asked, a zero is asked twice, a failure is a failure, and the site's sitemap says whether there were
+    new pages to index at all."""
+    metrics, cost, errors = {}, 0, []
+    for window, key in (("w", "indexed_week"), ("m", "indexed_month")):
+        try:
+            count, newest, spent = recent_count(domain, window, False)
+            if not count:
+                count, newest, more = recent_count(domain, window, True)
+                spent += more
+            metrics[key], cost = count, cost + spent
+            metrics.setdefault("newest_indexed", newest)
+        except goanyapi.GoAnyError as exc:
+            errors.append(f"recent pages ({window}): {exc}")
+    if metrics.get("indexed_month") != 0:
+        return metrics, [], cost, errors
+    added = site_activity(domain, today)
+    metrics["sitemap_changed_30d"] = added
+    if added and added >= ACTIVE_MIN:
+        return metrics, [flag("not_indexing", f"its sitemap lists {added} pages changed in {RECENT_DAYS} days; site: search "
+                              f"for the same window returned none, asked twice. Google calls site: counts incomplete "
+                              f"and new pages can take weeks: check again before paying")], cost, errors
+    return metrics, [flag("inactive", "sitemap: " + ("none readable" if added is None else f"{added} pages changed in "
+                                                        f"{RECENT_DAYS} days") + "; Google: none from the last 30 days")], cost, errors
+
+
+def link_profile(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict], int]:
+    """DataForSEO's backlink summary for the site ($0.024 through AIsa) -> (metrics, flags, cost).
+
+    Tested on 2026-10-14 against Ahrefs' own SPAM mark on 90 sites that link to one young site
+    (33 marked). External data reproduces that mark only up to a cross-validated AUC of about 0.75,
+    almost all of it from three things: how new the site is, how few sites link to it, how few
+    people visit. Two mechanisms are worth naming, so they are flags here:
+      badge_network  7 hits, 4 marked: each linking site gives it hundreds of links, most in footers
+                     and navigation, nearly all followed. Two of the unmarked look the same.
+      unproven       23 hits, 17 marked: under a year in the index, under 100 linking sites, under
+                     1,000 visits a month. The unmarked hits look no better.
+    """
+    result, cost = paid("aisa", f"summary:{domain}", lambda: aisa.call(SUMMARY_TOOL, {
+        "target": domain, "include_subdomains": True, "backlinks_status_type": "live"}), fresh)
+    rd = result.get("referring_domains") or 0
+    places = result.get("referring_links_semantic_locations") or {}
+    seen = (result.get("first_seen") or "")[:10]
+    metrics = {"referring_domains": rd,
+               "links_per_domain": round((result.get("backlinks") or 0) / rd, 1) if rd else None,
+               "template_link_share": round(sum(places.get(k, 0) for k in TEMPLATE_PLACES) / sum(places.values()), 2)
+                                      if sum(places.values()) else None,
+               "nofollow_domain_share": round((result.get("referring_domains_nofollow") or 0) / rd, 2) if rd else None,
+               "indexed_since": seen}
+    return metrics, profile_flags(metrics, today), cost
+
+
+def profile_flags(m: dict, today: date) -> list[dict]:
+    flags = []
+    if (m["referring_domains"] >= BADGE_MIN_DOMAINS and (m["links_per_domain"] or 0) >= BADGE_LINKS_PER_DOMAIN
+            and (m["template_link_share"] or 0) >= BADGE_TEMPLATE_SHARE
+            and (m["nofollow_domain_share"] if m["nofollow_domain_share"] is not None else 1) <= BADGE_MAX_NOFOLLOW):
+        flags.append(flag("badge_network", f"{m['links_per_domain']:g} links from each linking site on average, "
+                          f"{round(m['template_link_share'] * 100)}% in footers, navigation or sidebars, "
+                          f"{round(m['nofollow_domain_share'] * 100)}% of linking sites nofollow"))
+    age = (today - date.fromisoformat(m["indexed_since"])).days if m["indexed_since"] else None
+    if (age is None or age < UNPROVEN_DAYS) and m["referring_domains"] < UNPROVEN_DOMAINS:
+        flags.append(flag("unproven", f"in DataForSEO's index for {age if age is not None else 'no'} days, "
+                          f"{m['referring_domains']} linking sites"))
+    return flags
+
+
 def market(domain: str, known: list[dict], fresh: bool) -> tuple[dict, list[dict], int, list[str]]:
     """Rating, visits and index status. (metrics, flags, cost, errors)."""
     metrics, flags, cost, errors = {}, [], 0, []
@@ -270,7 +390,8 @@ def spam_scores(domains: list[str], fresh: bool) -> tuple[dict[str, int], int]:
     return scores, cost
 
 
-def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh: bool) -> dict:
+def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh: bool, recent: bool = False,
+            deep: bool = False) -> dict:
     t = target(raw)
     read = read_site(t["url"])
     flags, metrics, cost, errors = page_flags(read), outbound(read), 0, []
@@ -282,6 +403,18 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
         more, found, cost, errors = market(t["domain"], known, fresh)
         metrics.update(more)
         flags += found
+        if recent:
+            more, found, spent, failed = recent_flags(t["domain"], today, fresh)
+            metrics.update(more)
+            flags, cost, errors = flags + found, cost + spent, errors + failed
+    if deep and paid_sources and aisa.key():
+        try:
+            more, found, spent = link_profile(t["domain"], today, fresh)
+            busy = metrics.get("visits") is not None and metrics["visits"] >= NO_AUDIENCE
+            metrics.update(more)
+            flags, cost = flags + [f for f in found if not (f["flag"] == "unproven" and busy)], cost + spent
+        except aisa.AisaError as exc:
+            errors.append(f"link profile: {exc}")
     if metrics.get("visits", 0) >= NO_AUDIENCE and any(f["flag"] == "dead" for f in flags):
         # People visit it, so it is up: our request failed, the site did not.
         flags = [flag("blocked", f["evidence"]) if f["flag"] == "dead" else f for f in flags]
@@ -312,12 +445,13 @@ def shared_templates(rows: list[dict]) -> None:
             m["flags"].append(flag("same_template", f"{len(members)} sites titled \"{key[:60]}\": {names}"))
 
 
-def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False) -> dict:
+def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False,
+        recent: bool = False, deep: bool = False) -> dict:
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given."""
     today = today or date.today()
     known = updates.ranking_updates() if paid_sources and goanyapi.key() else []
     with ThreadPoolExecutor(WORKERS) as pool:
-        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh), targets))
+        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep), targets))
     cost, errors = sum(r["cost"] for r in rows), [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
     scores = {}
     if paid_sources and aisa.key():
