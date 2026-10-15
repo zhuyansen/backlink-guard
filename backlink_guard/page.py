@@ -115,14 +115,22 @@ def fetch(url: str) -> dict:
     return out
 
 
+def _decode(raw: bytes, charset: str | None) -> str:
+    """The page as text. A charset Python does not know reads as UTF-8: one site's header said
+    "charset=utf-8, text/xml" (2026-10-15), and the LookupError stopped a whole vet run."""
+    try:
+        return raw.decode(charset or "utf-8", "replace")
+    except LookupError:
+        return raw.decode("utf-8", "replace")
+
+
 def _get(url: str) -> dict:
     out = {"url": url, "final": url, "status": 0, "html": "", "error": "", "blocked": False, "dead": False}
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "text/html,*/*;q=0.8", "Accept-Language": "en"})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
             raw = res.read(MAX_BYTES)
-            out.update(status=res.status, final=res.geturl(),
-                       html=raw.decode(res.headers.get_content_charset() or "utf-8", "replace"))
+            out.update(status=res.status, final=res.geturl(), html=_decode(raw, res.headers.get_content_charset()))
     except urllib.error.HTTPError as exc:
         out.update(status=exc.code, error=f"HTTP {exc.code}", blocked=exc.code not in GONE, dead=exc.code in GONE)
     except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError) as exc:

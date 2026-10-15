@@ -46,6 +46,30 @@ def test_parse_keeps_rel_and_skips_scripts():
     assert "Hello" in p["text"] and "var a" not in p["text"]
 
 
+def test_a_charset_python_does_not_know_reads_as_utf8(monkeypatch):
+    class Headers:
+        def get_content_charset(self):
+            return "utf-8, text/xml"            # what one site sent on 2026-10-15
+
+    class Response:
+        status, headers = 200, Headers()
+
+        def read(self, n):
+            return "<title>Café</title>".encode()
+
+        def geturl(self):
+            return "https://odd.example/"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+    monkeypatch.setattr(page.urllib.request, "urlopen", lambda req, timeout: Response())
+    got = page.fetch("odd.example")
+    assert not got["dead"] and "Café" in got["html"]
+
+
 def test_site_treats_subdomains_as_one_site():
     assert page.site("https://blog.example.co.uk/a") == "example.co.uk"
     assert page.site("www.launches.uicomet.com") == "uicomet.com"
