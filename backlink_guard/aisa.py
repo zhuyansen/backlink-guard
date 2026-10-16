@@ -1,4 +1,4 @@
-"""AIsa's tool router: DataForSEO's backlink data (spam score, new and lost referring
+"""AIsa's tool router: backlink data (spam score, new and lost referring
 domains, anchors). Key: AISA_API_KEY, or the one the AIsa CLI stores at login.
 
 Every call is billed and none is retried here. Prices seen on 2026-10-13: spam score for
@@ -31,7 +31,7 @@ def key() -> str:
 
 
 def call(tool: str, body: dict) -> tuple[dict, int]:
-    """One DataForSEO task. Returns (the task's first result, cost in micro-USD)."""
+    """One AIsa task. Returns (the task's first result, cost in micro-USD)."""
     payload = {"calls": [{"call_id": "c", "tool": tool, "arguments": {"body": [body]}}]}
     req = urllib.request.Request(ROUTER, data=json.dumps(payload).encode(), method="POST", headers={
         "Content-Type": "application/json", "Authorization": f"Bearer {key()}", "User-Agent": UA,

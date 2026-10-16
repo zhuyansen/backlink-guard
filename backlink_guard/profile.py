@@ -1,7 +1,7 @@
 """Your own link profile: what it looks like, and whether it is changing in a way that
 reads as manufactured.
 
-GoAnyAPI gives the totals and the top linking pages ($0.004). AIsa (DataForSEO) gives
+GoAnyAPI gives the totals and the top linking pages ($0.004). AIsa gives
 the weekly count of new and lost referring domains ($0.025), and the spam score of the
 sites that link to you ($0.025 for the batch). With --deep it also gives the full anchor
 distribution (about $0.04).

@@ -1,7 +1,7 @@
 """Has the site lost its Google search traffic before, and when?
 
-DataForSEO's monthly estimate of each site's US Google organic traffic and ranking keywords,
-through AIsa: one call for every site of a run, about $0.12 a call plus $0.0012 a site (seen
+AIsa's monthly estimate of each site's US Google organic traffic and ranking keywords:
+one call for every site of a run, about $0.12 a call plus $0.0012 a site (seen
 2026-10-14). The months run from January 2022: that December the whole database moved, seven
 in ten sites "falling" more than 60% in one month.
 
@@ -39,7 +39,7 @@ SCALED_RATIO = 1000             # pages listed for each keyword the site ranks f
 
 
 def months(item: dict) -> dict:
-    """{"2026-09": [traffic, keywords]} from one DataForSEO item."""
+    """{"2026-09": [traffic, keywords]} from one AIsa history item."""
     return {f"{p['year']}-{p['month']:02d}": [p.get("etv") or 0, p.get("count") or 0]
             for p in (item.get("metrics") or {}).get("organic") or []}
 
@@ -104,7 +104,7 @@ def flags_for(monthly: dict, level: dict, today: date, known: list[dict]) -> tup
     year, month = map(int, last["month"].split("-"))
     age = (today.year - year) * 12 + today.month - month
     near = updates.around(last["month"], known)
-    text = (f"US Google, DataForSEO estimate: about {last['before']:,} search visits a month before {last['month']},"
+    text = (f"US Google, AIsa estimate: about {last['before']:,} search visits a month before {last['month']},"
             f" {last['after']:,} after; ranking keywords {last['keywords'][0]:,} to {last['keywords'][1]:,}"
             + (f". Google updates around then: {'; '.join(near)}" if near else "")
             + (f". Earlier falls: {', '.join(f['month'] for f in found[:-1])}" if len(found) > 1 else ""))
@@ -122,7 +122,7 @@ def scaled(pages: int | None, words: int | None, lang: str | None) -> list[dict]
     if per < SCALED_RATIO:
         return []
     return [flag("scaled_pages", f"its sitemaps list {pages:,} or more pages; it ranks for {words:,} keywords on US Google "
-                                 f"(DataForSEO), about {round(per):,} pages for each")]
+                                 f"(AIsa), about {round(per):,} pages for each")]
 
 
 def check(rows: list[dict], today: date, known: list[dict], fresh: bool) -> int:

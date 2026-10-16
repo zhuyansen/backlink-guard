@@ -3,7 +3,7 @@
 A link is first of all a way in for visitors. A page that ranks for your keyword already
 gets the people looking for what you make, so a mention there sends them on: the most
 precise referral traffic there is, and relevant by construction. For each keyword this
-reads Google's top 30 (DataForSEO through AIsa, $0.005 a keyword) and the keyword's
+reads Google's top 30 (AIsa, $0.005 a keyword) and the keyword's
 monthly searches ($0.012 a call), sorts the pages by the visitors they get from these
 searches, and says what kind of page each is and what can honestly be done there.
 

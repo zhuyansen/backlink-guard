@@ -191,7 +191,7 @@ def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=N
 
 
 def hist_item(target, etv, count=None):
-    """A DataForSEO history item, months from January 2024 on."""
+    """An AIsa history item, months from January 2024 on."""
     rows = [{"year": 2024 + i // 12, "month": i % 12 + 1, "etv": e, "count": c}
             for i, (e, c) in enumerate(zip(etv, count or [200] * len(etv)))]
     return {"target": target, "metrics": {"organic": rows}}

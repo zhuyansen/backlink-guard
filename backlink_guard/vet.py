@@ -218,7 +218,7 @@ def paid(source: str, question: str, ask, fresh: bool):
 def index_count(domain: str, fresh: bool) -> tuple[int, int]:
     """How many results Google has for site:domain, and the cost. GoAnyAPI first ($0.004);
     when it fails (its search endpoints answered 502 all day on 2026-10-13) the question goes
-    to DataForSEO through AIsa ($0.01: a query with a search operator costs five times a plain one)."""
+    to AIsa ($0.01: a query with a search operator costs five times a plain one)."""
     try:
         data, cost = paid("goanyapi", f"site:{domain}", lambda: goanyapi.call("google-site-search", site=domain), fresh)
         return int(data.get("siteCount") or len(data.get("organic") or [])), cost
@@ -326,7 +326,7 @@ def recent_flags(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict
 
 
 def link_profile(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict], int]:
-    """DataForSEO's backlink summary for the site ($0.024 through AIsa) -> (metrics, flags, cost).
+    """AIsa's backlink summary for the site ($0.024) -> (metrics, flags, cost).
 
     Tested on 2026-10-14 against Ahrefs' own SPAM mark on 90 sites that link to one young site
     (33 marked). External data reproduces that mark only up to a cross-validated AUC of about 0.75,
@@ -361,7 +361,7 @@ def profile_flags(m: dict, today: date) -> list[dict]:
                           f"{round(m['nofollow_domain_share'] * 100)}% of linking sites nofollow"))
     age = (today - date.fromisoformat(m["indexed_since"])).days if m["indexed_since"] else None
     if (age is None or age < UNPROVEN_DAYS) and m["referring_domains"] < UNPROVEN_DOMAINS:
-        flags.append(flag("unproven", f"in DataForSEO's index for {age if age is not None else 'no'} days, "
+        flags.append(flag("unproven", f"in AIsa's backlink index for {age if age is not None else 'no'} days, "
                           f"{m['referring_domains']} linking sites"))
     return flags
 
@@ -513,7 +513,7 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
         score = scores.get(r["domain"])
         r["metrics"]["spam_score"] = score
         if score is not None and score >= SPAM_SCORE_HIGH:
-            r["flags"].append(flag("spam_score", f"{score} of 100 (DataForSEO)"))
+            r["flags"].append(flag("spam_score", f"{score} of 100 (AIsa)"))
         r["flags"], r["grade"], r["reach"] = ranked(r["flags"]), grade(r["flags"]), reach(r["metrics"])
     return {"rows": rows, "cost": cost, "errors": errors,
             "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "aisa": bool(paid_sources and aisa.key()),
