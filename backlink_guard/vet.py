@@ -12,23 +12,25 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from statistics import mean
 
-from . import UA, aisa, cache, find, goanyapi, history, page, updates
-from .policy import flag, grade, ranked
+from . import UA, aisa, blocklist, cache, checkout, find, goanyapi, history, page, signals, updates
+from .policy import flag, grade, policy_risk, ranked, risk, value
 
 WORKERS = 4
+RETRY_PAUSE = 5                 # seconds before a site or a search that gave no answer is asked once more
 EXTRA_PAGES = 3                 # submit, pricing and similar pages read besides the home page
 SNIPPET = 160
 NEAR = 200                      # how close a price must be to the words that say what is sold
 QUOTE_PAD = 30
 PARKED_MAX_TEXT = 3000          # a real site that merely writes about parked domains is longer than this
 SPAM_NEIGHBORS = 3
-SPAM_SCORE_HIGH = 40
+SPAM_SCORE_HIGH = 50             # 40 until 2026-10-16: it flagged 30 of 60 normal sites for 27 of 40 SPAM; 50: 20 for 19
 CLIFF = 0.6                     # a month under 60% of the month before it
 CLIFF_WINDOW = 3                # looked for in the last three months
 RECOVERED = 0.7                 # back above 70% of the level before the fall: no longer a cliff
@@ -82,6 +84,24 @@ LINK_FARM = re.compile(r"\|\s*keyword rankings{1,2}\b|free domain sharing|site n
 TEMPLATE_MIN = 12               # characters a shared title needs before it says anything
 SUBPAGE = re.compile(r"submit|pricing|advertis|sponsor|write-?for-?us|guest-?post|list-your|get-listed", re.I)
 QUALIFIED = {"nofollow", "sponsored", "ugc"}
+# A site's own pages that already say avoid: the paid checks could only add to it, so they are not bought.
+DECISIVE = {"dead", "parked", "link_farm", "shortener", "link_seller", "spam_neighbors", "listed"}
+# The accounts a page reports to. Sites of one operator share them; the forms and the placeholder rule are the
+# ones that grouped payment-link sellers by owner (2026-10-15). Stripe keys are left out: white-label shops share
+# their platform's.
+IDS = {
+    "adsense": re.compile(r"\b(ca-pub-\d{10,20})\b"),
+    "ua": re.compile(r"\bUA-(\d{4,10})-\d{1,4}\b"),            # the account number: one owner, any number of sites
+    "ga4": re.compile(r"(?:gtag/js\?id=|config['\"]\s*,\s*['\"])(G-[A-Z0-9]{6,12})"),
+    "gtm": re.compile(r"\b(GTM-[A-Z0-9]{5,9})\b"),
+    "clarity": re.compile(r"[\"']clarity[\"']\s*,\s*[\"']script[\"']\s*,\s*[\"']([a-z0-9]{6,12})[\"']"),
+    "pixel": re.compile(r"fbq\(\s*['\"]init['\"]\s*,\s*['\"](\d{10,20})"),
+}
+PLACEHOLDER_ID = re.compile(r"X{4,}|0{6,}|1234567", re.I)      # template IDs nobody filled in: G-XXXXXXXXXX
+# Failed checks that could have found something against a site: an ok without them is not an ok. Row errors
+# start with these names; the batch ones are asked once for every site.
+KEY_CHECKS = ("rating", "traffic", "index", "link profile", "checkout", "recent pages")
+BATCH_CHECKS = ("spam score", "search history")
 
 
 def target(raw: str) -> dict:
@@ -106,8 +126,13 @@ def priced(text: str, what: re.Pattern) -> str:
 
 
 def read_site(url: str) -> dict:
-    """The home page and up to EXTRA_PAGES pages where a site says what it charges."""
-    home = page.fetch(url)
+    """The home page and up to EXTRA_PAGES pages where a site says what it charges. A home page that
+    gives no answer at all (a timeout, a refused connection, no DNS) is asked once more before the
+    site counts as dead; a 404 or 410 is an answer."""
+    home, asked = page.fetch(url), 1
+    if home["dead"] and not home["status"]:
+        time.sleep(RETRY_PAUSE)
+        home, asked = page.fetch(url), 2
     parsed = page.parse(home["html"], home["final"]) if home["html"] else {"title": "", "text": "", "links": []}
     own = page.site(home["final"])
     more, seen = [], {home["final"].rstrip("/")}
@@ -118,13 +143,13 @@ def read_site(url: str) -> dict:
             more.append(href)
     with ThreadPoolExecutor(EXTRA_PAGES) as pool:
         extra = [page.parse(p["html"], p["final"]) for p in pool.map(page.fetch, more[:EXTRA_PAGES]) if p["html"]]
-    return {"home": home, "parsed": parsed, "texts": [parsed["text"]] + [e["text"] for e in extra]}
+    return {"home": home, "parsed": parsed, "texts": [parsed["text"]] + [e["text"] for e in extra], "asked": asked}
 
 
 def page_flags(read: dict) -> list[dict]:
     home, parsed = read["home"], read["parsed"]
     if home["dead"]:
-        return [flag("dead", home["error"] or f"HTTP {home['status']}")]
+        return [flag("dead", (home["error"] or f"HTTP {home['status']}") + (", asked twice" if read.get("asked") == 2 else ""))]
     if home["blocked"]:
         return [flag("blocked", home["error"])]
     flags = []
@@ -153,6 +178,12 @@ def page_flags(read: dict) -> list[dict]:
     return flags
 
 
+def ids_of(html: str) -> list[str]:
+    """The analytics and ads accounts a page reports to, as "kind:id", placeholders left out."""
+    return sorted({f"{kind}:{m.group(1)}" for kind, form in IDS.items() for m in form.finditer(html or "")
+                   if not PLACEHOLDER_ID.search(m.group(1))})
+
+
 def outbound(read: dict) -> dict:
     links = page.external(read["parsed"]["links"], read["home"]["final"])
     qualified = sum(1 for l in links if l["rel"] & QUALIFIED)
@@ -173,27 +204,32 @@ def first_seen(domain: str) -> str:
 
 
 def visit_trend(monthly: dict) -> dict:
-    """{"now", "earlier", "ratio", "cliff": (month, share kept) or None} from {"2026-09-01": visits}.
-    `now` is the last three months on average, `earlier` the best three in a row before them."""
+    """{"now", "earlier", "ratio", "cliff", "drop"} from {"2026-09-01": visits}. `now` is the last three
+    months on average, `earlier` the best three in a row before them. `cliff` is (month, share kept) for a
+    fall a later month confirms; `drop` is the same for a fall in the newest month, which nothing confirms
+    yet. In September 2026 GoAnyAPI's visits fell 46% to 76% for 16 of 59 sites with 5,000 or more, while
+    their US Google search traffic from AIsa mostly held (one directory: visits down two thirds, search down
+    3%; 2026-10-15): one month of one estimate is not yet a fall."""
     months = sorted(monthly.items())
     series = [int(v or 0) for _, v in months]
-    out = {"now": round(mean(series[-3:])) if series else 0, "earlier": 0, "ratio": None, "cliff": None}
+    out = {"now": round(mean(series[-3:])) if series else 0, "earlier": 0, "ratio": None, "cliff": None, "drop": None}
     if len(series) >= 6:
         out["earlier"] = round(max(mean(series[i:i + 3]) for i in range(len(series) - 5)))
         out["ratio"] = round(out["now"] / out["earlier"], 2) if out["earlier"] else None
     for i in range(max(1, len(series) - CLIFF_WINDOW), len(series)):
         before, after = series[i - 1], series[i]
         if before >= MIN_LEVEL and after < before * CLIFF and series[-1] < before * RECOVERED:
-            out["cliff"] = (months[i][0][:7], round(after / before, 2))
+            out["cliff" if i < len(series) - 1 else "drop"] = (months[i][0][:7], round(after / before, 2))
     return out
 
 
 def traffic_flags(trend: dict, dr, known: list[dict]) -> list[dict]:
     flags = []
-    if trend["cliff"]:
-        month, kept = trend["cliff"]
+    fall = trend["cliff"] or trend.get("drop")
+    if fall:
+        month, kept = fall
         near = updates.around(month, known)
-        flags.append(flag("traffic_cliff", f"{month}: down {round((1 - kept) * 100)}% on the month before"
+        flags.append(flag("traffic_cliff" if trend["cliff"] else "traffic_drop", f"{month}: down {round((1 - kept) * 100)}% on the month before"
                           + (f". Google updates around then: {'; '.join(near)}" if near else "")))
     elif trend["ratio"] is not None and trend["ratio"] < DECLINE and trend["earlier"] >= MIN_LEVEL:
         flags.append(flag("traffic_decline", f"{trend['now']:,} a month now, {trend['earlier']:,} earlier in the year"))
@@ -233,8 +269,15 @@ def index_count(domain: str, fresh: bool) -> tuple[int, int]:
 
 def index_check(domain: str, fresh: bool) -> tuple[int, int]:
     """index_count, asked a second time when the first answer is zero: under load the
-    search sources returned nothing for sites with thousands of pages (skills.sh, 10-13)."""
-    count, cost = index_count(domain, fresh)
+    search sources returned nothing for sites with thousands of pages (skills.sh, 10-13).
+    When both sources fail it is asked once more after a pause: AIsa's "Internal SE
+    Server Error." cost two sites their deindexed flag in one of two
+    runs (10-15). A second failure raises: a failure is never a zero."""
+    try:
+        count, cost = index_count(domain, fresh)
+    except (goanyapi.GoAnyError, aisa.AisaError):
+        time.sleep(RETRY_PAUSE)
+        count, cost = index_count(domain, True)
     if count:
         return count, cost
     again, more = index_count(domain, fresh=True)
@@ -366,8 +409,8 @@ def profile_flags(m: dict, today: date) -> list[dict]:
     return flags
 
 
-def market(domain: str, known: list[dict], fresh: bool) -> tuple[dict, list[dict], int, list[str]]:
-    """Rating, visits and index status. (metrics, flags, cost, errors)."""
+def market(domain: str, known: list[dict], fresh: bool, traffic: dict | None = None) -> tuple[dict, list[dict], int, list[str]]:
+    """Rating, visits and index status. (metrics, flags, cost, errors). `traffic` is a visits answer already bought."""
     metrics, flags, cost, errors = {}, [], 0, []
     try:
         data, spent = paid("goanyapi", f"dr:{domain}", lambda: goanyapi.call("dr", domain=domain), fresh)
@@ -375,9 +418,10 @@ def market(domain: str, known: list[dict], fresh: bool) -> tuple[dict, list[dict
     except goanyapi.GoAnyError as exc:
         errors.append(f"rating: {exc}")
     try:
-        data, spent = paid("goanyapi", f"traffic:{domain}", lambda: goanyapi.call("traffic", domain=domain, month=12), fresh)
+        data, spent = (traffic, 0) if traffic else \
+            paid("goanyapi", f"traffic:{domain}", lambda: goanyapi.call("traffic", domain=domain, month=12), fresh)
         trend = visit_trend(data.get("EstimatedMonthlyVisits") or {})
-        metrics.update(visits=trend["now"], visits_vs_earlier=trend["ratio"])
+        metrics.update(visits=trend["now"], visits_vs_earlier=trend["ratio"], **signals.audience(data))
         flags += traffic_flags(trend, metrics.get("dr"), known)
         cost += spent
     except goanyapi.GoAnyError as exc:
@@ -392,6 +436,16 @@ def market(domain: str, known: list[dict], fresh: bool) -> tuple[dict, list[dict
     except (goanyapi.GoAnyError, aisa.AisaError) as exc:
         errors.append(f"index: {exc}")
     return metrics, flags, cost, errors
+
+
+def visits_of(domain: str, fresh: bool) -> tuple[dict | None, int, list[str]]:
+    """(the visits answer, cost, errors): the one paid question a site that does not load gets. A site found
+    busy hands the same answer on to market(), so it is not bought twice."""
+    try:
+        data, cost = paid("goanyapi", f"traffic:{domain}", lambda: goanyapi.call("traffic", domain=domain, month=12), fresh)
+    except goanyapi.GoAnyError as exc:
+        return None, 0, [f"traffic: {exc}"]
+    return data, cost, []
 
 
 def reach(metrics: dict) -> str:
@@ -424,10 +478,12 @@ def mentions(read: dict, topics: list[str]) -> bool:
 
 
 def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh: bool, recent: bool = False,
-            deep: bool = False, topics: tuple[str, ...] = ()) -> dict:
+            deep: bool = False, topics: tuple[str, ...] = (), listed: dict | None = None) -> dict:
     t = target(raw)
     read = read_site(t["url"])
     flags, metrics, cost, errors = page_flags(read), outbound(read), 0, []
+    flags += [f for f in [blocklist.flag_for(t["domain"], listed or {})] if f]
+    metrics["ids"] = ids_of(read["home"].get("html") or "")
     if topics:
         metrics["mentions"] = mentions(read, list(topics))
     seen = first_seen(t["domain"])
@@ -436,27 +492,47 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
         flags.append(flag("young", f"first archived {seen}"))
     lang = LANG.search(read["home"].get("html") or "")
     metrics["lang"] = lang.group(1).lower() if lang else None
+    settled, traffic = sorted({f["flag"] for f in flags} & DECISIVE), None
+    if paid_sources and settled == ["dead"] and goanyapi.key():
+        traffic, cost, errors = visits_of(t["domain"], fresh)       # people visit it: blocked, not dead
+        visits = visit_trend(traffic.get("EstimatedMonthlyVisits") or {})["now"] if traffic else None
+        metrics.update({} if visits is None else {"visits": visits})
+        settled = [] if (visits or 0) >= NO_AUDIENCE else settled
+    if paid_sources and settled:
+        return {**t, "title": read["parsed"]["title"][:120], "flags": flags, "metrics": metrics, "cost": cost,
+                "errors": errors, "skipped": settled}
     if paid_sources and aisa.key():
         metrics["pages_listed"] = pages_listed(t["domain"])   # weighed against its rankings in history.check
     if paid_sources and goanyapi.key():
-        more, found, cost, errors = market(t["domain"], known, fresh)
+        more, found, spent, failed = market(t["domain"], known, fresh, traffic)
         metrics.update(more)
-        flags += found
+        cost, errors = cost + spent, errors + failed
+        flags += [f for f in [signals.reregistered(seen, metrics.get("registered"), today, metrics.get("visits"))] + found if f]
+        try:
+            note, spent = signals.guest_posts(t["domain"], lambda q, fn: paid("goanyapi", q, fn, fresh))
+            flags, cost = flags + ([note] if note else []), cost + spent
+        except goanyapi.GoAnyError as exc:
+            errors.append(f"guest posts: {exc}")
+    if paid_sources and aisa.key():
+        found, spent, failed = checkout.shared(read, page.site(t["url"]), lambda q, fn: paid("aisa", q, fn, fresh), SPAM_WORDS,
+                                               deep=deep)
+        flags, cost, errors = flags + found, cost + spent, errors + failed
+    if paid_sources:
+        metrics["entity"] = signals.entity(t["domain"])
         if recent:
             more, found, spent, failed = recent_flags(t["domain"], today, fresh)
             metrics.update(more)
             flags, cost, errors = flags + found, cost + spent, errors + failed
     if deep and paid_sources and aisa.key():
+        more, spent, failed = signals.deep(t["domain"], today, lambda q, fn: paid("aisa", q, fn, fresh))
+        metrics.update(more)
+        cost, errors = cost + spent, errors + failed
         try:
             more, found, spent = link_profile(t["domain"], today, fresh)
-            busy = metrics.get("visits") is not None and metrics["visits"] >= NO_AUDIENCE
             metrics.update(more)
-            flags, cost = flags + [f for f in found if not (f["flag"] == "unproven" and busy)], cost + spent
+            flags, cost = flags + found, cost + spent
         except aisa.AisaError as exc:
             errors.append(f"link profile: {exc}")
-    if metrics.get("visits", 0) >= NO_AUDIENCE and any(f["flag"] == "dead" for f in flags):
-        # People visit it, so it is up: our request failed, the site did not.
-        flags = [flag("blocked", f["evidence"]) if f["flag"] == "dead" else f for f in flags]
     return {**t, "title": read["parsed"]["title"][:120], "flags": flags, "metrics": metrics, "cost": cost, "errors": errors}
 
 
@@ -484,37 +560,83 @@ def shared_templates(rows: list[dict]) -> None:
             m["flags"].append(flag("same_template", f"{len(members)} sites titled \"{key[:60]}\": {names}"))
 
 
+def shared_owners(rows: list[dict]) -> None:
+    """Flag the rows of a batch that report to one analytics or ads account: one operator's sites."""
+    owners: dict[str, set[str]] = {}
+    for r in rows:
+        for account in r["metrics"].get("ids") or []:
+            owners.setdefault(account, set()).add(r["domain"])
+    for r in rows:
+        mine = sorted(a for a in r["metrics"].get("ids") or [] if len(owners[a]) >= 2)
+        if mine:
+            others = sorted(set().union(*(owners[a] for a in mine)) - {r["domain"]})
+            more = f" and {len(others) - 4} more" if len(others) > 4 else ""
+            r["flags"].append(flag("same_owner", f"{', '.join(mine[:2])} also on {', '.join(others[:4])}{more}"))
+
+
+def missing(r: dict, batch_failed: tuple[str, ...] = ()) -> list[str]:
+    """The checks that could have found something against the site and failed."""
+    return [k for k in KEY_CHECKS if any(e.startswith(k) for e in r.get("errors", []))] + \
+        [b for b in BATCH_CHECKS if b in batch_failed]
+
+
+def finalize(r: dict, batch_failed: tuple[str, ...] = ()) -> dict:
+    """The verdict from what was found: findings weighed against the site's numbers, then grade, reach and risk.
+    It reads only the row, so a saved row can be graded again when a rule changes (scripts/regress.py)."""
+    m, visits = r["metrics"], r["metrics"].get("visits") or 0
+    flags = [f for f in r["flags"] if f["flag"] != "spam_score"]
+    if visits >= NO_AUDIENCE:           # people visit it: a failed request was ours, and it is not unproven
+        flags = [flag("blocked", f["evidence"]) if f["flag"] == "dead" else f for f in flags if f["flag"] != "unproven"]
+    if visits >= REACH_HIGH:            # github.com and pypi.org have the badge profile: every project links them
+        flags = [f for f in flags if f["flag"] != "badge_network"]
+    if (m.get("spam_score") or 0) >= SPAM_SCORE_HIGH:
+        flags.append(flag("spam_score", f"{m['spam_score']} of 100 (AIsa)"))
+    r["flags"], r["reach"], r["missing"] = ranked(flags), reach(m), missing(r, batch_failed)
+    r["grade"], r["risk"] = grade(r["flags"]), risk(r["flags"])
+    r["policy"], r["value"] = policy_risk(r["flags"]), value(r["flags"], r["reach"])
+    if r["grade"] == "ok" and r["missing"]:
+        r["grade"] = "incomplete"       # an ok it could not finish checking is not an ok
+    return r
+
+
 def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False,
-        recent: bool = False, deep: bool = False, topics: tuple[str, ...] = ()) -> dict:
-    """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given."""
+        recent: bool = False, deep: bool = False, topics: tuple[str, ...] = (), referrals: dict[str, int] | None = None) -> dict:
+    """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given.
+    `referrals` ({site: visits} from your own analytics) adds what each site has sent you: a reach no estimate gives."""
     today = today or date.today()
     known = updates.ranking_updates() if paid_sources and (goanyapi.key() or aisa.key()) else []
+    try:
+        listed, unread = blocklist.load(fresh), []
+    except (OSError, ValueError) as exc:
+        listed, unread = {}, [f"spam list: {exc}"]
     with ThreadPoolExecutor(WORKERS) as pool:
-        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics), targets))
-    cost, errors = sum(r["cost"] for r in rows), [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
-    scores = {}
-    if paid_sources and aisa.key():
+        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics, listed), targets))
+    cost, errors = sum(r["cost"] for r in rows), unread + [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
+    live, scores, failed = [r for r in rows if not r.get("skipped")], {}, []
+    if paid_sources and aisa.key() and live:
         try:
-            scores, spent = spam_scores(sorted({r["domain"] for r in rows}), fresh)
+            scores, spent = spam_scores(sorted({r["domain"] for r in live}), fresh)
             cost += spent
         except aisa.AisaError as exc:
             errors.append(f"spam score: {exc}")
+            failed.append("spam score")
         try:
-            cost += history.check(rows, today, known, fresh)
+            cost += history.check(live, today, known, fresh)
         except aisa.AisaError as exc:
             errors.append(f"search history: {exc}")
+            failed.append("search history")
         if topics:
             try:
-                cost += find.fit(rows, list(topics), fresh)
+                cost += find.fit(live, list(topics), fresh)
             except aisa.AisaError as exc:
                 errors.append(f"fit: {exc}")
     shared_templates(rows)
+    shared_owners(rows)
     for r in rows:
-        score = scores.get(r["domain"])
-        r["metrics"]["spam_score"] = score
-        if score is not None and score >= SPAM_SCORE_HIGH:
-            r["flags"].append(flag("spam_score", f"{score} of 100 (AIsa)"))
-        r["flags"], r["grade"], r["reach"] = ranked(r["flags"]), grade(r["flags"]), reach(r["metrics"])
+        r["metrics"]["spam_score"] = scores.get(r["domain"])
+        if referrals is not None:
+            r["metrics"]["sent_you"] = referrals.get(r["domain"], 0)
+        finalize(r, () if r.get("skipped") else tuple(failed))
     return {"rows": rows, "cost": cost, "errors": errors,
             "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "aisa": bool(paid_sources and aisa.key()),
                         "free": not paid_sources}}

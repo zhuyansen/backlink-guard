@@ -8,7 +8,9 @@ ignored or held against a site.
 
 Levels: "avoid" (a link from here is worth nothing or sits in bad company), "caution"
 (look before you submit; often fine if the link is qualified), "note" (context only).
-The grade of a target is its worst level; notes never change it.
+A target is avoid when any finding is avoid, caution when two or more findings are caution,
+and ok otherwise: one caution finding alone is listed with its evidence but is not a verdict
+(see grade). Notes never change it. An ok whose key checks failed is "incomplete" (vet.finalize).
 """
 POLICY_URL = "https://developers.google.com/search/docs/essentials/spam-policies#link-spam"
 
@@ -17,6 +19,8 @@ EXCHANGE = "Excessive link exchanges, or requiring a link as part of an arrangem
 DIRECTORY = "Low-quality directory or bookmark site links"
 AUTOMATED = "Using automated programs or services to create links to your site"
 OPTIMIZED = "Links with optimized anchor text in articles, guest posts or press releases"
+EXPIRED = "Expired domain abuse: an expired domain bought and used to profit from its old reputation"
+HACKED = "Hacked content: content placed on a site without permission"      # the same page, outside "Link spam"
 
 # id: (level, what it says, the clause it relates to or "")
 FLAGS = {
@@ -27,7 +31,12 @@ FLAGS = {
     "link_farm": ("avoid", "A template page of a link network, not a site anyone reads", AUTOMATED),
     "shortener": ("avoid", "A link shortener: a link there is a redirect, not a listing", AUTOMATED),
     "link_seller": ("avoid", "Selling links is its business: PBN, DR and DA packages, guest posts", BUYING),
+    "listed": ("avoid", "It is on the shared list of sites that build or sell spam backlinks, with evidence", BUYING),
+    "checkout_network": ("avoid", "Its checkout link also sits on many sites built like this one (one template, or titled about link sales): one operator's network", BUYING),
+    "injected_checkout": ("avoid", "It carries a checkout link for a gambling or adult product that also sits on many unrelated sites: likely injected into a hacked site", HACKED),
+    "reregistered": ("caution", "Archived long before its current registration: a lapsed domain picked up again, the raw material of many link networks", EXPIRED),
     "same_template": ("caution", "Several sites in this check share one page template: likely one operator's network", AUTOMATED),
+    "same_owner": ("caution", "It reports to the same analytics or ads account as other sites in this check: one operator's sites", AUTOMATED),
     "traffic_cliff": ("caution", "Its visits fell sharply within a month and have not come back", DIRECTORY),
     "scaled_pages": ("caution", "Thousands of pages listed, almost none ranking: the shape of scaled, low-value content", DIRECTORY),
     "search_fall": ("caution", "It lost most of its Google search traffic in the last year and has not won it back", DIRECTORY),
@@ -41,8 +50,10 @@ FLAGS = {
     "inactive": ("note", "No new page in the last 30 days, by its own sitemap and by Google", ""),
     "no_audience": ("note", "Almost nobody visits it", ""),
     "traffic_decline": ("note", "Its visits are less than half of their level earlier in the year", ""),
+    "traffic_drop": ("note", "Its visits fell sharply in the newest month of the data; the next month shows whether the fall holds", ""),
     "old_search_fall": ("note", "It lost most of its Google search traffic over a year ago and has not won it back", ""),
     "paid_listing": ("note", "It charges for a listing or for faster review", ""),
+    "guest_posts": ("note", "Google holds pages of it that invite guest or sponsored posts", ""),
     "young": ("note", "The domain first appeared less than a year ago", ""),
     "blocked": ("note", "The site refused the check; the page signals are missing", ""),
     # your own profile
@@ -53,7 +64,22 @@ FLAGS = {
     "pace": ("caution", "More submissions this week than your own limit", AUTOMATED),
     "few_followed": ("note", "Very few of your links pass ranking credit", ""),
 }
+# Findings that are a link-spam behaviour of the site itself (selling links, asking for them back, a network, an
+# expired domain picked up, a hacked page), with the short label a report column uses. The other findings say how
+# healthy the site is. A verdict weighs both; the policy column shows these on their own, even one.
+POLICY = {
+    "link_seller": "sells links as its business", "checkout_network": "its checkout link sits on a network",
+    "injected_checkout": "hacked: an injected checkout link", "link_farm": "a link network's template page",
+    "shortener": "a URL shortener", "spam_neighbors": "links out to gambling, adult or loan sites",
+    "paid_follow": "sells followed links", "link_exchange": "asks for a link back", "badge_network": "a badge network",
+    "same_template": "one template with others here", "same_owner": "one owner with others here",
+    "reregistered": "an expired domain picked up again", "listed": "on the shared spam-link list",
+}
+# A link there brings nobody and passes nothing: the value column says "none".
+NO_VALUE = {"dead", "parked", "deindexed", "link_farm", "shortener"}
 ORDER = {"avoid": 0, "caution": 1, "note": 2}
+RISK = {"avoid": 3, "caution": 1, "note": 0}
+CAUTION_MIN = 2                 # caution findings it takes to make a caution: one alone is shown, not a verdict
 
 
 def flag(name: str, evidence: str) -> dict:
@@ -62,8 +88,33 @@ def flag(name: str, evidence: str) -> dict:
 
 
 def grade(flags: list[dict]) -> str:
-    levels = {f["level"] for f in flags}
-    return "avoid" if "avoid" in levels else "caution" if "caution" in levels else "ok"
+    """avoid when any finding is avoid; caution when CAUTION_MIN or more are caution; else ok.
+    Chosen on 100 sites no rule had been tuned on (2026-10-16: two sites' referring domains with Ahrefs' SPAM mark,
+    link networks left out): one caution as a verdict flagged 43 of 60 normal sites; two, with the spam score counted
+    from 50, flag 21 and still catch 28 of 40 SPAM. The 12 let through had one weak finding at most, 11 of them under
+    1,500 visits a month."""
+    levels = [f["level"] for f in flags]
+    return "avoid" if "avoid" in levels else "caution" if levels.count("caution") >= CAUTION_MIN else "ok"
+
+
+def risk(flags: list[dict]) -> int:
+    """3 for each avoid finding and 1 for each caution, notes 0: of two sites with one verdict, the one
+    with more found against it. On 90 sites Ahrefs had labelled, 33 of them SPAM (2026-10-15), it put a
+    SPAM site above a normal one 76% of the time; the verdict alone did 62%."""
+    return sum(RISK[f["level"]] for f in flags)
+
+
+def policy_risk(flags: list[dict]) -> str:
+    """"avoid", "caution" or "clean": the worst policy finding, one being enough."""
+    levels = {f["level"] for f in flags if f["flag"] in POLICY}
+    return "avoid" if "avoid" in levels else "caution" if "caution" in levels else "clean"
+
+
+def value(flags: list[dict], reach: str) -> str:
+    """What a listing there can bring: "none" when nobody can reach it, else the reach ("high", "medium",
+    "low", or "" when visits are unknown). On two sites' analytics (2026-10-16) reach told apart the referring
+    domains that sent visitors: 10 of 14 rated high had, 2 of 37 rated low; on the other, 2 of 7 and 1 of 73."""
+    return "none" if any(f["flag"] in NO_VALUE for f in flags) else reach
 
 
 def ranked(flags: list[dict]) -> list[dict]:

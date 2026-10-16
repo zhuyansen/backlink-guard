@@ -9,9 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from backlink_guard import find, history, ledger, page, placement, policy, profile, report, updates, verify, vet
+from backlink_guard import checkout, find, history, ledger, lists, page, placement, policy, profile, report, signals, updates, verify, vet
 
 TODAY = date(2026, 10, 13)
+REAL_LIST_LOAD = vet.blocklist.load          # the fixture below stubs it; one test needs the real one
 UPDATES = [{"name": "September 2026 spam update", "begin": "2026-09-24", "end": "2026-10-08"},
            {"name": "August 2026 spam update", "begin": "2026-08-18", "end": "2026-08-21"},
            {"name": "March 2026 core update", "begin": "2026-03-27", "end": "2026-04-08"}]
@@ -35,6 +36,8 @@ def state(tmp_path, monkeypatch):
     for name in ("GOANYAPI_API_KEY", "AISA_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(vet.aisa, "key", lambda: "")
+    monkeypatch.setattr(vet.signals, "entity", lambda domain: "")        # no call to Google in tests
+    monkeypatch.setattr(vet.blocklist, "load", lambda fresh=False: {})    # nor to GitHub for the shared list
 
 
 # ── reading a page ──────────────────────────────────────────────────────────
@@ -130,12 +133,20 @@ def test_spam_neighbors_need_several_links():
 # ── visits ──────────────────────────────────────────────────────────────────
 
 def test_a_cliff_is_a_fall_within_a_month_that_did_not_come_back():
-    creati = vet.visit_trend(months([604, 505, 552, 415, 334, 353, 321, 323, 167]))
-    assert creati["cliff"] == ("2026-09", 0.52)
-    flags = vet.traffic_flags(creati, 51, UPDATES)
-    assert flags[0]["flag"] == "traffic_cliff" and "September 2026 spam update" in flags[0]["evidence"]
+    held = vet.visit_trend(months([604, 505, 552, 415, 334, 353, 321, 167, 160]))   # August fell, September stayed down
+    assert held["cliff"] == ("2026-08", 0.52) and held["drop"] is None
+    flags = vet.traffic_flags(held, 51, UPDATES)
+    assert flags[0]["flag"] == "traffic_cliff" and "August 2026 spam update" in flags[0]["evidence"]
     recovered = vet.visit_trend(months([300, 300, 300, 300, 300, 300, 300, 150, 290]))
-    assert recovered["cliff"] is None
+    assert recovered["cliff"] is None and recovered["drop"] is None
+
+
+def test_a_fall_in_the_newest_month_is_a_note_until_a_later_month_confirms_it():
+    creati = vet.visit_trend(months([604, 505, 552, 415, 334, 353, 321, 323, 167]))
+    assert creati["cliff"] is None and creati["drop"] == ("2026-09", 0.52)
+    flags = vet.traffic_flags(creati, 51, UPDATES)
+    assert [(f["flag"], f["level"]) for f in flags] == [("traffic_drop", "note")]
+    assert "September 2026 spam update" in flags[0]["evidence"] and policy.grade(flags) == "ok"
 
 
 def test_a_slow_decline_is_a_note_not_a_cliff():
@@ -157,7 +168,7 @@ def test_updates_around_a_month():
 
 # ── the whole check ─────────────────────────────────────────────────────────
 
-def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=None, serp=None, pages=None):
+def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=None, serp=None, pages=None, traffic=None, guest=None):
     asked = []
     monkeypatch.setattr(vet.goanyapi, "key", lambda: "k")
     monkeypatch.setattr(vet.aisa, "key", lambda: "k")
@@ -172,7 +183,9 @@ def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=N
         if path == "dr":
             return {"domain_rating": dr}, 2000
         if path == "traffic":
-            return {"EstimatedMonthlyVisits": visits}, 4000
+            return {"EstimatedMonthlyVisits": visits, **(traffic or {})}, 4000
+        if path == "serp":
+            return {"result": {"organic": guest or []}}, 2000
         return {"siteCount": next(answers), "organic": []}, 4000
     monkeypatch.setattr(vet.goanyapi, "call", goany)
 
@@ -187,6 +200,7 @@ def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=N
             return {"items": [hist_item(t, *(search or {}).get(t, ([500] * 34,))) for t in body["targets"]]}, 130000
         return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
     monkeypatch.setattr(vet.aisa, "call", aisa_call)
+    monkeypatch.setattr(vet.aisa, "tool", lambda name, args: ({}, 0))       # Ahrefs and Semrush, with --deep
     return asked
 
 
@@ -218,6 +232,48 @@ def test_deindexed_needs_two_empty_answers(monkeypatch):
     assert again["grade"] == "avoid" and again["flags"][0]["flag"] == "deindexed"
 
 
+def test_a_failed_index_check_is_asked_once_more_and_never_read_as_zero(monkeypatch):
+    monkeypatch.setattr(vet, "RETRY_PAUSE", 0)
+
+    def answering(*answers):
+        left = iter(answers)
+
+        def index_count(domain, fresh):
+            got = next(left)
+            if isinstance(got, Exception):
+                raise got
+            return got
+        monkeypatch.setattr(vet, "index_count", index_count)
+    answering(vet.aisa.AisaError("Internal SE Server Error."), (0, 10000), (0, 10000))
+    assert vet.index_check("flaky.example", False) == (0, 20000)          # failed, then empty twice: deindexed
+    answering(vet.aisa.AisaError("Internal SE Server Error."), (37, 10000))
+    assert vet.index_check("listed.example", False) == (37, 10000)
+    answering(vet.aisa.AisaError("x"), vet.aisa.AisaError("x"))
+    with pytest.raises(vet.aisa.AisaError):
+        vet.index_check("down.example", False)                             # failed twice: an error, not a zero
+
+
+def test_a_home_page_that_gives_no_answer_is_asked_once_more(monkeypatch):
+    monkeypatch.setattr(vet, "RETRY_PAUSE", 0)
+    timeout = {"url": "https://slow.example", "final": "https://slow.example", "status": 0, "html": "",
+               "error": "TimeoutError: timed out", "blocked": False, "dead": True}
+    up = {**timeout, "status": 200, "html": "<title>Slow</title><p>A directory.</p>", "error": "", "dead": False}
+    answers = iter([timeout, up])
+    monkeypatch.setattr(vet.page, "fetch", lambda url: next(answers))
+    assert vet.page_flags(vet.read_site("slow.example")) == []
+    answers = iter([timeout, timeout])
+    assert vet.page_flags(vet.read_site("slow.example"))[0]["evidence"] == "TimeoutError: timed out, asked twice"
+    asked = []
+    gone = {**timeout, "status": 404, "error": "HTTP 404"}
+    monkeypatch.setattr(vet.page, "fetch", lambda url: asked.append(url) or gone)
+    assert vet.page_flags(vet.read_site("gone.example"))[0]["evidence"] == "HTTP 404" and len(asked) == 1   # a 404 is an answer
+
+
+def test_risk_is_three_for_each_avoid_and_one_for_each_caution():
+    found = [policy.flag("parked", "for sale"), policy.flag("paid_follow", "$39"), policy.flag("young", "2026-05-01")]
+    assert policy.risk(found) == 4 and policy.risk([]) == 0
+
+
 def test_a_failed_request_to_a_busy_site_is_blocked_not_dead(monkeypatch):
     paid_world(monkeypatch, months([5000] * 12), page_read=read_of(dead=True, error="timed out"))
     row = vet.vet(["dev.example"], today=TODAY)["rows"][0]
@@ -228,7 +284,7 @@ def test_paid_answers_are_bought_once(monkeypatch):
     asked = paid_world(monkeypatch, months([300] * 12))
     first = vet.vet(["dir.example"], today=TODAY)
     second = vet.vet(["dir.example"], today=TODAY)
-    assert first["cost"] == 2000 + 4000 + 25000 + 130000 and second["cost"] == 0 and asked == ["dr", "traffic"]
+    assert first["cost"] == 2000 + 4000 + 2000 + 25000 + 130000 and second["cost"] == 0 and asked == ["dr", "traffic", "serp"]
 
 
 # ── Google search history ───────────────────────────────────────────────────
@@ -286,18 +342,20 @@ def test_vet_adds_the_search_history(monkeypatch):
     paid_world(monkeypatch, months([300] * 12), search={"dir.example": ([1000] * 32 + [100] * 2, [500] * 32 + [50] * 2)})
     result = vet.vet(["dir.example"], today=TODAY)
     row = result["rows"][0]
-    assert row["grade"] == "caution" and "search_fall" in [f["flag"] for f in row["flags"]]
-    assert row["metrics"]["search_visits"] == 100 and result["cost"] == 2000 + 4000 + 25000 + 130000
+    assert row["grade"] == "ok" and row["risk"] == 1 and "search_fall" in [f["flag"] for f in row["flags"]]   # one caution alone
+    assert row["metrics"]["search_visits"] == 100 and result["cost"] == 2000 + 4000 + 2000 + 25000 + 130000
 
 
 def test_without_keys_the_page_checks_still_run(monkeypatch):
     monkeypatch.setattr(vet, "read_site", lambda url: read_of("Dofollow backlink for $39."))
     monkeypatch.setattr(vet, "first_seen", lambda d: "")
     result = vet.vet(["dir.example"], today=TODAY)
-    assert result["rows"][0]["grade"] == "caution" and result["sources"] == {"goanyapi": False, "aisa": False, "free": False}
+    assert result["rows"][0]["grade"] == "ok" and result["sources"] == {"goanyapi": False, "aisa": False, "free": False}
     from backlink_guard import report
     text = report.vet(result)
     assert "No `GOANYAPI_API_KEY`" in text and "not Google's judgment" in text
+    assert result["rows"][0]["risk"] == 1 and "| dir.example | ✅ ok | 1 |" in text and "Risk: 3 for each avoid" in text
+    assert "It sells links or posts that pass ranking credit" in text            # one caution: not a verdict, still shown
     asked_free = report.vet(vet.vet(["dir.example"], paid_sources=False, today=TODAY))
     assert "Run with `--free`" in asked_free and "No `GOANYAPI_API_KEY`" not in asked_free
 
@@ -372,7 +430,8 @@ def test_ledger_flags_pace_and_a_repeated_anchor():
 
 def test_grades():
     assert policy.grade([policy.flag("young", "x")]) == "ok"
-    assert policy.grade([policy.flag("young", "x"), policy.flag("paid_follow", "y")]) == "caution"
+    assert policy.grade([policy.flag("young", "x"), policy.flag("paid_follow", "y")]) == "ok"      # one caution alone
+    assert policy.grade([policy.flag("paid_follow", "y"), policy.flag("spam_score", "55 of 100")]) == "caution"
     assert policy.grade([policy.flag("paid_follow", "y"), policy.flag("parked", "z")]) == "avoid"
 
 
@@ -552,6 +611,8 @@ def test_deep_reads_the_profile_and_spares_a_site_people_visit(monkeypatch):
         calls.append(tool)
         if tool == vet.SUMMARY_TOOL:
             return summary, 24000
+        if tool in (signals.TECH_TOOL, signals.MENTIONS_TOOL):
+            return {}, 0
         return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
     monkeypatch.setattr(vet.aisa, "call", router)
     busy = vet.vet(["dir.example"], today=TODAY, deep=True)["rows"][0]
@@ -560,6 +621,26 @@ def test_deep_reads_the_profile_and_spares_a_site_people_visit(monkeypatch):
     monkeypatch.setattr(vet.aisa, "call", router)
     quiet = vet.vet(["quiet.example"], today=TODAY, deep=True, fresh=True)["rows"][0]
     assert "unproven" in [f["flag"] for f in quiet["flags"]] and quiet["metrics"]["referring_domains"] == 12
+
+
+def test_a_site_this_busy_is_no_badge_network(monkeypatch):
+    summary = {"referring_domains": 200, "backlinks": 126000, "referring_domains_nofollow": 16, "first_seen": "2019-01-01 00:00:00 +00:00",
+               "referring_links_semantic_locations": {"footer": 76, "main": 24}}       # every linking site, in its footer: the badge profile
+
+    def router(tool, body):
+        if tool == vet.SUMMARY_TOOL:
+            return summary, 24000
+        if tool in (signals.TECH_TOOL, signals.MENTIONS_TOOL):
+            return {}, 0
+        return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
+    paid_world(monkeypatch, months([300] * 12))                                       # 300,000 visits a month: github.com, pypi.org
+    monkeypatch.setattr(vet.aisa, "call", router)
+    busy = vet.vet(["platform.example"], today=TODAY, deep=True)["rows"][0]
+    assert "badge_network" not in [f["flag"] for f in busy["flags"]]
+    paid_world(monkeypatch, months([50] * 12))                                        # 50,000: two launch directories sat at 72-83K
+    monkeypatch.setattr(vet.aisa, "call", router)
+    directory = vet.vet(["launches.example"], today=TODAY, deep=True, fresh=True)["rows"][0]
+    assert "badge_network" in [f["flag"] for f in directory["flags"]]
 
 
 def test_link_sellers_and_badge_requirements_read_from_the_page():
@@ -647,3 +728,294 @@ def test_vet_weighs_pages_against_rankings(monkeypatch):
                search={"farm.example": ([0] * 34, [0] * 34)})
     row = vet.vet(["farm.example"], today=TODAY)["rows"][0]
     assert "scaled_pages" in [f["flag"] for f in row["flags"]] and row["metrics"]["ranking_keywords"] == 0
+
+
+
+# ── 0.5: age, visitors, identity ────────────────────────────────────────────
+
+
+TRAFFIC = {"DateData": {"registration": "2024-05-02T10:00:00.000Z"},
+           "TrafficSources": {"Search": 0.55, "SearchPaid": 0.05, "Direct": 0.25, "Social": 0.08, "GenAI": 0.04, "Mail": 0.03},
+           "Engagments": {"BounceRate": "0.61", "PagePerVisit": "2.4", "TimeOnSite": "95"}}
+
+
+def test_audience_reads_age_sources_and_ai_share():
+    a = signals.audience(TRAFFIC)
+    assert a["registered"] == "2024-05-02" and a["top_source"] == "search" and a["ai_share"] == 0.04
+    assert a["sources"]["search"] == 0.6 and a["bounce"] == 0.61 and a["pages_per_visit"] == 2.4
+    assert signals.audience({"TrafficSources": {"Search": 0, "Direct": 0}}) == {}       # nothing measured
+
+
+def test_a_lapsed_domain_picked_up_again():
+    assert signals.reregistered("2015-03-01", "2024-05-02", TODAY, 3000)["flag"] == "reregistered"
+    assert signals.reregistered("2024-01-10", "2024-05-02", TODAY, 3000) is None              # a launch, not a pick-up
+    assert signals.reregistered("2018-08-07", "2022-10-02", TODAY, 3000) is None              # a business four years on
+    assert signals.reregistered("2001-11-26", "2003-03-04", TODAY, 4_339_954) is None         # producthunt.com
+    assert signals.reregistered("2015-03-01", "2024-05-02", TODAY, 250_000) is None           # readers, whatever the past
+    assert signals.reregistered("", "2024-05-02", TODAY, 0) is None
+
+
+def test_a_listing_that_names_guest_posts_is_not_a_guest_post_page():
+    listing = {"result": {"organic": [{"link": "https://betalist.com/startups/the-guest-posts-app", "title": "The Guest Posts App"},
+                                      {"link": "https://theresanaiforthat.com/gpt/guest-post-website-finder/", "title": "Guest Post Finder"}]}}
+    own = {"result": {"organic": [{"link": "https://blog.example/write-for-us/", "title": "Write for Us - Blog Example"}]}}
+    assert signals.guest_posts("betalist.com", lambda q, fn: (listing, 2000)) == (None, 2000)
+    note, _ = signals.guest_posts("blog.example", lambda q, fn: (own, 2000))
+    assert note["flag"] == "guest_posts" and "write-for-us" in note["evidence"]
+
+
+def test_entity_is_the_suggestion_named_like_the_site():
+    raw = ')]}\',\n' + json.dumps({"default": {"topics": [{"title": "Executive Betrayal", "type": "Topic"},
+                                                          {"title": "Agent Skills Hub", "type": "Website"}]}})
+    assert signals.entity_of(raw, "agentskillshub.top") == "Website"
+    assert signals.entity_of(raw, "other.dev") == "" and signals.entity_of("<html>", "x.com") == ""
+
+
+def test_deep_numbers_from_ahrefs_dataforseo_and_semrush(monkeypatch):
+    def tool(name, args):
+        if name == signals.AHREFS_TOOL:
+            return {"domain_rating": {"domain_rating": 11.0}}, 80000
+        return "Database;Domain;Rank;Organic Keywords;Organic Traffic\r\nus;x.dev;9;171;71\r\n", 1000
+
+    def call(name, body):
+        if name == signals.TECH_TOOL:
+            return {"technologies": {"servers": {"paas": ["GitHub Pages"]}, "cms": {"cms": ["WordPress"]}}}, 12000
+        return {}, 0
+
+    def mentions(name, body):
+        if name == signals.MENTIONS_TOOL:
+            return {"total": {"platform": [{"key": "chat_gpt", "mentions": 910}]}}, 101000
+        return call(name, body)
+    monkeypatch.setattr(signals.aisa, "tool", tool)
+    monkeypatch.setattr(signals.aisa, "call", mentions)
+    got, cost, errors = signals.deep("x.dev", TODAY, lambda q, fn: fn())
+    assert got == {"ahrefs_dr": 11.0, "tech": ["GitHub Pages", "WordPress"], "ai_mentions": 910,
+                   "semrush_keywords": 171, "semrush_traffic": 71} and cost == 194000 and not errors
+
+
+def test_a_check_flags_the_pick_up_and_the_guest_post_pages(monkeypatch):
+    paid_world(monkeypatch, months([30] * 12), traffic=TRAFFIC,
+               guest=[{"link": "https://dir.example/write-for-us", "title": "Write for us"}])
+    monkeypatch.setattr(vet, "first_seen", lambda d: "2016-02-01")
+    row = vet.vet(["dir.example"], today=TODAY)["rows"][0]
+    names = {f["flag"] for f in row["flags"]}
+    assert {"reregistered", "guest_posts"} <= names and row["metrics"]["ai_share"] == 0.04
+    text = report.vet({"rows": [row], "cost": 0, "errors": [], "sources": {"goanyapi": True, "aisa": True, "free": True}})
+    assert "## Audience and identity" in text and "search 60% · direct 25% · social 8%" in text
+
+
+# ── checkout links shared across sites ─────────────────────────────────────
+
+def checkout_rows(titles):
+    return [{"site": f"s{i}.example", "title": t} for i, t in enumerate(titles)]
+
+
+FARM = checkout_rows([f"{w} Checker: Your Complete Guide To SEO" for w in ("Backlink", "DA PA", "Domain", "Rank", "Blog", "Site")])
+
+
+def test_checkout_links_are_read_from_the_page():
+    read = read_of(links='<a href="https://buy.stripe.com/aB3dE5fG?ref=1">Buy</a><a href="https://shop.gumroad.com/l/thing/">x</a>'
+                         '<a href="https://buy.stripe.com/aB3dE5fG">again</a><a href="https://gumroad.com/creator">profile</a>'
+                         '<a href="https://store.lemonsqueezy.com/checkout/buy/5f1c">LS</a>')
+    assert checkout.links_on(read["parsed"]["links"]) == ["https://buy.stripe.com/aB3dE5fG", "https://shop.gumroad.com/l/thing"]   # two at most
+
+
+def test_deep_finds_the_checkout_links_of_inner_pages(monkeypatch):
+    asked = []
+
+    def rest(path, body):
+        asked.append(body["target"])
+        return {"items": [{"url_to": "https://buy.stripe.com/hJ7kL9mN"}] if body["target"] == "stripe.com" else []}, 24000
+    monkeypatch.setattr(checkout.aisa, "rest", rest)
+    found, cost = checkout.linked("farm.site", lambda q, fn: fn())
+    assert asked == ["stripe.com", "gumroad.com"] and cost == 48000
+    assert checkout.links_on(found) == ["https://buy.stripe.com/hJ7kL9mN"]
+
+
+def test_a_shared_checkout_link_flags_the_network_members_only():
+    url = "https://buy.stripe.com/aB3dE5fG"
+    member = checkout.judge(url, "URL Backlink Checker: Your Complete Guide", FARM, vet.SPAM_WORDS)
+    assert member["flag"] == "checkout_network" and "6 other sites" in member["evidence"]
+    assert checkout.judge(url, "Flight Emergencies e-book", FARM, vet.SPAM_WORDS) is None          # the seller, copied by the farm
+    cited = checkout_rows(["Apfelnews - Apple News Blog", "Middle School Matters", "Friends with Brews", "Codrops", "TuttoTech", "Caschys Blog"])
+    assert checkout.judge("https://goodsnooze.gumroad.com/l/macwhisper", "Caschys Blog – Technik", cited, vet.SPAM_WORDS) is None
+    mirrors = checkout_rows(["Your work should remember itself — Blank"] * 6)                      # one site on six domains
+    assert checkout.judge(url, "Your work should remember itself — Blank", mirrors, vet.SPAM_WORDS) is None
+    assert checkout.judge(url, "URL Backlink Checker", FARM[:4], vet.SPAM_WORDS) is None            # four others mean nothing
+
+
+def test_a_spam_product_on_unrelated_sites_is_injection_not_promotion():
+    hacked = checkout_rows(["Community Academy", "Speech therapy today", "Knitting patterns shop", "Family tomato sauces",
+                            "City history museum"])
+    url = "https://bahis-example.gumroad.com/l/bahis-bonus"
+    assert checkout.judge(url, "Welcome to Community Academy", hacked, vet.SPAM_WORDS)["flag"] == "injected_checkout"
+    poker = checkout_rows(["Poker strategy forum", "Learn poker math", "Poker coaching", "Best poker books", "Poker news"])
+    assert checkout.judge("https://splitsuit.gumroad.com/l/poker-sheets", "Poker training blog", poker, vet.SPAM_WORDS) is None
+
+
+def test_vet_looks_up_a_checkout_link_once_and_flags_a_farm_member(monkeypatch):
+    farm_page = read_of("SEO tools.", links='<a href="https://buy.stripe.com/aB3dE5fG">Buy</a>')
+    farm_page["parsed"]["title"] = "URL Backlink Checker: Your Complete Guide"
+    paid_world(monkeypatch, months([300] * 12), page_read=farm_page)
+    plain, asked = vet.aisa.call, []
+
+    def call(tool, body):
+        if tool == checkout.TOOL:
+            asked.append(body["target"])
+            return {"items": [{"domain_from": f"www.farm{i}.site", "page_from_title": r["title"]} for i, r in enumerate(FARM)]}, 21000
+        return plain(tool, body)
+    monkeypatch.setattr(vet.aisa, "call", call)
+    row = vet.vet(["dir.example"], today=TODAY)["rows"][0]
+    again = vet.vet(["dir.example"], today=TODAY)["rows"][0]                                       # cached: not bought twice
+    assert asked == ["https://buy.stripe.com/aB3dE5fG"] and row["cost"] >= 21000
+    assert "checkout_network" in [f["flag"] for f in row["flags"]] and row["grade"] == "avoid"
+    assert "checkout_network" in [f["flag"] for f in again["flags"]]
+
+
+def test_one_template_title_on_dozens_of_sites_is_a_network_and_a_few_are_mirrors():
+    url = "https://buy.stripe.com/hJ7kL9mN"
+    sold = checkout_rows(["Expert backlink building services for higher Google rankings - Page 58,291"] * 30 + ["Shop"])
+    assert checkout.judge(url, "DA Backlink Checker: Your Essential Tool", sold, vet.SPAM_WORDS)["flag"] == "checkout_network"
+    assert checkout.judge(url, "FLIGHT EMERGENCIES e-book", sold, vet.SPAM_WORDS) is None               # the seller the farm copied
+    copies = checkout_rows(["Instant BQML for GA4 Properties"] * 17)                                    # one product, 17 domains
+    assert checkout.judge(url, "Instant BQML for GA4 Properties", copies, vet.SPAM_WORDS) is None
+    template = checkout_rows(["Instant BQML for GA4 Properties"] * 25)
+    assert checkout.judge(url, "Instant BQML for GA4 Properties", template, vet.SPAM_WORDS)["flag"] == "checkout_network"
+
+
+# ── finalize, incomplete checks, free findings first, shared accounts (2026-10-16) ──
+
+def row_of(flags=(), errors=(), **metrics):
+    return {"domain": "dir.example", "flags": [policy.flag(*f) for f in flags], "metrics": dict(metrics), "errors": list(errors)}
+
+
+def test_finalize_weighs_findings_against_the_numbers():
+    busy = vet.finalize(row_of([("dead", "timed out"), ("unproven", "12 linking sites"), ("badge_network", "630 links each")],
+                               visits=300_000, spam_score=55))
+    assert [f["flag"] for f in busy["flags"]] == ["spam_score", "blocked"]          # people visit it: blocked, not dead
+    assert busy["grade"] == "ok" and busy["risk"] == 1 and busy["reach"] == "high"
+    quiet = vet.finalize(row_of([("dead", "timed out")], visits=0, spam_score=45))
+    assert quiet["grade"] == "avoid" and "spam_score" not in [f["flag"] for f in quiet["flags"]]   # 45 is under 50
+
+
+def test_an_ok_with_a_failed_key_check_is_incomplete():
+    failed = vet.finalize(row_of(errors=["index: Internal SE Server Error."], visits=200))
+    assert failed["grade"] == "incomplete" and failed["missing"] == ["index"]
+    assert vet.finalize(row_of(errors=["guest posts: HTTP 502"], visits=200))["grade"] == "ok"      # a note's check
+    assert vet.finalize(row_of(visits=200), ("spam score",))["missing"] == ["spam score"]
+    assert vet.finalize(row_of([("parked", "for sale")], errors=["traffic: 502"]))["grade"] == "avoid"
+    from backlink_guard import report
+    text = report.vet({"rows": [failed], "cost": 0, "errors": [], "sources": {"goanyapi": True, "aisa": True}})
+    assert "❔ incomplete" in text and "not checked: index" in text
+
+
+def test_a_site_its_own_pages_put_at_avoid_gets_no_paid_check(monkeypatch):
+    asked = paid_world(monkeypatch, months([0.1] * 12), page_read=read_of("Buy this domain. This domain is parked."))
+    result = vet.vet(["parked.example"], today=TODAY, deep=True)
+    row = result["rows"][0]
+    assert row["skipped"] == ["parked"] and row["grade"] == "avoid" and asked == [] and result["cost"] == 0
+    asked = paid_world(monkeypatch, months([0.1] * 12), page_read=read_of(dead=True, error="TimeoutError: timed out"))
+    row = vet.vet(["gone.example"], today=TODAY, fresh=True)["rows"][0]
+    assert asked == ["traffic"] and row["skipped"] == ["dead"] and row["grade"] == "avoid"   # one question: dead or blocked?
+    asked = paid_world(monkeypatch, months([300] * 12), page_read=read_of(dead=True, error="HTTP 403"))
+    row = vet.vet(["busy.example"], today=TODAY, fresh=True)["rows"][0]
+    assert "skipped" not in row and "dr" in asked and [f["flag"] for f in row["flags"]] == ["blocked"]
+    assert asked.count("traffic") == 1                                                # bought once, even with --fresh
+
+
+def test_sites_reporting_to_one_ads_account_are_one_operator():
+    html = '<ins data-ad-client="ca-pub-5550001112223334"></ins><script>gtag("config", "G-XXXXXXXXXX")</script>'
+    assert vet.ids_of(html) == ["adsense:ca-pub-5550001112223334"]                    # the placeholder is left out
+    rows = [{"domain": d, "flags": [], "metrics": {"ids": ids}} for d, ids in
+            (("a.example", ["adsense:ca-pub-5550001112223334"]), ("b.example", ["adsense:ca-pub-5550001112223334", "gtm:GTM-AB12CD"]),
+             ("c.example", ["gtm:GTM-ZZ99YY"]))]
+    vet.shared_owners(rows)
+    flagged = {r["domain"]: [f["evidence"] for f in r["flags"]] for r in rows}
+    assert flagged["a.example"] == ["adsense:ca-pub-5550001112223334 also on b.example"] and flagged["c.example"] == []
+
+
+# ── what each site sent you, and the sites you are already on (2026-10-16) ──
+
+def test_referrals_read_a_ga4_export(tmp_path):
+    export = tmp_path / "ga4.csv"
+    export.write_text("# ----------------------------------------\n# Traffic acquisition: Session source\n"
+                      "Session source,Sessions,Engaged sessions\nproducthunt.com,40,20\nwww.producthunt.com,2,1\n"
+                      "(direct),300,100\ngoogle,120,90\nt.co,5,2\ntoolify.ai / referral,\"1,234\",10\n")
+    assert lists.referrals(str(export)) == {"producthunt.com": 42, "t.co": 5, "toolify.ai": 1234}
+    (tmp_path / "sent.json").write_text(json.dumps({"dir.example": 3}))
+    assert lists.referrals(str(tmp_path / "sent.json")) == {"dir.example": 3}
+
+
+def test_vet_shows_what_each_site_sent_you(monkeypatch):
+    paid_world(monkeypatch, months([300] * 12))
+    result = vet.vet(["dir.example", "other.example"], today=TODAY, referrals={"dir.example": 17})
+    assert [r["metrics"]["sent_you"] for r in result["rows"]] == [17, 0]
+    text = report.vet(result)
+    assert "| Sent you |" in text and "| 300,000 | 17 |" in text
+
+
+def test_recheck_says_what_got_worse(monkeypatch):
+    from backlink_guard import recheck
+    pages = {"https://dir.example": read_of("A directory of MCP servers."), "https://other.example": read_of("Tools.")}
+    monkeypatch.setattr(vet, "read_site", lambda url: pages[url])
+    monkeypatch.setattr(vet, "first_seen", lambda d: "")
+    verdicts = {"https://dir.example/mcp/x": "followed link"}
+    monkeypatch.setattr(recheck.verify, "verify", lambda url, own: {"verdict": verdicts[url]})
+    ledger.add("dir.example", "directory", url="https://dir.example/mcp/x")
+    ledger.add("other.example", "directory")
+    first = recheck.run(own="mine.example", paid_sources=False, today=TODAY)
+    assert first["previous"] == "" and first["changes"] == [] and set(first["sites"]) == {"dir.example", "other.example"}
+    pages["https://dir.example"] = read_of("Buy this domain. This domain is parked.")
+    verdicts["https://dir.example/mcp/x"] = "not found"
+    second = recheck.run(own="mine.example", paid_sources=False, today=TODAY)
+    assert second["changes"] == ["dir.example: ok -> avoid", "dir.example: new parked",
+                                 "https://dir.example/mcp/x: link followed link -> not found"]
+    text = report.recheck(second)
+    assert "## Changed" in text and "dir.example: ok -> avoid" in text and "## Links not found as they were" in text
+
+
+def test_link_policy_and_value_stand_beside_the_verdict():
+    sells = vet.finalize(row_of([("paid_follow", "$39"), ("link_exchange", "badge back"),
+                                 ("search_fall", "2,000 to 300")], visits=50_000, spam_score=20))
+    assert (sells["grade"], sells["policy"], sells["value"]) == ("caution", "caution", "medium")
+    one = vet.finalize(row_of([("paid_follow", "$39")], visits=400_000))
+    assert (one["grade"], one["policy"], one["value"]) == ("ok", "caution", "high")     # one finding: shown, not a verdict
+    parked = vet.finalize(row_of([("parked", "for sale")], visits=200))
+    assert (parked["grade"], parked["policy"], parked["value"]) == ("avoid", "clean", "none")
+    text = report.vet({"rows": [sells, one, parked], "cost": 0, "errors": [], "sources": {"goanyapi": True, "aisa": True}})
+    assert "| ⚠️ sells followed links; asks for a link back | medium |" in text
+    assert "| ⚠️ sells followed links | high |" in text and "| – | none |" in text
+    assert "It lost most of its Google search traffic" in text and "Link policy lists" in text
+
+
+def test_a_site_on_the_shared_list_is_avoid_with_its_evidence(monkeypatch):
+    asked = paid_world(monkeypatch, months([300] * 12))
+    entry = {"category": "link-network", "family": "rankzly", "evidence": 'Title "Premium SEO Backlinks Services", shared by 89 sites',
+             "evidence_url": "https://door.example/", "last_checked": "2026-10-16"}
+    monkeypatch.setattr(vet.blocklist, "load", lambda fresh=False: {"door.example": entry})
+    row = vet.vet(["door.example"], today=TODAY)["rows"][0]
+    assert row["grade"] == "avoid" and row["skipped"] == ["listed"] and asked == []
+    assert "the rankzly family" in row["flags"][0]["evidence"] and row["policy"] == "avoid"
+    def unreadable(fresh=False):
+        raise OSError("HTTP Error 404")
+    monkeypatch.setattr(vet.blocklist, "load", unreadable)
+    result = vet.vet(["other.example"], today=TODAY, fresh=True)
+    assert result["errors"][0] == "spam list: HTTP Error 404" and result["rows"][0]["grade"] == "ok"
+
+
+def test_the_shared_list_is_read_once_a_day(monkeypatch):
+    from backlink_guard import blocklist
+    calls = []
+
+    class Res(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+    csv_text = ("domain,category,family,evidence,evidence_url,first_listed,last_checked,status,source\n"
+                "a.example,link-seller,,sells,https://a.example/,2026-10-16,2026-10-16,listed,seed\n"
+                "b.example,link-network,,gone,https://b.example/,2026-10-16,2026-11-01,removed,#20\n")
+    monkeypatch.setattr(blocklist, "load", REAL_LIST_LOAD)
+    monkeypatch.setattr(blocklist.urllib.request, "urlopen", lambda req, timeout: calls.append(1) or Res(csv_text.encode()))
+    assert list(blocklist.load()) == ["a.example"] and list(blocklist.load()) == ["a.example"] and len(calls) == 1

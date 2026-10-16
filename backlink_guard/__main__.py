@@ -1,7 +1,8 @@
 """backlink-guard: check a link source before you submit to it, and watch your own links.
 
   python -m backlink_guard find "<keyword>" [more ...] [--site yoursite.com] [--skip site|file] [--vet] [--limit 30] [--fresh] [--json]
-  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--topic "keyword"] [--deep] [--recent] [--free] [--fresh] [--json]
+  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
+  python -m backlink_guard recheck [--to your-domain] [--deep] [--free] [--fresh] [--json]
   python -m backlink_guard audit <your-domain> [--deep] [--fresh] [--json]
   python -m backlink_guard verify <page-url> --to <your-domain> [--json]
   python -m backlink_guard log                                  the record, with pace and anchor checks
@@ -15,6 +16,10 @@ vet     reads each site, and with keys asks for its rating, a year of visits and
         spam score: about $0.01 a site plus $0.025 for the batch. --free reads the site only.
         --from reads the sites out of a list file; --limit caps how many are checked.
         --topic adds where each site ranks for your keyword ($0.005 a keyword).
+        --referrals reads your analytics export (GA4 Session source and Sessions) and shows
+        what each site has sent you. A site its own pages put at avoid gets no paid check.
+recheck the sites in your log checked again and compared with the last look: what got
+        worse, and with --to, whether your links are still there. Monthly is enough.
 audit   your own profile: totals, new and lost referring domains by week, anchors, and
         the spam score of the sites linking to you: about $0.06, with --deep about $0.10.
 verify  whether a page links to you and whether that link passes ranking credit. Free.
@@ -32,7 +37,7 @@ import sys
 from pathlib import Path
 
 from . import find as finding
-from . import ledger, lists, page, profile, report
+from . import ledger, lists, page, profile, recheck, report
 from . import verify as verification
 from . import vet as vetting
 
@@ -113,6 +118,12 @@ def parser() -> argparse.ArgumentParser:
                    help="your keyword: shows where each site ranks for it (+$0.005 a keyword); repeatable")
     v.add_argument("--recent", action="store_true",
                    help="also ask whether Google took in the site's pages from the last week and month (+$0.008 a site, slow)")
+    v.add_argument("--referrals", metavar="FILE",
+                   help="your analytics export of visitor sources (GA4 CSV: Session source, Sessions): shows what each site sent you")
+    r = sub.add_parser("recheck", parents=[common])
+    r.add_argument("--to", metavar="DOMAIN", default="", help="your domain: also check that your links are still there (free)")
+    r.add_argument("--deep", action="store_true", help="also the backlink profile of each site (+$0.024 a site)")
+    r.add_argument("--free", action="store_true", help="read the sites only; call no paid API")
     a = sub.add_parser("audit", parents=[common])
     a.add_argument("domain")
     a.add_argument("--deep", action="store_true", help="also the full anchor distribution")
@@ -135,8 +146,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "vet":
         targets = targets_of(args)
         result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh, recent=args.recent, deep=args.deep,
-                             topics=tuple(args.topic))
+                             topics=tuple(args.topic), referrals=lists.referrals(args.referrals) if args.referrals else None)
         return _print(args, result, report.vet(result))
+    if args.command == "recheck":
+        result = recheck.run(own=args.to, paid_sources=not args.free, deep=args.deep, fresh=args.fresh)
+        return _print(args, result, report.recheck(result))
     if args.command == "find":
         return cmd_find(args)
     if args.command == "audit":

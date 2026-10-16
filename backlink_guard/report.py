@@ -1,10 +1,11 @@
 """Markdown for people; the same results are available as JSON with --json."""
 from __future__ import annotations
 
-from .policy import POLICY_URL
+from .policy import POLICY, POLICY_URL
 
-MARK = {"avoid": "⛔ avoid", "caution": "⚠️ caution", "ok": "✅ ok", "note": "ℹ️"}
+MARK = {"avoid": "⛔ avoid", "caution": "⚠️ caution", "ok": "✅ ok", "incomplete": "❔ incomplete", "note": "ℹ️"}
 MISSING = "–"
+POLICY_MARK = {"avoid": "⛔", "caution": "⚠️"}
 
 
 def usd(micros: int) -> str:
@@ -43,24 +44,82 @@ def fit_text(m: dict) -> str:
     return "writes about it" if m.get("mentions") else MISSING
 
 
+def sources_text(m: dict) -> str:
+    """"search 62% · direct 25% · social 6%": where its visitors come from, biggest first."""
+    parts = [(k, v) for k, v in (m.get("sources") or {}).items() if v >= 0.01][:3]
+    return " · ".join(f"{k} {v * 100:.0f}%" for k, v in parts) or MISSING
+
+
+def audience_lines(rows: list[dict]) -> list[str]:
+    """Age, visitors and identity, plus the --deep numbers when they were asked for."""
+    keys = ("registered", "sources", "entity")
+    if not any(k in r["metrics"] for r in rows for k in keys):
+        return []
+    deep = any("ahrefs_dr" in r["metrics"] or "semrush_traffic" in r["metrics"] for r in rows)
+    head = "| Site | First archived | Registered | Visitors from | From AI assistants | Google knows it as |"
+    head += " Ahrefs DR | Semrush keywords / visits (US) | ChatGPT mentions | Built with |" if deep else ""
+    out = ["", "## Audience and identity", "", head, "|---" * head.count(" |") + "|"]
+    for r in rows:
+        m = r["metrics"]
+        ai = f"{m['ai_share'] * 100:.1f}%" if m.get("ai_share") is not None else MISSING
+        line = (f"| {r['domain']} | {m.get('first_seen') or MISSING} | {m.get('registered') or MISSING} | {sources_text(m)} | "
+                f"{ai} | {m.get('entity') or 'not an entity'} |")
+        if deep:
+            semrush = f"{num(m.get('semrush_keywords'))} / {num(m.get('semrush_traffic'))}"
+            line += (f" {num(m.get('ahrefs_dr'))} | {semrush} | {num(m.get('ai_mentions'))} | "
+                     f"{', '.join((m.get('tech') or [])[:4]) or MISSING} |")
+        out.append(line)
+    return out
+
+
 def vet(result: dict) -> str:
     topical = any("mentions" in r["metrics"] or "fit" in r["metrics"] for r in result["rows"])
-    head = "| Site | Verdict | Reach | Rating | Visits a month | Spam score |" + (" Fit |" if topical else "") + " Why |"
+    sent = any("sent_you" in r["metrics"] for r in result["rows"])
+    head = ("| Site | Verdict | Risk | Link policy | Value | Rating | Visits a month |" + (" Sent you |" if sent else "")
+            + " Spam score |" + (" Fit |" if topical else "") + " Why |")
     lines = ["# Link sources checked", "", head, "|---" * head.count(" |") + "|"]
     for r in result["rows"]:
-        m, why = r["metrics"], "; ".join(f["meaning"] for f in r["flags"] if f["level"] != "note") or MISSING
-        lines.append(f"| {r['domain']} | {MARK[r['grade']]} | {r.get('reach') or MISSING} | {num(m.get('dr'))} | "
-                     f"{num(m.get('visits'))} | {num(m.get('spam_score'))} |" + (f" {fit_text(m)} |" if topical else "")
-                     + f" {why} |")
+        m, found = r["metrics"], [f for f in r["flags"] if f["level"] != "note"]
+        policy = "; ".join(POLICY[f["flag"]] for f in found if f["flag"] in POLICY)
+        why = "; ".join([f["meaning"] for f in found if f["flag"] not in POLICY]
+                        + ([f"not checked: {', '.join(r['missing'])}"] if r.get("missing") else [])) or MISSING
+        policy = f"{POLICY_MARK.get(r.get('policy'), '')} {policy}".strip() or MISSING
+        lines.append(f"| {r['domain']} | {MARK[r['grade']]} | {num(r.get('risk'))} | {policy} |"
+                     + f" {r.get('value') or MISSING} | {num(m.get('dr'))} | {num(m.get('visits'))} |"
+                     + (f" {num(m.get('sent_you'))} |" if sent else "") + f" {num(m.get('spam_score'))} |"
+                     + (f" {fit_text(m)} |" if topical else "") + f" {why} |")
+    lines += ["", "Verdict weighs everything: one avoid finding makes avoid, and it takes two caution findings to make caution. "
+                  "Link policy lists what a link there would mean under Google's link spam policies, one finding being enough. "
+                  "Value is what a listing can bring: the site's reach, or none when nobody can reach it (dead, parked, dropped "
+                  "by Google, a shortener, a network page). Risk: 3 for each avoid finding, 1 for each caution. Incomplete: it "
+                  "looked ok, but a check that could have found something failed; run it again."]
+    lines += audience_lines(result["rows"])
     for r in result["rows"]:
         if r["flags"]:
             lines += ["", f"**{r['domain']}**"] + flag_lines(r["flags"])
+    skipped = [r["domain"] for r in result["rows"] if r.get("skipped")]
     notes = missing_sources(result["sources"]) + [f"- Failed: {e}" for e in result["errors"]]
+    if skipped:
+        lines += ["", f"Paid checks skipped for {len(skipped)} site(s) its own pages already put at avoid: {', '.join(skipped[:12])}"
+                  + (" …" if len(skipped) > 12 else "") + "."]
     if notes:
         lines += ["", "**Incomplete**", *notes]
     lines += ["", f"A verdict is a set of signals with their evidence, not Google's judgment. Policy: {POLICY_URL}",
               f"Cost of this run: {usd(result['cost'])}."]
     return "\n".join(lines)
+
+
+def recheck(result: dict) -> str:
+    """What changed on the sites you already have links on, then the check itself."""
+    since = f" (last look {result['previous']})" if result["previous"] else " (first look: nothing to compare yet)"
+    lines = [f"# The sites you have links on, {result['date']}{since}", ""]
+    if not result["sites"]:
+        return "\n".join(lines + ["No submitted or live entries in the log yet: `log add <site> --kind directory`."])
+    lines += ["## Changed", *([f"- {c}" for c in result["changes"]] or ["- Nothing got worse."])]
+    gone = [u for u, v in result["links"].items() if v != "followed link" and v != "qualified link"]
+    if gone:
+        lines += ["", "## Links not found as they were", *[f"- {u}: {result['links'][u]}" for u in gone]]
+    return "\n".join(lines + ["", vet(result["vet"])])
 
 
 def audit(a: dict) -> str:

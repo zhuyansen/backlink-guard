@@ -1,13 +1,15 @@
 """backlink-guard's flow as an animated SVG and a GIF: dots travel the connectors.
 
-  python docs/make_diagram.py <zh|en> <out-basename>
+  python docs/make_diagram.py <zh|en> <out-basename> [--mark-new]
+
+--mark-new keeps the ★ on what 0.5 added (and says so under the commands); without it the stars are dropped.
 
 rsvg-convert renders each frame (it does not run SVG animation) and ffmpeg joins them.
 """
 import math, subprocess, sys, tempfile
 from pathlib import Path
 
-W, H = 760, 830
+W, H = 760, 1004
 FONT = "Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif"
 AMB = dict(fill="#FAECE7", stroke="#993C1D", title="#712B13", sub="#993C1D")
 GRY = dict(fill="#F1EFE8", stroke="#5F5E5A", title="#444441", sub="#5F5E5A")
@@ -21,18 +23,22 @@ ZH = {
     "me": ("你的域名", "看自己的外链画像"),
     "find": ("find：搜这个词的人落在哪", "Google 前 30 · 按访客排序", "榜单 · 导航站 · 文章 · 视频 · 社区 · 仓库"),
     "audit": ("audit：你自己的外链画像", "评分 · 每周新增和丢失 · 锚文本", "链你的站里谁的垃圾分高"),
-    "vet": ("vet：这个站值不值得发",),
-    "c1": ("读页面（免费）", "死站 · 停放 · 卖链接 · 要回链", "短链 · 站群模板 · 链向博彩"),
-    "c2": ("GoAnyAPI", "评分 · 一年访问量 · 断崖", "还在不在 Google 收录里"),
-    "c3": ("AIsa（DataForSEO）", "垃圾分 · 被 Google 打过没有", "页面成千上万、几乎没排名"),
-    "c4": ("可选", "--deep 徽章网络 · 未经证实", "--recent 新页收录 · --topic 排名"),
-    "avoid": ("avoid：别提交", "死站 · 停放 · 卖链接为业 · 短链"), "caution": ("caution：读证据再定", "卖传权重链接 · 被 Google 打过"),
-    "ok": ("ok：再看触达", "高 / 中 / 低"),
-    "why": "每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款",
+    "vet": ("vet：这个站值不值得发", "★ 读页面就判 avoid 的，不再付费查"),
+    "c1": ("读页面（免费）", "死站 · 停放 · 卖链接 · 要回链", "短链 · 站群模板 · 链向博彩", "★ 收款链接（站群 / 被黑）· ★ 共用统计账号"),
+    "c2": ("GoAnyAPI", "评分 · 一年访问量 · 断崖", "还在不在收录里 · ★ 注册日期", "★ 访客来源（含 AI）· 自己的 write for us 页"),
+    "c3": ("AIsa", "垃圾分 · 被 Google 打过没有", "页面成千上万、几乎没排名", "★ 收款链接被多少个同类站共用"),
+    "c4": ("可选", "--deep 徽章网络 · 未经证实 · ★ Ahrefs 评分", "★ 技术栈 · ChatGPT 提及 · 内页收款链接", "--recent 新页收录 · --topic 排名"),
+    "c5": ("免费旁证", "Wayback 最早存档 · ★ 过期域名被重新注册 · ★ Google 知识图谱认不认识它"),
+    "avoid": ("avoid：别提交", "死站 · 停放 · 卖链接为业 · 短链", "★ 收款链接站群 · 被黑注入"),
+    "caution": ("caution：读证据再定", "★ 两条以上问题才算", "卖链接 · 被 Google 打过 · 重注册"),
+    "ok": ("ok：再看价值", "★ 价值 高 / 中 / 低 / 无", "★ 可附你的 GA 引荐访问数"),
+    "new": "★ = 0.5 新增：在本地 v0.5 分支，还没发布",
+    "why": ("每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款",
+            "★ 每行另附「政策风险」「价值」两栏 · ★ 本可能查出问题的检查失败了：标「待定」，重跑"),
     "rules": ("提交规则", "只提交自己的 · 一周几个 · 锚文本换着用 · 绝不买传权重的链接（付费要 sponsored / nofollow）"),
     "submit": ("你去提交", "工具不代你提交"), "verify": ("verify：上线后查链接", "在不在 · 传不传权重", "正文 / 页脚 / 侧栏 / 评论"),
-    "log": ("log：提交账本", "一周超过 5 个提醒", "同一锚文本反复用提醒"),
-    "use": ("命令行：python -m backlink_guard  find · vet · verify · audit · log", "Agent Skill：npx skills add zhuyansen/backlink-guard"),
+    "log": ("log：提交账本", "一周超过 5 个提醒", "同一锚文本反复用提醒", "★ recheck：每月重查已上的站"),
+    "use": ("命令行：python -m backlink_guard  find · vet · verify · audit · log · recheck", "Agent Skill：npx skills add zhuyansen/backlink-guard"),
     "legend": ("你给的输入", "检查", "数据来源", "结论：别发 / 小心 / 可以", "定期回看"),
 }
 EN = {
@@ -40,18 +46,22 @@ EN = {
     "me": ("Your domain", "your own link profile"),
     "find": ("find: where your searchers land", "Google's top 30 · by visitors", "lists · directories · articles · videos · threads"),
     "audit": ("audit: your own link profile", "rating · new and lost per week · anchors", "spammy sites linking to you"),
-    "vet": ("vet: is this site worth it?",),
-    "c1": ("Reading the pages (free)", "dead · parked · sells links · link back", "shortener · link network · gambling"),
-    "c2": ("GoAnyAPI", "rating · a year of visits · cliffs", "still listed by Google?"),
-    "c3": ("AIsa (DataForSEO)", "spam score · hit by Google before?", "thousands of pages, no rankings"),
-    "c4": ("Optional", "--deep badge networks · unproven", "--recent new pages · --topic rank"),
-    "avoid": ("avoid: do not submit", "dead · parked · link seller"), "caution": ("caution: read the evidence", "sells followed links · hit by Google"),
-    "ok": ("ok: then look at reach", "high / medium / low"),
-    "why": "Each finding carries its evidence and the Google spam policy line it stands next to",
+    "vet": ("vet: is this site worth it?", "★ settled by its own pages: no paid check"),
+    "c1": ("Reading the pages (free)", "dead · parked · sells links · link back", "shortener · link network · gambling", "★ checkout links · ★ shared analytics account"),
+    "c2": ("GoAnyAPI", "rating · a year of visits · cliffs", "still indexed? · ★ registration date", "★ visitor sources (AI too) · write-for-us"),
+    "c3": ("AIsa", "spam score · hit by Google before?", "thousands of pages, no rankings", "★ how many look-alikes share its checkout"),
+    "c4": ("Optional", "--deep badge network · unproven · ★ Ahrefs", "★ tech · ChatGPT mentions · inner checkouts", "--recent new pages · --topic rank"),
+    "c5": ("Free context", "Wayback first copy · ★ lapsed domain picked up again · ★ known to Google's Knowledge Graph?"),
+    "avoid": ("avoid: do not submit", "dead · parked · link seller", "★ checkout network · injected"),
+    "caution": ("caution: read the evidence", "★ two findings or more", "sells links · hit by Google"),
+    "ok": ("ok: then look at value", "★ value: high to none", "★ and what it sent you (GA)"),
+    "new": "★ new in 0.5: on the local v0.5 branch, not released yet",
+    "why": ("Each finding carries its evidence and the Google spam policy line it stands next to",
+            "★ plus link policy and value columns · ★ a check that failed: incomplete, run it again"),
     "rules": ("The rules", "your own project only · a few a week · vary the anchor · never pay for a followed link"),
     "submit": ("You submit", "the tool never does"), "verify": ("verify: after it is live", "there? passing credit?", "in the text, or the footer?"),
-    "log": ("log: your submissions", "over 5 a week: warned", "same anchor again: warned"),
-    "use": ("Command line: python -m backlink_guard  find · vet · verify · audit · log", "Agent Skill: npx skills add zhuyansen/backlink-guard"),
+    "log": ("log: your submissions", "over 5 a week: warned", "same anchor again: warned", "★ recheck them monthly"),
+    "use": ("Command line: python -m backlink_guard  find · vet · verify · audit · log · recheck", "Agent Skill: npx skills add zhuyansen/backlink-guard"),
     "legend": ("input", "checks", "data", "avoid / caution / ok", "look back"),
 }
 VARIANTS = {"zh": ZH, "en": EN}
@@ -78,14 +88,15 @@ PATHS = [
     ("l", [(380, 96), (380, 240)], "#888780", False, 1.8, 0.4),
     ("d", [(620, 96), (620, 130)], "#888780", False, 1.0, 0.2),
     ("f", [(195, 204), (195, 240)], "#378ADD", False, 1.0, 0.6),
-    ("v1", [(140, 446), (140, 478)], "#A32D2D", False, 1.0, 0.0),
-    ("v2", [(380, 446), (380, 478)], "#854F0B", False, 1.0, 0.3),
-    ("v3", [(620, 446), (620, 478)], "#0F6E56", False, 1.0, 0.6),
-    ("r", [(660, 534), (660, 578)], "#0F6E56", False, 1.2, 0.2),
-    ("s", [(140, 626), (140, 664)], "#888780", False, 1.0, 0.5),
-    ("t", [(250, 694), (280, 694)], "#888780", False, 0.8, 0.0),
-    ("u", [(510, 694), (540, 694)], "#888780", False, 0.8, 0.4),
-    ("loop", [(730, 694), (748, 694), (748, 167), (730, 167)], "#888780", True, 4.0, 0.0),
+    ("v1", [(140, 558), (140, 590)], "#A32D2D", False, 1.0, 0.0),
+    ("v2", [(380, 558), (380, 590)], "#854F0B", False, 1.0, 0.3),
+    ("v3", [(620, 558), (620, 590)], "#0F6E56", False, 1.0, 0.6),
+    ("r", [(660, 662), (660, 714)], "#0F6E56", False, 1.2, 0.2),
+    ("s", [(140, 762), (140, 800)], "#888780", False, 1.0, 0.5),
+    ("t", [(250, 840), (280, 840)], "#888780", False, 0.8, 0.0),
+    ("u", [(510, 840), (540, 840)], "#888780", False, 0.8, 0.4),
+    ("loop", [(730, 840), (748, 840), (748, 167), (730, 167)], "#888780", True, 4.0, 0.0),
+    ("loop2", [(730, 840), (748, 840), (748, 420), (730, 420)], "#888780", True, 3.0, 1.5),
 ]
 DASH = ' stroke-dasharray="4 3"'
 
@@ -94,19 +105,21 @@ def scene(T):
     boxes = "\n".join([
         box(30, 36, 220, 60, GRY, T["kw"]), box(270, 36, 220, 60, GRY, T["list"]), box(510, 36, 220, 60, GRY, T["me"]),
         box(30, 130, 330, 74, BLU, T["find"]), box(400, 130, 330, 74, BLU, T["audit"]),
-        box(30, 240, 700, 206, BLU, T["vet"], title_dy=-82, size=15),
-        box(46, 284, 326, 72, AMB, T["c1"]), box(388, 284, 326, 72, AMB, T["c2"]),
-        box(46, 364, 326, 72, AMB, T["c3"]), box(388, 364, 326, 72, AMB, T["c4"], dashed=True),
-        box(30, 478, 220, 56, RED, T["avoid"]), box(270, 478, 220, 56, YEL, T["caution"]), box(510, 478, 220, 56, GRN, T["ok"]),
-        box(30, 578, 700, 48, GRY, T["rules"]),
-        box(30, 664, 220, 60, GRY, T["submit"]), box(280, 664, 230, 60, BLU, T["verify"]), box(540, 664, 190, 60, BLU, T["log"]),
+        box(30, 240, 700, 318, BLU, T["vet"], title_dy=-137, size=15),
+        box(46, 296, 326, 88, AMB, T["c1"]), box(388, 296, 326, 88, AMB, T["c2"]),
+        box(46, 392, 326, 88, AMB, T["c3"]), box(388, 392, 326, 88, AMB, T["c4"], dashed=True),
+        box(46, 488, 668, 54, AMB, T["c5"]),
+        box(30, 590, 220, 72, RED, T["avoid"]), box(270, 590, 220, 72, YEL, T["caution"]), box(510, 590, 220, 72, GRN, T["ok"]),
+        box(30, 714, 700, 48, GRY, T["rules"]),
+        box(30, 800, 220, 80, GRY, T["submit"]), box(280, 800, 230, 80, BLU, T["verify"]), box(540, 800, 190, 80, BLU, T["log"]),
     ])
     lines = "\n".join(f'<path id="{i}" d="M{" L".join(f"{x} {y}" for x, y in p)}" fill="none" stroke="{c}" stroke-width="1"'
                       f'{DASH if dash else ""} marker-end="url(#arrow)"/>' for i, p, c, dash, *_ in PATHS)
-    notes = (f'<text x="30" y="560" font-size="11" fill="#5F5E5A">{T["why"]}</text>'
-             f'<path d="M30 742 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>'
-             + "".join(f'<text x="380" y="{762 + 17 * i}" text-anchor="middle" font-size="11.5" fill="#5F5E5A">{u}</text>' for i, u in enumerate(T["use"])))
-    legend_y = 800
+    notes = ("".join(f'<text x="30" y="{684 + 16 * i}" font-size="11" fill="#5F5E5A">{w}</text>' for i, w in enumerate(T["why"]) if w)
+             + f'<path d="M30 898 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>'
+             + "".join(f'<text x="380" y="{918 + 17 * i}" text-anchor="middle" font-size="11.5" fill="#5F5E5A">{u}</text>' for i, u in enumerate(T["use"]))
+             + (f'<text x="380" y="952" text-anchor="middle" font-size="11.5" fill="#993C1D">{T["new"]}</text>' if T.get("new") else ""))
+    legend_y = 972
     swatches = [f'fill="{GRY["fill"]}" stroke="{GRY["stroke"]}" stroke-width="0.5"', f'fill="{BLU["fill"]}" stroke="{BLU["stroke"]}" stroke-width="0.5"',
                 f'fill="{AMB["fill"]}" stroke="{AMB["stroke"]}" stroke-width="0.5"']
     labels = list(T["legend"])
@@ -143,8 +156,15 @@ def at(points, f):
     return points[-1]
 
 
-def main(variant, base):
-    head, body = scene(VARIANTS[variant])
+def unstarred(T):
+    """The labels with the ★ for what 0.5 added taken out, and no line explaining it."""
+    clean = lambda v: v.replace("★ ", "").replace("★", "")  # noqa: E731
+    return {k: (tuple(clean(x) for x in v) if isinstance(v, tuple) else clean(v)) for k, v in T.items() if k != "new"}
+
+
+def main(variant, base, mark_new=False):
+    T = VARIANTS[variant] if mark_new else unstarred(VARIANTS[variant])
+    head, body = scene(T)
     smil = "\n".join(f'<circle r="4" fill="{c}"><animateMotion dur="{dur}s" repeatCount="indefinite" begin="{b}s"><mpath href="#{i}"/></animateMotion></circle>'
                      for i, _, c, _, dur, b in PATHS)
     Path(base + ".svg").write_text(head + body + smil + "\n</svg>\n")
@@ -164,4 +184,4 @@ def main(variant, base):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], "--mark-new" in sys.argv[3:])
