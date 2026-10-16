@@ -68,12 +68,12 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | First seen | the Wayback Machine's first copy | archive.org | free |
 | Rating, and a rating with no readers behind it (30 or more, under 5,000 visits a month) | domain rating | GoAnyAPI | $0.002 |
 | Reach, and a fall in visits | 12 months of monthly visits; a fall within a month is shown next to the Google updates that ran around it | GoAnyAPI, Google's status feed | $0.004 |
-| Lost its Google search traffic and has not won it back, back to 2022 (a caution within the last year, a note before that) | monthly US Google traffic and ranking keywords; a fall counts when both fall and stay down two months, measured against twelve large sites read in the same call; shown next to the Google updates around it | DataForSEO through AIsa, Google's status page | $0.12 a batch plus $0.0012 a site |
+| Lost its Google search traffic and has not won it back, back to 2022 (a caution within the last year, a note before that) | monthly US Google traffic and ranking keywords; a fall counts when both fall and stay down two months, measured against twelve large sites read in the same call; shown next to the Google updates around it | AIsa, Google's status page | $0.12 a batch plus $0.0012 a site |
 | Whether Google lists it | `site:` search, only for sites with few visitors, asked twice before it counts | GoAnyAPI, then AIsa | $0.004 to $0.01 |
-| Spam score of the site's own backlinks | DataForSEO, one call for the batch | AIsa | $0.025 a batch |
+| Spam score of the site's own backlinks | one call for the batch | AIsa | $0.025 a batch |
 | Sells links as its business ("PBN", "DR/DA" packages) | the page title | the site | free |
-| Thousands of pages, almost none ranking: scaled, low-value content (sites in English) | pages in the site's own sitemaps (read up to 1.5 MB a file, so a floor) against the keywords it ranks for on US Google | the site; DataForSEO through AIsa | free with the search history |
-| `--deep`: a badge network (hundreds of links from each listed site, most in footers, nearly all followed), or an unproven site (under a year old, under 100 linking sites, under 1,000 visits) | DataForSEO backlink summary | AIsa | $0.024 a site |
+| Thousands of pages, almost none ranking: scaled, low-value content (sites in English) | pages in the site's own sitemaps (read up to 1.5 MB a file, so a floor) against the keywords it ranks for on US Google | the site; AIsa | free with the search history |
+| `--deep`: a badge network (hundreds of links from each listed site, most in footers, nearly all followed), or an unproven site (under a year old, under 100 linking sites, under 1,000 visits) | backlink summary | AIsa | $0.024 a site |
 | `--recent`: whether Google takes in the pages it keeps adding | `site:` search for the last week and month, each zero asked twice, checked against the site's own sitemap | GoAnyAPI | $0.008 a site |
 
 For your own domain (`audit`): totals and how many referring domains pass ranking credit (GoAnyAPI), new and lost referring domains by week and the anchors (AIsa), and the spam score of the sites linking to you.
