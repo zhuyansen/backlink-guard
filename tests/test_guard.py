@@ -476,10 +476,10 @@ def test_targets_skip_and_limit(tmp_path, capsys):
     import argparse
     from backlink_guard import __main__ as cli
     listed = tmp_path / "gap.md"
-    listed.write_text("apiflux.ai openrouter.ai robuta.com toolidx.com dev.to")
+    listed.write_text("yoursite.example openrouter.ai robuta.com toolidx.com dev.to")
     have = tmp_path / "have.txt"
     have.write_text("dev.to")
-    args = argparse.Namespace(targets=["saashub.com"], from_file=str(listed), skip=["apiflux.ai", "openrouter.ai", str(have)], limit=2)
+    args = argparse.Namespace(targets=["saashub.com"], from_file=str(listed), skip=["yoursite.example", "openrouter.ai", str(have)], limit=2)
     assert cli.targets_of(args) == ["saashub.com", "robuta.com"]
     assert "3 sites found; checking the first 2" in capsys.readouterr().err      # saashub, robuta, toolidx
 
