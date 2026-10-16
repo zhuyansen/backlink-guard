@@ -11,11 +11,11 @@ Most backlink tools help you send more. This one tells you where not to send, an
 ## Quick start
 
 ```bash
-pip install backlink-guard
+pip install "git+https://github.com/zhuyansen/backlink-guard"
 backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-Python 3.10 or newer, no dependencies; `uvx backlink-guard vet …` runs it without installing. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [two keys](#keys) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
+Python 3.10 or newer, no dependencies; `uvx --from git+https://github.com/zhuyansen/backlink-guard backlink-guard vet …` runs it without installing. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [two keys](#keys) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
 
 Checked with both keys on 2026-10-13 and 14:
 
@@ -178,7 +178,7 @@ As a skill, for any agent that reads them:
 npx skills add zhuyansen/backlink-guard
 ```
 
-The skill walks an agent through the same order: vet, the rules, verify, audit. It runs the installed `backlink-guard` command, or `uvx backlink-guard`, or a clone in `~/backlink-guard`, and says the cost before a paid run.
+The skill walks an agent through the same order: vet, the rules, verify, audit. It runs the installed `backlink-guard` command, or `uvx` from this repository, or a clone in `~/backlink-guard`, and says the cost before a paid run.
 
 ## Limits
 

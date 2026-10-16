@@ -11,11 +11,11 @@
 ## 快速上手
 
 ```bash
-pip install backlink-guard
+pip install "git+https://github.com/zhuyansen/backlink-guard"
 backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上[两个 key](#key) 会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
+需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx --from git+https://github.com/zhuyansen/backlink-guard backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上[两个 key](#key) 会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
 
 2026-10-13、14 两天配齐两个 key 的检查结果：
 
@@ -178,7 +178,7 @@ claude plugin install backlink-guard@backlink-guard
 npx skills add zhuyansen/backlink-guard
 ```
 
-skill 带着 agent 按同样的顺序走：先查、守规则、验收、审计。它会用已安装的 `backlink-guard` 命令，没有就用 `uvx backlink-guard`，再没有就克隆到 `~/backlink-guard`；付费运行前会先报成本。
+skill 带着 agent 按同样的顺序走：先查、守规则、验收、审计。它会用已安装的 `backlink-guard` 命令，没有就用 `uvx` 从这个仓库直接运行，再没有就克隆到 `~/backlink-guard`；付费运行前会先报成本。
 
 ## 局限
 
