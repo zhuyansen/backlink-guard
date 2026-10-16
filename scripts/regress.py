@@ -52,6 +52,8 @@ def summary(s: dict, rows: dict[str, dict]) -> list[str]:
                      f"J {j:.3f}, risk AUC {auc({d: r['risk'] for d, r in rows.items()}, spam, normal):.3f}")
     by = Counter((labels.get(d, "unlabelled"), r["grade"]) for d, r in rows.items())
     lines.append("   " + ", ".join(f"{l} {g} {n}" for (l, g), n in sorted(by.items())))
+    acts = Counter((labels.get(d, "unlabelled"), r["action"]) for d, r in rows.items())
+    lines.append("   action: " + ", ".join(f"{l} {a} {n}" for (l, a), n in sorted(acts.items())))
     return lines
 
 

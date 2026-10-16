@@ -9,17 +9,17 @@ Four jobs, in the order a careful person does them: find the pages your searcher
 
 ## Before you run anything
 
-1. Find the tool: `$BACKLINK_GUARD_DIR` if set, else `~/backlink-guard`; clone https://github.com/zhuyansen/backlink-guard there if missing. Run every command from that directory. Python 3.10 or newer; nothing to install.
+1. Find the tool, in this order: the `backlink-guard` command (installed with `pip install backlink-guard`); `uvx backlink-guard` when `uv` is there; else clone https://github.com/zhuyansen/backlink-guard to `$BACKLINK_GUARD_DIR` or `~/backlink-guard` and run `python -m backlink_guard` from that folder. The commands below are written as `backlink-guard`; use the form that works. Python 3.10 or newer, no dependencies. The log, the paid answers and the networks seen before are kept in `~/.backlink-guard` (or `./state` in a clone that has one).
 2. Keys are optional, and each adds signals:
    - `GOANYAPI_API_KEY` (https://goanyapi.com/r/ga-95708898fb): a site's rating, a year of monthly visits, whether Google still lists it, and the summary of your own backlinks.
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu): spam scores, new and lost referring domains by week, anchors.
    Without a key the page checks still run. Say which signals are missing: a site can pass the page checks and have no audience at all.
-3. Say the cost before a paid run. `find`: about 0.005 USD a keyword plus 0.012 USD for the search volumes, `--vet` then adds the vet cost. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
+3. Say the cost before a paid run. `find`: about 0.005 USD a keyword plus 0.012 USD for the search volumes, `--vet` then adds the vet cost. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history), the same for one site or thirty, so put every site the user is considering in one call (one site about 0.17 USD in all, thirty about 0.46 USD); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
 
 ## 1. Where to be: find
 
 ```bash
-python -m backlink_guard find "claude skills" "claude code skills" --site yoursite.com --json
+backlink-guard find "claude skills" "claude code skills" --site yoursite.com --json
 ```
 
 Start here when the user asks where to get links or listings. It reads Google's top 30 for each keyword and keeps the pages that are not the user's: directories, lists, articles, videos, threads, repositories. Each page has `kind`, `ranks` (keyword and position), `visitors` (monthly searches times the usual click share of that position: a size, not a count) and `action`. The pages are sorted by `visitors`: a page that ranks for the user's keyword sends people already looking for what they make, which is the point of a link.
@@ -35,13 +35,15 @@ Start here when the user asks where to get links or listings. It reads Google's 
 ## 2. Before submitting: vet
 
 ```bash
-python -m backlink_guard vet mcpservers.org turbo0.com navi.tools --json
+backlink-guard vet mcpservers.org turbo0.com navi.tools --json
 ```
 
-One call for all the sites the user is considering. Add `--topic "their keyword"` to see where each site ranks for it (`fit`): a site that ranks for the user's keyword is relevant by construction; `mentions` says its pages at least write about it. When they come as a list (a competitor gap export, a paid backlink list, a note), pass the file: `--from list.xlsx --skip yoursite.com --skip competitors.txt`. A run checks 30 sites unless `--limit` is raised; say the cost of a bigger run first. Each row has `grade` (`ok`, `caution`, `avoid`: one avoid finding makes avoid, caution takes two caution findings), `risk` (3 for each avoid finding, 1 for each caution: use it to order sites with the same grade, not as a probability), `reach` (`high`, `medium`, `low`), `metrics` and `flags`; every flag has `meaning`, `evidence` and, where one applies, the line of Google's link spam policy it stands next to.
+One call for all the sites the user is considering. Add `--topic "their keyword"` to see where each site ranks for it (`fit`): a site that ranks for the user's keyword is relevant by construction; `mentions` says its pages at least write about it. When they come as a list (a competitor gap export, a paid backlink list, a note), pass the file: `--from list.xlsx --skip yoursite.com --skip competitors.txt`. A run checks 30 sites unless `--limit` is raised; say the cost of a bigger run first. Each row has `action` (`skip`, `look first`, `free only`, `low value`, `submit`) with `action_reason`, `grade` (`ok`, `caution`, `avoid`: one avoid finding makes avoid, caution takes two caution findings), `risk` (3 for each avoid finding, 1 for each caution: use it to order sites with the same grade, not as a probability), `reach` (`high`, `medium`, `low`), `metrics` and `flags`; every flag has `meaning`, `evidence` and, where one applies, the line of Google's link spam policy it stands next to.
 
 How to act on it:
 
+- Lead with `action`, and say `action_reason` in a sentence. `skip`: do not submit. `look first`: a check failed or the site refused it, it may be one of an operator's several sites, or two findings stand against it; read the evidence aloud and let the user decide. `free only`: a free listing is fine, but never pay for a followed link, never link back as a condition, never show its badge. `low value`: nothing against it, but under 1,000 visits a month; only if it costs nothing and fits. `submit`: none of these.
+- `networks` in the result: one operator's sites that the shared spam-link list lacks, most of them flagged, each with `report`, a link to a filled-in report form for the list. Offer the link; opening it sends nothing, and only the user decides to submit it.
 - A `listed` finding: the site is on the shared list of spam-link sources (github.com/zhuyansen/backlink-spam-list), with the entry's evidence. If the user finds a network the list lacks, suggest reporting it there, with evidence anyone can check.
 - `avoid` (dead, parked, not listed by Google, a URL shortener, a link network's template page, a link seller, or linking out to gambling and similar sites): do not submit. Lists of "the backlink sources other sites use" are full of these: they are there because people submit to them in bulk.
 - `caution`: read the evidence aloud to the user and let them decide.
@@ -54,8 +56,8 @@ How to act on it:
   - **Thousands of pages, almost none ranking** (`scaled_pages`): the site's own sitemaps list 1,000 or more pages for every keyword it ranks for on US Google. The shape of scaled, low-value content; on the test set most such sites were marked spam by Ahrefs. Not checked for sites in another language.
   - **High rating, almost no visitors** (`hollow_rating`): the rating was built with links. A listing there reaches nobody.
   - **High spam score** (`spam_score`): the site's own backlinks look manufactured.
-  - **One template across several sites** (`same_template`): one operator's network. Treat them as one site at most.
-  - **One analytics or ads account across several sites** (`same_owner`): the same AdSense, Analytics, Tag Manager, Clarity or Facebook pixel account. One operator; treat them as one site at most.
+  - **One template across several sites** (`same_template`): one operator's network, found in this check or against sites from earlier checks on this machine. Treat them as one site at most.
+  - **One analytics or ads account across several sites** (`same_owner`): the same AdSense, Analytics, Tag Manager, Clarity or Facebook pixel account, in this check or an earlier one. One operator; treat them as one site at most.
   - **Badge network** (`badge_network`, with `--deep`): its rating comes from the badges every listed site must show. A listing there is a link exchange; never pay for it.
   - **Unproven** (`unproven`, with `--deep`): new, almost nobody links to it, almost nobody visits. Ahrefs marks most such sites spam. Free to submit if it costs nothing; never pay.
   - **Not indexing** (`not_indexing`, with `--recent`): it keeps adding pages and Google shows none from the last 30 days. Say that `site:` counts are incomplete, and suggest checking again in a week before paying. `inactive` only means no new pages; it is not a fault. A failed search is reported as failed, never as zero.
@@ -76,8 +78,8 @@ These are the rules Agent Skills Hub worked to. Follow them whatever the tool sa
 - A handful a week, not a batch. Record each one, then check the pace:
 
 ```bash
-python -m backlink_guard log add mcpservers.org --kind directory --anchor "Agent Skills Hub" --url https://mcpservers.org/submit
-python -m backlink_guard log
+backlink-guard log add mcpservers.org --kind directory --anchor "Agent Skills Hub" --url https://mcpservers.org/submit
+backlink-guard log
 ```
 
 - Vary the anchor: the brand name, the bare URL, a plain description. The log flags one anchor used over and over.
@@ -86,8 +88,8 @@ python -m backlink_guard log
 ## 4. After it is listed: verify
 
 ```bash
-python -m backlink_guard verify https://mcpservers.org/servers/you/your-tool --to yoursite.com
-python -m backlink_guard log set mcpservers.org --status live --url https://mcpservers.org/servers/you/your-tool
+backlink-guard verify https://mcpservers.org/servers/you/your-tool --to yoursite.com
+backlink-guard log set mcpservers.org --status live --url https://mcpservers.org/servers/you/your-tool
 ```
 
 Verdicts: `followed link` (passes ranking credit), `qualified link` (nofollow, sponsored or ugc: visitors only), `redirect only` (goes through the site's own redirect page: visitors only), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also has a `placement`: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. Say where it is: a link an editor put in the body text is worth more than one in a footer or sidebar, and a followed link that appears only in a footer or widget across many pages is the template-link pattern Google lists as link spam. A link a script adds after load is not seen: the result says so, and a browser check settles it. If the user paid for a placement, compare what was promised with what is there.
@@ -95,7 +97,7 @@ Verdicts: `followed link` (passes ranking credit), `qualified link` (nofollow, s
 ## 5. Now and then: audit your own profile
 
 ```bash
-python -m backlink_guard audit yoursite.com --deep --json
+backlink-guard audit yoursite.com --deep --json
 ```
 
 It reports the totals, how many referring domains pass credit, new and lost referring domains by week, the anchors, and which of the top linking sites score high for spam. Flags:
@@ -110,7 +112,7 @@ Google ignores most junk links rather than punishing them. Do not recommend a di
 ## 6. Monthly: the sites you are already on
 
 ```bash
-python -m backlink_guard recheck --to yoursite.com --json
+backlink-guard recheck --to yoursite.com --json
 ```
 
 It checks the sites in the log (submitted or live) again and compares them with the last look: a lower verdict, a new finding against a site, and with `--to` a link of the user's no longer found. Report only what got worse, with its evidence. A site that turned avoid (parked, dropped by Google, carrying an injected checkout link) is one to stop sending people to; Google ignores most bad links, so asking for removal is rarely needed. It only works if the log is kept: `log add` after every submission.
@@ -120,6 +122,6 @@ If the user has analytics, ask for the referral export (GA4: Reports, Acquisitio
 ## Deliver
 
 - For `find`: the keywords with their searches, then the pages worth being on, busiest first (page, kind, where it ranks, visitors, what to do), then the five or so the user should act on this week and how. Say plainly that visitors are an estimate of size.
-- For `vet`: a table (site, verdict, reach, rating, visits a month, spam score, fit when `--topic` was given, why), then each flagged site's evidence, then what was not checked and why (missing key, failed source, blocked site), then a short recommendation: where to submit first, what to skip.
+- For `vet`: a table (site, action, verdict, reach, rating, visits a month, spam score, fit when `--topic` was given, why), then each flagged site's evidence, then what was not checked and why (missing key, failed source, blocked site), then a short recommendation: where to submit first, what to skip, and the report links of any `networks`.
 - For `audit`: the numbers, the findings with evidence, and at most three things to do.
 - Never add a site, a number or a verdict from your own knowledge. The output is what the tool saw today.

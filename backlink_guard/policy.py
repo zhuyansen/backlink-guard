@@ -11,6 +11,7 @@ Levels: "avoid" (a link from here is worth nothing or sits in bad company), "cau
 A target is avoid when any finding is avoid, caution when two or more findings are caution,
 and ok otherwise: one caution finding alone is listed with its evidence but is not a verdict
 (see grade). Notes never change it. An ok whose key checks failed is "incomplete" (vet.finalize).
+The action reads the verdict, the link policy and the value together: what to do with the site.
 """
 POLICY_URL = "https://developers.google.com/search/docs/essentials/spam-policies#link-spam"
 
@@ -77,6 +78,12 @@ POLICY = {
 }
 # A link there brings nobody and passes nothing: the value column says "none".
 NO_VALUE = {"dead", "parked", "deindexed", "link_farm", "shortener"}
+# For the action: policy findings that say one operator may run several such sites (look before you submit), and
+# the ones that say what the site asks for, which a free listing does not need.
+NETWORK = {"same_template", "same_owner", "reregistered"}
+DEALS = {"paid_follow": "never pay for a followed link", "link_exchange": "never link back as a condition",
+         "badge_network": "never show its badge in your footer"}
+ACTIONS = ("skip", "look first", "free only", "low value", "submit")
 ORDER = {"avoid": 0, "caution": 1, "note": 2}
 RISK = {"avoid": 3, "caution": 1, "note": 0}
 CAUTION_MIN = 2                 # caution findings it takes to make a caution: one alone is shown, not a verdict
@@ -115,6 +122,36 @@ def value(flags: list[dict], reach: str) -> str:
     "low", or "" when visits are unknown). On two sites' analytics (2026-10-16) reach told apart the referring
     domains that sent visitors: 10 of 14 rated high had, 2 of 37 rated low; on the other, 2 of 7 and 1 of 73."""
     return "none" if any(f["flag"] in NO_VALUE for f in flags) else reach
+
+
+def action(r: dict) -> tuple[str, str]:
+    """(one of ACTIONS, why): the verdict, link policy and value of a graded row read together, first rule first.
+    Low reach weighs because it predicts what a listing brings: on two sites' analytics (2026-10-16) 2 of the 37
+    and 1 of the 73 referring domains rated low had sent a visit, against 10 of 14 and 2 of 7 rated high."""
+    found = [f for f in r["flags"] if f["level"] != "note"]
+    if r["grade"] == "avoid":
+        return "skip", next(f["meaning"] for f in found if f["level"] == "avoid")
+    if r["value"] == "none":
+        return "skip", "nobody can reach it"
+    if r["grade"] == "caution" and r["value"] == "low":
+        return "skip", "findings against it, and almost nobody visits"
+    if r["grade"] == "incomplete":
+        return "look first", "a check failed: run it again"
+    if any(f["flag"] == "blocked" for f in r["flags"]):
+        return "look first", "it refused the check, so its pages were not read"
+    network = [POLICY[f["flag"]] for f in found if f["flag"] in NETWORK]
+    if network:
+        return "look first", "; ".join(network)
+    deals = [DEALS[f["flag"]] for f in found if f["flag"] in DEALS]
+    if deals:
+        return "free only", "; ".join(deals)
+    if r["grade"] == "caution":
+        return "look first", "two findings against it"
+    if not r["value"]:
+        return "look first", "visits not checked"
+    if r["value"] == "low":
+        return "low value", "under 1,000 visits a month: a listing there brings few visitors"
+    return "submit", ""
 
 
 def ranked(flags: list[dict]) -> list[dict]:

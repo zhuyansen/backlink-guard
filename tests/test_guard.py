@@ -4,6 +4,7 @@ import io
 import json
 import re
 import urllib.error
+import urllib.parse
 from datetime import date
 from pathlib import Path
 
@@ -97,6 +98,18 @@ def test_a_free_tier_is_not_a_price():
     assert not vet.priced("Free $ 0 Get 3 dofollow links to boost your SEO", vet.SELLS)      # turbo0.com
     assert vet.priced("Review within 24 hours. Dofollow link (DR 71). $39", vet.SELLS)       # mcpservers.org
     assert vet.priced("Publishing Fee Structure: $50 review, $80.00 on acceptance", vet.SELLS)
+
+
+def test_a_quote_starts_and_ends_on_whole_words():
+    text = "Submit within 2 weeks. Premium Submit $39 one-time review fee. Dofollow link (DR 71). Submit MCP Servers"
+    quote = vet.excerpt(text, 3, 70)                                            # "mit within ... (DR" cut mid-word
+    words = quote.strip("…").split()
+    assert quote.startswith("…within") and quote.endswith("…") and all(w in text.split() for w in words)
+    assert vet.excerpt("Dofollow link $39", 0, 100) == "Dofollow link $39"         # all of it: no …
+    unspaced = "免费提交需要两周付费提交二十四小时内审核并给出永久链接" * 3
+    assert vet.excerpt(unspaced, 5, 25) == "…" + unspaced[5:25] + "…"           # no space to end on: cut where it falls
+    priced = vet.priced("x" * 40 + " We publish guest posts on our blog for $120 per article, permanent", vet.SELLS)
+    assert priced.startswith("…") and "guest posts" in priced and "$120" in priced
 
 
 def test_page_flags_name_what_was_seen():
@@ -354,7 +367,8 @@ def test_without_keys_the_page_checks_still_run(monkeypatch):
     from backlink_guard import report
     text = report.vet(result)
     assert "No `GOANYAPI_API_KEY`" in text and "not Google's judgment" in text
-    assert result["rows"][0]["risk"] == 1 and "| dir.example | ✅ ok | 1 |" in text and "Risk: 3 for each avoid" in text
+    assert result["rows"][0]["risk"] == 1 and "| dir.example | 🆓 free only | ✅ ok | 1 |" in text and "Risk: 3 for each avoid" in text
+    assert "**dir.example** — 🆓 free only: never pay for a followed link" in text
     assert "It sells links or posts that pass ranking credit" in text            # one caution: not a verdict, still shown
     asked_free = report.vet(vet.vet(["dir.example"], paid_sources=False, today=TODAY))
     assert "Run with `--free`" in asked_free and "No `GOANYAPI_API_KEY`" not in asked_free
@@ -439,7 +453,7 @@ def test_the_skill_names_the_commands_and_writes_no_dollar_amounts():
     text = (Path(__file__).resolve().parents[1] / "skills" / "backlink-guard" / "SKILL.md").read_text()
     head = re.match(r"---\nname: (\S+)\ndescription: (.+)\n---\n", text)
     assert head and head.group(1) == "backlink-guard" and 100 < len(head.group(2)) < 1024
-    assert all(c in text for c in ("backlink_guard vet", "backlink_guard audit", "backlink_guard verify", "backlink_guard log"))
+    assert all(c in text for c in ("backlink-guard vet", "backlink-guard audit", "backlink-guard verify", "backlink-guard log"))
     assert not re.search(r"\$\d", text)        # Claude Code replaces $0, $1 ... in a skill with the user's arguments
 
 
@@ -934,6 +948,66 @@ def test_sites_reporting_to_one_ads_account_are_one_operator():
     assert flagged["a.example"] == ["adsense:ca-pub-5550001112223334 also on b.example"] and flagged["c.example"] == []
 
 
+# ── networks across checks, and the ones the shared list lacks (0.6) ─────────
+
+def door_read(title, text="Dofollow backlinks DR 50+ for $29 one-time.", html=""):
+    read = read_of(text, links=html)
+    read["parsed"]["title"] = title
+    return read
+
+
+def free_vet(monkeypatch, reads, sites):
+    monkeypatch.setattr(vet, "read_site", lambda url: reads(page.site(url)))
+    monkeypatch.setattr(vet, "first_seen", lambda d: "")
+    return vet.vet(sites, paid_sources=False, today=TODAY)
+
+
+def test_a_template_or_account_seen_in_an_earlier_check_still_makes_a_network(monkeypatch):
+    reads = lambda d: door_read("Just a moment...", "Checking your browser.") if d.startswith("blog") else \
+        door_read(f"{d} | Premium SEO Backlinks Services", html='<ins data-ad-client="ca-pub-5550001112223334"></ins>')
+    first = free_vet(monkeypatch, reads, ["door1.example", "blog1.example", "blog2.example"])
+    assert not [f for r in first["rows"] for f in r["flags"] if f["flag"] in ("same_template", "same_owner")]   # one site is no network
+    later = free_vet(monkeypatch, reads, ["door2.example"])["rows"][0]
+    found = {f["flag"]: f["evidence"] for f in later["flags"]}
+    assert "door1.example" in found["same_template"] and "1 of them from earlier checks" in found["same_template"]
+    assert found["same_owner"] == "adsense:ca-pub-5550001112223334 also on door1.example; 1 of them from earlier checks"
+    stored = vet.seen.load()
+    assert set(stored["templates"]["{site} | premium seo backlinks services"]) == {"door1.example", "door2.example"}
+    assert not any("just a moment" in t for t in stored["templates"])                        # a block page is no template
+    vet.seen.record(stored, "templates", {}, date(2027, 12, 1))                              # not seen again for a year
+    assert stored["templates"] == {}
+
+
+def test_one_operators_sites_missing_from_the_list_come_with_a_report(monkeypatch):
+    entry = {"category": "link-network", "family": "", "evidence": "x", "evidence_url": "https://door4.example/", "last_checked": "2026-10-16"}
+    monkeypatch.setattr(vet.blocklist, "load", lambda fresh=False: {"door4.example": entry})
+    reads = lambda d: door_read(f"{d} | Premium SEO Backlinks Services")
+    result = free_vet(monkeypatch, reads, ["door1.example", "door2.example", "door3.example", "door4.example"])
+    [network] = result["networks"]
+    assert network["unlisted"] == ["door1.example", "door2.example", "door3.example"]
+    form = urllib.parse.unquote(network["report"])
+    assert form.startswith("https://github.com/zhuyansen/backlink-spam-list/issues/new?template=report.yml&title=Report: door1.example and 2 more")
+    assert "&domain=door1.example&" in form and "&members=door2.example\ndoor3.example&" in form and "link-network (one operator" in form
+    text = report.vet(result)
+    assert "## Networks not on the shared list yet" in text and "not listed: door1.example, door2.example, door3.example. [Report them](" in text
+    honest = lambda d: door_read(f"{d} | Acme Analytics Suite", "Our product docs.", '<script>gtm("GTM-AB12CD")</script>')
+    assert free_vet(monkeypatch, honest, ["a.example", "b.example", "c.example"])["networks"] == []   # all ok: one company's sites
+    monkeypatch.setattr(vet.blocklist, "load", lambda fresh=False: (_ for _ in ()).throw(OSError("HTTP Error 404")))
+    assert free_vet(monkeypatch, reads, ["door1.example", "door2.example", "door3.example"])["networks"] == []  # list unread
+
+
+def test_state_is_kept_in_one_place_wherever_it_runs(tmp_path, monkeypatch):
+    import backlink_guard
+    monkeypatch.delenv("BACKLINK_GUARD_STATE")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.chdir(tmp_path)
+    assert backlink_guard.state_dir() == tmp_path / "home" / ".backlink-guard"
+    (tmp_path / "state").mkdir()
+    assert backlink_guard.state_dir() == Path("state")                                       # a clone run from its folder
+    monkeypatch.setenv("BACKLINK_GUARD_STATE", str(tmp_path / "elsewhere"))
+    assert backlink_guard.state_dir() == tmp_path / "elsewhere"
+
+
 # ── what each site sent you, and the sites you are already on (2026-10-16) ──
 
 def test_referrals_read_a_ga4_export(tmp_path):
@@ -988,6 +1062,22 @@ def test_link_policy_and_value_stand_beside_the_verdict():
     assert "It lost most of its Google search traffic" in text and "Link policy lists" in text
 
 
+def test_the_action_reads_verdict_policy_and_value_together():
+    act = lambda *flags, errors=(), **m: vet.finalize(row_of(flags, errors, **m))["action"]
+    assert act(("parked", "for sale"), visits=200_000) == "skip"                                   # avoid
+    assert act(("deindexed", "0 pages"), visits=5_000, spam_score=60) == "skip"
+    assert act(("hollow_rating", "DR 40"), ("search_fall", "-80%"), visits=300) == "skip"         # caution, almost nobody visits
+    assert act(errors=["traffic: HTTP 502"], visits=None) == "look first"                         # incomplete
+    assert act(("blocked", "HTTP 403"), visits=50_000) == "look first"                            # pages not read
+    assert act(("same_owner", "ca-pub-1 also on b.example"), ("paid_follow", "$39"), visits=50_000) == "look first"
+    sells = vet.finalize(row_of([("paid_follow", "$39"), ("link_exchange", "badge back")], visits=400_000))
+    assert sells["action"] == "free only" and sells["action_reason"] == "never pay for a followed link; never link back as a condition"
+    assert act(("hollow_rating", "DR 40"), ("search_fall", "-80%"), visits=50_000) == "look first"   # two findings
+    assert act(visits=None) == "look first"                                                      # visits not checked
+    assert act(visits=300, spam_score=60) == "low value"                                         # one finding is not a verdict
+    assert act(visits=50_000) == "submit" and act(visits=400_000) == "submit"
+
+
 def test_a_site_on_the_shared_list_is_avoid_with_its_evidence(monkeypatch):
     asked = paid_world(monkeypatch, months([300] * 12))
     entry = {"category": "link-network", "family": "rankzly", "evidence": 'Title "Premium SEO Backlinks Services", shared by 89 sites',
@@ -1019,3 +1109,12 @@ def test_the_shared_list_is_read_once_a_day(monkeypatch):
     monkeypatch.setattr(blocklist, "load", REAL_LIST_LOAD)
     monkeypatch.setattr(blocklist.urllib.request, "urlopen", lambda req, timeout: calls.append(1) or Res(csv_text.encode()))
     assert list(blocklist.load()) == ["a.example"] and list(blocklist.load()) == ["a.example"] and len(calls) == 1
+
+
+def test_one_version_everywhere():
+    root = Path(__file__).resolve().parent.parent
+    version = re.search(r'^version = "([^"]+)"', (root / "pyproject.toml").read_text(), re.M).group(1)   # tomllib is 3.11+
+    plugin = json.loads((root / ".claude-plugin/plugin.json").read_text())
+    market = json.loads((root / ".claude-plugin/marketplace.json").read_text())
+    import backlink_guard
+    assert backlink_guard.__version__ == plugin["version"] == market["plugins"][0]["version"] == version

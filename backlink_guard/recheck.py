@@ -8,18 +8,17 @@ one is compared with it. Monthly is enough: with a dozen sites it costs a few ce
 from __future__ import annotations
 
 import json
-import os
 from datetime import date
 from pathlib import Path
 
-from . import ledger, verify, vet
+from . import ledger, state_dir, verify, vet
 
 WATCHED = ("submitted", "live")
 WORSE = {"ok": 0, "incomplete": 0, "caution": 1, "avoid": 2}
 
 
 def path() -> Path:
-    return Path(os.environ.get("BACKLINK_GUARD_STATE", "state")) / "recheck.json"
+    return state_dir() / "recheck.json"
 
 
 def last() -> dict:

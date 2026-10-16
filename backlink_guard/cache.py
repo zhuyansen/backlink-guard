@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import time
 from pathlib import Path
+
+from . import state_dir
 
 DAY = 86400
 TTL_DAYS = 7
 
 
 def _dir() -> Path:
-    return Path(os.environ.get("BACKLINK_GUARD_STATE", "state")) / "cache"
+    return state_dir() / "cache"
 
 
 def _path(key: str) -> Path:

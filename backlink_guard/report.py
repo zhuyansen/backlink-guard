@@ -6,6 +6,8 @@ from .policy import POLICY, POLICY_URL
 MARK = {"avoid": "⛔ avoid", "caution": "⚠️ caution", "ok": "✅ ok", "incomplete": "❔ incomplete", "note": "ℹ️"}
 MISSING = "–"
 POLICY_MARK = {"avoid": "⛔", "caution": "⚠️"}
+ACTION_MARK = {"skip": "⛔ skip", "look first": "🔍 look first", "free only": "🆓 free only", "low value": "💤 low value",
+               "submit": "✅ submit"}
 
 
 def usd(micros: int) -> str:
@@ -72,10 +74,24 @@ def audience_lines(rows: list[dict]) -> list[str]:
     return out
 
 
+def network_lines(networks: list[dict]) -> list[str]:
+    """One operator's sites that the shared list lacks, each with its filled-in report."""
+    if not networks:
+        return []
+    out = ["", "## Networks not on the shared list yet", "",
+           "These sites came up as one operator's, most of them flagged here. A report adds them to the shared list of "
+           "spam-link sources once a maintainer has checked the evidence; opening the link sends nothing."]
+    for n in networks:
+        how = f"titled \"{n['key'][:60]}\"" if n["kind"] == "template" else f"on one account ({n['key']})"
+        more = f" and {len(n['unlisted']) - 6} more" if len(n["unlisted"]) > 6 else ""
+        out.append(f"- {len(n['sites'])} sites {how}; not listed: {', '.join(n['unlisted'][:6])}{more}. [Report them]({n['report']})")
+    return out
+
+
 def vet(result: dict) -> str:
     topical = any("mentions" in r["metrics"] or "fit" in r["metrics"] for r in result["rows"])
     sent = any("sent_you" in r["metrics"] for r in result["rows"])
-    head = ("| Site | Verdict | Risk | Link policy | Value | Rating | Visits a month |" + (" Sent you |" if sent else "")
+    head = ("| Site | Action | Verdict | Risk | Link policy | Value | Rating | Visits a month |" + (" Sent you |" if sent else "")
             + " Spam score |" + (" Fit |" if topical else "") + " Why |")
     lines = ["# Link sources checked", "", head, "|---" * head.count(" |") + "|"]
     for r in result["rows"]:
@@ -84,19 +100,26 @@ def vet(result: dict) -> str:
         why = "; ".join([f["meaning"] for f in found if f["flag"] not in POLICY]
                         + ([f"not checked: {', '.join(r['missing'])}"] if r.get("missing") else [])) or MISSING
         policy = f"{POLICY_MARK.get(r.get('policy'), '')} {policy}".strip() or MISSING
-        lines.append(f"| {r['domain']} | {MARK[r['grade']]} | {num(r.get('risk'))} | {policy} |"
+        lines.append(f"| {r['domain']} | {ACTION_MARK.get(r.get('action'), MISSING)} | {MARK[r['grade']]} | {num(r.get('risk'))} | {policy} |"
                      + f" {r.get('value') or MISSING} | {num(m.get('dr'))} | {num(m.get('visits'))} |"
                      + (f" {num(m.get('sent_you'))} |" if sent else "") + f" {num(m.get('spam_score'))} |"
                      + (f" {fit_text(m)} |" if topical else "") + f" {why} |")
-    lines += ["", "Verdict weighs everything: one avoid finding makes avoid, and it takes two caution findings to make caution. "
+    lines += ["", "Action reads the rest together. Skip: avoid, nobody can reach it, or findings against it and almost no "
+                  "visitors. Look first: a check failed or was refused, it may be one of an operator's several sites, or two "
+                  "findings stand against it. Free only: it sells followed links or wants a link or badge back, so list "
+                  "there for free and never pay or link back. Low value: nothing against it, but under 1,000 visits a month. "
+                  "Submit: none of these.",
+              "", "Verdict weighs everything: one avoid finding makes avoid, and it takes two caution findings to make caution. "
                   "Link policy lists what a link there would mean under Google's link spam policies, one finding being enough. "
                   "Value is what a listing can bring: the site's reach, or none when nobody can reach it (dead, parked, dropped "
                   "by Google, a shortener, a network page). Risk: 3 for each avoid finding, 1 for each caution. Incomplete: it "
                   "looked ok, but a check that could have found something failed; run it again."]
     lines += audience_lines(result["rows"])
     for r in result["rows"]:
-        if r["flags"]:
-            lines += ["", f"**{r['domain']}**"] + flag_lines(r["flags"])
+        if r["flags"] or r.get("action_reason"):
+            todo = f" — {ACTION_MARK[r['action']]}: {r['action_reason']}" if r.get("action_reason") else ""
+            lines += ["", f"**{r['domain']}**{todo}"] + flag_lines(r["flags"])
+    lines += network_lines(result.get("networks") or [])
     skipped = [r["domain"] for r in result["rows"] if r.get("skipped")]
     notes = missing_sources(result["sources"]) + [f"- Failed: {e}" for e in result["errors"]]
     if skipped:

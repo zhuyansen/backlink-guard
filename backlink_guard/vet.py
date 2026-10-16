@@ -19,13 +19,14 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from statistics import mean
 
-from . import UA, aisa, blocklist, cache, checkout, find, goanyapi, history, page, signals, updates
-from .policy import flag, grade, policy_risk, ranked, risk, value
+from . import UA, aisa, blocklist, cache, checkout, find, goanyapi, history, page, seen, signals, updates
+from .policy import action, flag, grade, policy_risk, ranked, risk, value
 
 WORKERS = 4
 RETRY_PAUSE = 5                 # seconds before a site or a search that gave no answer is asked once more
 EXTRA_PAGES = 3                 # submit, pricing and similar pages read besides the home page
 SNIPPET = 160
+WORD_EDGE = 20                  # characters a quote gives up at each end so that it starts and ends on whole words
 NEAR = 200                      # how close a price must be to the words that say what is sold
 QUOTE_PAD = 30
 PARKED_MAX_TEXT = 3000          # a real site that merely writes about parked domains is longer than this
@@ -82,6 +83,10 @@ LISTING = re.compile(r"\b(?:submit|submission|listing|featured|get listed|review
 SHORTENER = re.compile(r"\b(?:url|link) shortener\b|\bshorten (?:your )?(?:long )?(?:urls?|links?)\b", re.I)
 LINK_FARM = re.compile(r"\|\s*keyword rankings{1,2}\b|free domain sharing|site not yet configured", re.I)
 TEMPLATE_MIN = 12               # characters a shared title needs before it says anything
+# Titles every site of a platform, a host or a block page shares: no operator's template.
+GENERIC_TITLE = re.compile(r"just a moment|attention required|access denied|forbidden|not found|coming soon|"
+                           r"under construction|just another wordpress site|welcome to nginx|index of /|default (?:web )?page",
+                           re.I)
 SUBPAGE = re.compile(r"submit|pricing|advertis|sponsor|write-?for-?us|guest-?post|list-your|get-listed", re.I)
 QUALIFIED = {"nofollow", "sponsored", "ugc"}
 # A site's own pages that already say avoid: the paid checks could only add to it, so they are not bought.
@@ -109,9 +114,21 @@ def target(raw: str) -> dict:
     return {"input": raw, "domain": page.site(url), "url": url}
 
 
+def excerpt(text: str, start: int, end: int) -> str:
+    """text[start:end] on whole words, with … where it cuts the text short. A word is only given up when a space
+    comes within WORD_EDGE characters, so text written without spaces is cut where it falls."""
+    start, end = max(0, start), min(len(text), end)
+    if 0 < start < end and not text[start - 1].isspace():
+        start = next((i + 1 for i in range(start, min(end, start + WORD_EDGE)) if text[i].isspace()), start)
+    if start < end < len(text) and not text[end].isspace():
+        end = next((i for i in range(end - 1, max(start, end - WORD_EDGE), -1) if text[i].isspace()), end)
+    words = " ".join(text[start:end].split())
+    return ("…" if text[:start].strip() else "") + words + ("…" if text[end:].strip() else "")
+
+
 def snippet(text: str, at: int) -> str:
     start = max(0, at - SNIPPET // 2)
-    return " ".join(text[start:start + SNIPPET].split())
+    return excerpt(text, start, start + SNIPPET)
 
 
 def priced(text: str, what: re.Pattern) -> str:
@@ -121,7 +138,7 @@ def priced(text: str, what: re.Pattern) -> str:
         price = PRICE.search(text[offset:m.end() + NEAR])
         if price:                       # quote from the first of the two to the second, so both are in view
             first, last = sorted((m.start(), offset + price.start()))
-            return " ".join(text[max(0, first - QUOTE_PAD):last + QUOTE_PAD * 2].split())
+            return excerpt(text, first - QUOTE_PAD, last + QUOTE_PAD * 2)
     return ""
 
 
@@ -486,10 +503,10 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
     metrics["ids"] = ids_of(read["home"].get("html") or "")
     if topics:
         metrics["mentions"] = mentions(read, list(topics))
-    seen = first_seen(t["domain"])
-    metrics["first_seen"] = seen
-    if seen and (today - datetime.strptime(seen, "%Y-%m-%d").date()).days < YOUNG_DAYS:
-        flags.append(flag("young", f"first archived {seen}"))
+    archived = first_seen(t["domain"])
+    metrics["first_seen"] = archived
+    if archived and (today - datetime.strptime(archived, "%Y-%m-%d").date()).days < YOUNG_DAYS:
+        flags.append(flag("young", f"first archived {archived}"))
     lang = LANG.search(read["home"].get("html") or "")
     metrics["lang"] = lang.group(1).lower() if lang else None
     settled, traffic = sorted({f["flag"] for f in flags} & DECISIVE), None
@@ -507,7 +524,7 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
         more, found, spent, failed = market(t["domain"], known, fresh, traffic)
         metrics.update(more)
         cost, errors = cost + spent, errors + failed
-        flags += [f for f in [signals.reregistered(seen, metrics.get("registered"), today, metrics.get("visits"))] + found if f]
+        flags += [f for f in [signals.reregistered(archived, metrics.get("registered"), today, metrics.get("visits"))] + found if f]
         try:
             note, spent = signals.guest_posts(t["domain"], lambda q, fn: paid("goanyapi", q, fn, fresh))
             flags, cost = flags + ([note] if note else []), cost + spent
@@ -545,33 +562,58 @@ def template_of(row: dict) -> str:
     return " ".join(title.split())
 
 
-def shared_templates(rows: list[dict]) -> None:
-    """Flag the rows of a batch whose titles are one template: sites run by one operator."""
-    groups: dict[str, list[dict]] = {}
+def templates(rows: list[dict]) -> dict[str, list[str]]:
+    """{template: [sites]} for the titles long and particular enough to say something."""
+    groups: dict[str, list[str]] = {}
     for r in rows:
         key = template_of(r)
-        if len(key.replace("{site}", "").strip(" |-:")) >= TEMPLATE_MIN:
-            groups.setdefault(key, []).append(r)
-    for key, members in groups.items():
-        if len(members) < 2:
-            continue
-        names = ", ".join(m["domain"] for m in members[:5])
-        for m in members:
-            m["flags"].append(flag("same_template", f"{len(members)} sites titled \"{key[:60]}\": {names}"))
+        if len(key.replace("{site}", "").strip(" |-:")) >= TEMPLATE_MIN and not GENERIC_TITLE.search(key):
+            groups.setdefault(key, []).append(r["domain"])
+    return groups
 
 
-def shared_owners(rows: list[dict]) -> None:
-    """Flag the rows of a batch that report to one analytics or ads account: one operator's sites."""
-    owners: dict[str, set[str]] = {}
+def accounts(rows: list[dict]) -> dict[str, list[str]]:
+    """{analytics or ads account: [sites]}."""
+    owners: dict[str, list[str]] = {}
     for r in rows:
         for account in r["metrics"].get("ids") or []:
-            owners.setdefault(account, set()).add(r["domain"])
+            owners.setdefault(account, []).append(r["domain"])
+    return owners
+
+
+def since(earlier: list[str]) -> str:
+    return f"; {len(earlier)} of them from earlier checks" if earlier else ""
+
+
+def shared_templates(rows: list[dict], before: dict[str, dict[str, str]] | None = None) -> list[dict]:
+    """Flag the rows whose titles are one template, counting the sites seen with it in earlier checks (`before`,
+    {template: {site: date}}): sites run by one operator. Returns the groups."""
+    by_site, found = {r["domain"]: r for r in rows}, []
+    for key, here in templates(rows).items():
+        earlier = sorted(d for d in (before or {}).get(key, {}) if d not in by_site)
+        if len(here) + len(earlier) < 2:
+            continue
+        sites = here + earlier
+        for d in here:
+            by_site[d]["flags"].append(flag("same_template", f"{len(sites)} sites titled \"{key[:60]}\": "
+                                                             f"{', '.join(sites[:5])}{since(earlier)}"))
+        found.append({"kind": "template", "key": key, "sites": sites})
+    return found
+
+
+def shared_owners(rows: list[dict], before: dict[str, dict[str, str]] | None = None) -> list[dict]:
+    """Flag the rows that report to one analytics or ads account, counting the sites seen with it in earlier
+    checks: one operator's sites. Returns the groups."""
+    here = {r["domain"] for r in rows}
+    owners = {a: sorted(set(sites)) + sorted(set((before or {}).get(a, {})) - here) for a, sites in accounts(rows).items()}
     for r in rows:
         mine = sorted(a for a in r["metrics"].get("ids") or [] if len(owners[a]) >= 2)
         if mine:
             others = sorted(set().union(*(owners[a] for a in mine)) - {r["domain"]})
             more = f" and {len(others) - 4} more" if len(others) > 4 else ""
-            r["flags"].append(flag("same_owner", f"{', '.join(mine[:2])} also on {', '.join(others[:4])}{more}"))
+            earlier = [d for d in others if d not in here]
+            r["flags"].append(flag("same_owner", f"{', '.join(mine[:2])} also on {', '.join(others[:4])}{more}{since(earlier)}"))
+    return [{"kind": "owner", "key": a, "sites": sites} for a, sites in owners.items() if len(sites) >= 2]
 
 
 def missing(r: dict, batch_failed: tuple[str, ...] = ()) -> list[str]:
@@ -596,6 +638,7 @@ def finalize(r: dict, batch_failed: tuple[str, ...] = ()) -> dict:
     r["policy"], r["value"] = policy_risk(r["flags"]), value(r["flags"], r["reach"])
     if r["grade"] == "ok" and r["missing"]:
         r["grade"] = "incomplete"       # an ok it could not finish checking is not an ok
+    r["action"], r["action_reason"] = action(r)
     return r
 
 
@@ -630,13 +673,25 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
                 cost += find.fit(live, list(topics), fresh)
             except aisa.AisaError as exc:
                 errors.append(f"fit: {exc}")
-    shared_templates(rows)
-    shared_owners(rows)
+    store = seen.load()
+    groups = shared_templates(rows, store["templates"]) + shared_owners(rows, store["ids"])
     for r in rows:
         r["metrics"]["spam_score"] = scores.get(r["domain"])
         if referrals is not None:
             r["metrics"]["sent_you"] = referrals.get(r["domain"], 0)
         finalize(r, () if r.get("skipped") else tuple(failed))
-    return {"rows": rows, "cost": cost, "errors": errors,
+    errors += remember(rows, store, today)
+    return {"rows": rows, "cost": cost, "errors": errors, "networks": blocklist.unlisted(groups, rows, None if unread else listed, today),
             "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "aisa": bool(paid_sources and aisa.key()),
                         "free": not paid_sources}}
+
+
+def remember(rows: list[dict], store: dict, today: date) -> list[str]:
+    """Keep this run's page templates and accounts for the next checks; an error when they cannot be written."""
+    seen.record(store, "templates", templates(rows), today)
+    seen.record(store, "ids", accounts(rows), today)
+    try:
+        seen.save(store)
+    except OSError as exc:
+        return [f"memory of networks: {exc}"]
+    return []

@@ -7,11 +7,11 @@ week, one pull request per list, and anchor text that changes from place to plac
 from __future__ import annotations
 
 import json
-import os
 from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 
+from . import state_dir
 from .policy import flag
 
 KINDS = ("directory", "awesome-list", "guest-post", "community", "registry", "other")
@@ -22,7 +22,7 @@ ANCHOR_MIN = 4
 
 
 def path() -> Path:
-    return Path(os.environ.get("BACKLINK_GUARD_STATE", "state")) / "ledger.jsonl"
+    return state_dir() / "ledger.jsonl"
 
 
 def entries() -> list[dict]:
