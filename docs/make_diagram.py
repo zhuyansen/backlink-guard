@@ -2,14 +2,14 @@
 
   python docs/make_diagram.py <zh|en> <out-basename> [--mark-new]
 
---mark-new keeps the ★ on what 0.5 added (and says so under the commands); without it the stars are dropped.
+--mark-new keeps the ★ on what 0.6 added (and says so under the commands); without it the stars are dropped.
 
 rsvg-convert renders each frame (it does not run SVG animation) and ffmpeg joins them.
 """
 import math, subprocess, sys, tempfile
 from pathlib import Path
 
-W, H = 760, 1004
+W, H = 760, 1180
 FONT = "Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif"
 AMB = dict(fill="#FAECE7", stroke="#993C1D", title="#712B13", sub="#993C1D")
 GRY = dict(fill="#F1EFE8", stroke="#5F5E5A", title="#444441", sub="#5F5E5A")
@@ -17,52 +17,63 @@ GRN = dict(fill="#E1F5EE", stroke="#0F6E56", title="#085041", sub="#0F6E56")
 BLU = dict(fill="#E6F1FB", stroke="#185FA5", title="#0C447C", sub="#185FA5")
 RED = dict(fill="#FCEBEB", stroke="#A32D2D", title="#791F1F", sub="#A32D2D")
 YEL = dict(fill="#FAEEDA", stroke="#854F0B", title="#633806", sub="#854F0B")
+CHIPS = (RED, YEL, BLU, GRY, GRN)        # skip, look first, free only, low value, submit
 
 ZH = {
     "kw": ("你的关键词", "claude skills · ai seo tools"), "list": ("一份外链清单", "竞品缺口 · 付费榜 · Excel / CSV"),
     "me": ("你的域名", "看自己的外链画像"),
     "find": ("find：搜这个词的人落在哪", "Google 前 30 · 按访客排序", "榜单 · 导航站 · 文章 · 视频 · 社区 · 仓库"),
     "audit": ("audit：你自己的外链画像", "评分 · 每周新增和丢失 · 锚文本", "链你的站里谁的垃圾分高"),
-    "vet": ("vet：这个站值不值得发", "★ 读页面就判 avoid 的，不再付费查"),
-    "c1": ("读页面（免费）", "死站 · 停放 · 卖链接 · 要回链", "短链 · 站群模板 · 链向博彩", "★ 收款链接（站群 / 被黑）· ★ 共用统计账号"),
-    "c2": ("GoAnyAPI", "评分 · 一年访问量 · 断崖", "还在不在收录里 · ★ 注册日期", "★ 访客来源（含 AI）· 自己的 write for us 页"),
-    "c3": ("AIsa", "垃圾分 · 被 Google 打过没有", "页面成千上万、几乎没排名", "★ 收款链接被多少个同类站共用"),
-    "c4": ("可选", "--deep 徽章网络 · 未经证实 · ★ Ahrefs 评分", "★ 技术栈 · ChatGPT 提及 · 内页收款链接", "--recent 新页收录 · --topic 排名"),
-    "c5": ("免费旁证", "Wayback 最早存档 · ★ 过期域名被重新注册 · ★ Google 知识图谱认不认识它"),
-    "avoid": ("avoid：别提交", "死站 · 停放 · 卖链接为业 · 短链", "★ 收款链接站群 · 被黑注入"),
-    "caution": ("caution：读证据再定", "★ 两条以上问题才算", "卖链接 · 被 Google 打过 · 重注册"),
-    "ok": ("ok：再看价值", "★ 价值 高 / 中 / 低 / 无", "★ 可附你的 GA 引荐访问数"),
-    "new": "★ = 0.5 新增：在本地 v0.5 分支，还没发布",
+    "vet": ("vet：这个站值不值得发", "读页面就判 avoid 的，不再付费查"),
+    "c1": ("读页面（免费）", "死站 · 停放 · 卖链接 · 要回链", "短链 · 站群模板 · 链向博彩", "收款链接（站群 / 被黑）· 共用统计账号"),
+    "c2": ("GoAnyAPI", "评分 · 一年访问量 · 断崖", "还在不在收录里 · 注册日期", "访客来源（含 AI）· 自己的 write for us 页"),
+    "c3": ("AIsa", "垃圾分 · 被 Google 打过没有", "页面成千上万、几乎没排名", "收款链接被多少个同类站共用"),
+    "c4": ("可选", "--deep 徽章网络 · 未经证实 · Ahrefs 评分", "技术栈 · ChatGPT 提及 · 内页收款链接", "--recent 新页收录 · --topic 排名"),
+    "c5": ("免费旁证", "Wayback 最早存档 · 过期域名被重新注册", "Google 知识图谱认不认识它"),
+    "c6": ("★ 本机记得的站群", "以往查过的页面模板、统计账号，记一年", "单独查一个站，也能认出同一个人的站群"),
+    "c7": ("共享 spam 外链名单（GitHub）：名单上的站直接 avoid，不再付费查",),
+    "avoid": ("avoid：别提交", "死站 · 停放 · 卖链接为业 · 短链", "收款链接站群 · 被黑注入"),
+    "caution": ("caution：读证据再定", "两条以上问题才算", "卖链接 · 被 Google 打过 · 重注册"),
+    "ok": ("ok：再看价值", "价值 高 / 中 / 低 / 无", "可附你的 GA 引荐访问数"),
+    "action": ("★ 建议：结论、政策风险、价值一起看", ("跳过", "先看看", "只免费提交", "价值低", "可以提交")),
+    "report": ("★ 举报站群", "名单上还没有的同一运营者站点", "附预填好的表单，你点提交才发出"),
+    "new": "★ = 0.6 新增",
     "why": ("每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款",
-            "★ 每行另附「政策风险」「价值」两栏 · ★ 本可能查出问题的检查失败了：标「待定」，重跑"),
-    "rules": ("提交规则", "只提交自己的 · 一周几个 · 锚文本换着用 · 绝不买传权重的链接（付费要 sponsored / nofollow）"),
+            "每行另附「政策风险」「价值」两栏 · 本可能查出问题的检查失败了：标「待定」，重跑"),
+    "rules": ("提交规则", "只提交自己的 · 一周几个 · 锚文本换着用", "绝不买传权重的链接（付费要 sponsored / nofollow）"),
     "submit": ("你去提交", "工具不代你提交"), "verify": ("verify：上线后查链接", "在不在 · 传不传权重", "正文 / 页脚 / 侧栏 / 评论"),
-    "log": ("log：提交账本", "一周超过 5 个提醒", "同一锚文本反复用提醒", "★ recheck：每月重查已上的站"),
-    "use": ("命令行：python -m backlink_guard  find · vet · verify · audit · log · recheck", "Agent Skill：npx skills add zhuyansen/backlink-guard"),
-    "legend": ("你给的输入", "检查", "数据来源", "结论：别发 / 小心 / 可以", "定期回看"),
+    "log": ("log：提交账本", "一周超过 5 个提醒", "同一锚文本反复用提醒", "recheck：每月重查已上的站"),
+    "use": ("命令行：backlink-guard  find · vet · verify · audit · log · recheck",
+            "Claude Code 插件 · Agent Skill：npx skills add zhuyansen/backlink-guard"),
+    "legend": ("你给的输入", "检查", "数据来源", "结论：别发 / 小心 / 可以", "定期回看 · 举报回流"),
 }
 EN = {
     "kw": ("Your keywords", "claude skills · ai seo tools"), "list": ("A list of sites", "competitor gap · paid list · xlsx"),
     "me": ("Your domain", "your own link profile"),
     "find": ("find: where your searchers land", "Google's top 30 · by visitors", "lists · directories · articles · videos · threads"),
     "audit": ("audit: your own link profile", "rating · new and lost per week · anchors", "spammy sites linking to you"),
-    "vet": ("vet: is this site worth it?", "★ settled by its own pages: no paid check"),
-    "c1": ("Reading the pages (free)", "dead · parked · sells links · link back", "shortener · link network · gambling", "★ checkout links · ★ shared analytics account"),
-    "c2": ("GoAnyAPI", "rating · a year of visits · cliffs", "still indexed? · ★ registration date", "★ visitor sources (AI too) · write-for-us"),
-    "c3": ("AIsa", "spam score · hit by Google before?", "thousands of pages, no rankings", "★ how many look-alikes share its checkout"),
-    "c4": ("Optional", "--deep badge network · unproven · ★ Ahrefs", "★ tech · ChatGPT mentions · inner checkouts", "--recent new pages · --topic rank"),
-    "c5": ("Free context", "Wayback first copy · ★ lapsed domain picked up again · ★ known to Google's Knowledge Graph?"),
-    "avoid": ("avoid: do not submit", "dead · parked · link seller", "★ checkout network · injected"),
-    "caution": ("caution: read the evidence", "★ two findings or more", "sells links · hit by Google"),
-    "ok": ("ok: then look at value", "★ value: high to none", "★ and what it sent you (GA)"),
-    "new": "★ new in 0.5: on the local v0.5 branch, not released yet",
+    "vet": ("vet: is this site worth it?", "settled by its own pages: no paid check"),
+    "c1": ("Reading the pages (free)", "dead · parked · sells links · link back", "shortener · link network · gambling", "checkout links · shared analytics account"),
+    "c2": ("GoAnyAPI", "rating · a year of visits · cliffs", "still indexed? · registration date", "visitor sources (AI too) · write-for-us"),
+    "c3": ("AIsa", "spam score · hit by Google before?", "thousands of pages, no rankings", "how many look-alikes share its checkout"),
+    "c4": ("Optional", "--deep badge network · unproven · Ahrefs", "tech · ChatGPT mentions · inner checkouts", "--recent new pages · --topic rank"),
+    "c5": ("Free context", "Wayback first copy · re-registered domain", "known to Google's Knowledge Graph?"),
+    "c6": ("★ Networks seen before", "templates and accounts from past checks", "one site alone still matches its network"),
+    "c7": ("The shared spam-link list (GitHub): a listed site is avoid, no paid check",),
+    "avoid": ("avoid: do not submit", "dead · parked · link seller", "checkout network · injected"),
+    "caution": ("caution: read the evidence", "two findings or more", "sells links · hit by Google"),
+    "ok": ("ok: then look at value", "value: high to none", "and what it sent you (GA)"),
+    "action": ("★ Action: verdict, link policy and value read together", ("skip", "look first", "free only", "low value", "submit")),
+    "report": ("★ Report a network", "sites the shared list lacks", "a filled-in form you submit"),
+    "new": "★ new in 0.6",
     "why": ("Each finding carries its evidence and the Google spam policy line it stands next to",
-            "★ plus link policy and value columns · ★ a check that failed: incomplete, run it again"),
-    "rules": ("The rules", "your own project only · a few a week · vary the anchor · never pay for a followed link"),
+            "plus link policy and value columns · a check that failed: incomplete, run it again"),
+    "rules": ("The rules", "your own project only · a few a week · vary the anchor", "never pay for a followed link (paid: sponsored or nofollow)"),
     "submit": ("You submit", "the tool never does"), "verify": ("verify: after it is live", "there? passing credit?", "in the text, or the footer?"),
-    "log": ("log: your submissions", "over 5 a week: warned", "same anchor again: warned", "★ recheck them monthly"),
-    "use": ("Command line: python -m backlink_guard  find · vet · verify · audit · log · recheck", "Agent Skill: npx skills add zhuyansen/backlink-guard"),
-    "legend": ("input", "checks", "data", "avoid / caution / ok", "look back"),
+    "log": ("log: your submissions", "over 5 a week: warned", "same anchor again: warned", "recheck them monthly"),
+    "use": ("Command line: backlink-guard  find · vet · verify · audit · log · recheck",
+            "Claude Code plugin · Agent Skill: npx skills add zhuyansen/backlink-guard"),
+    "legend": ("input", "checks", "data", "avoid / caution / ok", "look back · report back"),
 }
 VARIANTS = {"zh": ZH, "en": EN}
 
@@ -82,21 +93,38 @@ def box(x, y, w, h, c, lines, dashed=False, title_dy=0, size=14):
     return "\n".join(out)
 
 
+def action_bar(x, y, w, h, lines):
+    """The action row: a title over one chip for each of the five actions, coloured as the verdicts are."""
+    title, labels = lines
+    cw = 124
+    gap = (w - 32 - cw * len(labels)) / (len(labels) - 1)
+    out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="4" fill="#FFFFFF" stroke="{GRY["stroke"]}" stroke-width="0.5"/>',
+           f'<text x="{x + w / 2}" y="{y + 20}" fill="{GRY["title"]}" font-weight="500" font-size="14">{title}</text>']
+    for i, (label, c) in enumerate(zip(labels, CHIPS)):
+        cx = x + 16 + i * (cw + gap)
+        out.append(f'<rect x="{cx:.0f}" y="{y + 32}" width="{cw}" height="30" rx="4" fill="{c["fill"]}" stroke="{c["stroke"]}" stroke-width="0.5"/>')
+        out.append(f'<text x="{cx + cw / 2:.0f}" y="{y + 52}" fill="{c["title"]}" font-weight="500" font-size="13">{label}</text>')
+    return "\n".join(out)
+
+
 # id, points, colour, dashed, dot duration (s), dot begin (s)
 PATHS = [
     ("k", [(140, 96), (140, 130)], "#888780", False, 1.0, 0.0),
-    ("l", [(380, 96), (380, 240)], "#888780", False, 1.8, 0.4),
+    ("l", [(380, 96), (380, 240)], "#888780", False, 2.0, 0.4),
     ("d", [(620, 96), (620, 130)], "#888780", False, 1.0, 0.2),
     ("f", [(195, 204), (195, 240)], "#378ADD", False, 1.0, 0.6),
-    ("v1", [(140, 558), (140, 590)], "#A32D2D", False, 1.0, 0.0),
-    ("v2", [(380, 558), (380, 590)], "#854F0B", False, 1.0, 0.3),
-    ("v3", [(620, 558), (620, 590)], "#0F6E56", False, 1.0, 0.6),
-    ("r", [(660, 662), (660, 714)], "#0F6E56", False, 1.2, 0.2),
-    ("s", [(140, 762), (140, 800)], "#888780", False, 1.0, 0.5),
-    ("t", [(250, 840), (280, 840)], "#888780", False, 0.8, 0.0),
-    ("u", [(510, 840), (540, 840)], "#888780", False, 0.8, 0.4),
-    ("loop", [(730, 840), (748, 840), (748, 167), (730, 167)], "#888780", True, 4.0, 0.0),
-    ("loop2", [(730, 840), (748, 840), (748, 420), (730, 420)], "#888780", True, 3.0, 1.5),
+    ("v1", [(140, 622), (140, 652)], "#A32D2D", False, 1.0, 0.0),
+    ("v2", [(380, 622), (380, 652)], "#854F0B", False, 1.0, 0.3),
+    ("v3", [(620, 622), (620, 652)], "#0F6E56", False, 1.0, 0.6),
+    ("a", [(690, 724), (690, 776)], "#378ADD", False, 1.0, 0.2),
+    ("x", [(108, 850), (108, 882)], "#A32D2D", False, 1.0, 0.5),
+    ("r", [(652, 850), (652, 882)], "#0F6E56", False, 1.0, 0.0),
+    ("s", [(300, 948), (300, 965), (140, 965), (140, 982)], "#888780", False, 1.0, 0.5),
+    ("t", [(250, 1022), (280, 1022)], "#888780", False, 0.8, 0.0),
+    ("u", [(510, 1022), (540, 1022)], "#888780", False, 0.8, 0.4),
+    ("loop", [(730, 1022), (748, 1022), (748, 167), (730, 167)], "#888780", True, 4.0, 0.0),
+    ("loop2", [(730, 1022), (748, 1022), (748, 420), (730, 420)], "#888780", True, 4.0, 2.0),
+    ("rep", [(30, 915), (14, 915), (14, 588), (46, 588)], "#A32D2D", True, 4.0, 1.0),
 ]
 DASH = ' stroke-dasharray="4 3"'
 
@@ -105,21 +133,23 @@ def scene(T):
     boxes = "\n".join([
         box(30, 36, 220, 60, GRY, T["kw"]), box(270, 36, 220, 60, GRY, T["list"]), box(510, 36, 220, 60, GRY, T["me"]),
         box(30, 130, 330, 74, BLU, T["find"]), box(400, 130, 330, 74, BLU, T["audit"]),
-        box(30, 240, 700, 318, BLU, T["vet"], title_dy=-137, size=15),
+        box(30, 240, 700, 382, BLU, T["vet"], title_dy=-169, size=15),
         box(46, 296, 326, 88, AMB, T["c1"]), box(388, 296, 326, 88, AMB, T["c2"]),
         box(46, 392, 326, 88, AMB, T["c3"]), box(388, 392, 326, 88, AMB, T["c4"], dashed=True),
-        box(46, 488, 668, 54, AMB, T["c5"]),
-        box(30, 590, 220, 72, RED, T["avoid"]), box(270, 590, 220, 72, YEL, T["caution"]), box(510, 590, 220, 72, GRN, T["ok"]),
-        box(30, 714, 700, 48, GRY, T["rules"]),
-        box(30, 800, 220, 80, GRY, T["submit"]), box(280, 800, 230, 80, BLU, T["verify"]), box(540, 800, 190, 80, BLU, T["log"]),
+        box(46, 488, 326, 72, AMB, T["c5"]), box(388, 488, 326, 72, AMB, T["c6"]),
+        box(46, 568, 668, 40, AMB, T["c7"]),
+        box(30, 652, 220, 72, RED, T["avoid"]), box(270, 652, 220, 72, YEL, T["caution"]), box(510, 652, 220, 72, GRN, T["ok"]),
+        action_bar(30, 776, 700, 74, T["action"]),
+        box(30, 882, 220, 66, RED, T["report"]), box(270, 882, 460, 66, GRY, T["rules"]),
+        box(30, 982, 220, 80, GRY, T["submit"]), box(280, 982, 230, 80, BLU, T["verify"]), box(540, 982, 190, 80, BLU, T["log"]),
     ])
     lines = "\n".join(f'<path id="{i}" d="M{" L".join(f"{x} {y}" for x, y in p)}" fill="none" stroke="{c}" stroke-width="1"'
                       f'{DASH if dash else ""} marker-end="url(#arrow)"/>' for i, p, c, dash, *_ in PATHS)
-    notes = ("".join(f'<text x="30" y="{684 + 16 * i}" font-size="11" fill="#5F5E5A">{w}</text>' for i, w in enumerate(T["why"]) if w)
-             + f'<path d="M30 898 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>'
-             + "".join(f'<text x="380" y="{918 + 17 * i}" text-anchor="middle" font-size="11.5" fill="#5F5E5A">{u}</text>' for i, u in enumerate(T["use"]))
-             + (f'<text x="380" y="952" text-anchor="middle" font-size="11.5" fill="#993C1D">{T["new"]}</text>' if T.get("new") else ""))
-    legend_y = 972
+    notes = ("".join(f'<text x="30" y="{744 + 16 * i}" font-size="11" fill="#5F5E5A">{w}</text>' for i, w in enumerate(T["why"]) if w)
+             + f'<path d="M30 1080 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>'
+             + "".join(f'<text x="380" y="{1100 + 17 * i}" text-anchor="middle" font-size="11.5" fill="#5F5E5A">{u}</text>' for i, u in enumerate(T["use"]))
+             + (f'<text x="380" y="1134" text-anchor="middle" font-size="11.5" fill="#993C1D">{T["new"]}</text>' if T.get("new") else ""))
+    legend_y = 1150
     swatches = [f'fill="{GRY["fill"]}" stroke="{GRY["stroke"]}" stroke-width="0.5"', f'fill="{BLU["fill"]}" stroke="{BLU["stroke"]}" stroke-width="0.5"',
                 f'fill="{AMB["fill"]}" stroke="{AMB["stroke"]}" stroke-width="0.5"']
     labels = list(T["legend"])
@@ -157,9 +187,10 @@ def at(points, f):
 
 
 def unstarred(T):
-    """The labels with the ★ for what 0.5 added taken out, and no line explaining it."""
-    clean = lambda v: v.replace("★ ", "").replace("★", "")  # noqa: E731
-    return {k: (tuple(clean(x) for x in v) if isinstance(v, tuple) else clean(v)) for k, v in T.items() if k != "new"}
+    """The labels with the ★ for what 0.6 added taken out, and no line explaining it."""
+    def clean(v):
+        return tuple(clean(x) for x in v) if isinstance(v, tuple) else v.replace("★ ", "").replace("★", "")
+    return {k: clean(v) for k, v in T.items() if k != "new"}
 
 
 def main(variant, base, mark_new=False):
