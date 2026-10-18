@@ -1,22 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="2360" viewBox="0 0 760 1180" font-family="Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="2632" viewBox="0 0 760 1316" font-family="Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-<rect width="760" height="1180" fill="#FFFFFF"/>
+<rect width="760" height="1316" fill="#FFFFFF"/>
 <path id="k" d="M140 96 L140 130" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="l" d="M380 96 L380 240" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="l" d="M380 96 L380 376" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
 <path id="d" d="M620 96 L620 130" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="f" d="M195 204 L195 240" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="v1" d="M140 622 L140 652" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="v2" d="M380 622 L380 652" fill="none" stroke="#854F0B" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="v3" d="M620 622 L620 652" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="a" d="M690 724 L690 776" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="x" d="M108 850 L108 882" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="r" d="M652 850 L652 882" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="s" d="M300 948 L300 965 L140 965 L140 982" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="t" d="M250 1022 L280 1022" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="u" d="M510 1022 L540 1022" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="loop" d="M730 1022 L748 1022 L748 167 L730 167" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
-<path id="loop2" d="M730 1022 L748 1022 L748 420 L730 420" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
-<path id="rep" d="M30 915 L14 915 L14 588 L46 588" fill="none" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="f" d="M195 204 L195 376" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="v1" d="M140 758 L140 788" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="v2" d="M380 758 L380 788" fill="none" stroke="#854F0B" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="v3" d="M620 758 L620 788" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="a" d="M690 860 L690 912" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="x" d="M108 986 L108 1018" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="r" d="M652 986 L652 1018" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="s" d="M300 1084 L300 1101 L140 1101 L140 1118" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="t" d="M250 1158 L280 1158" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="u" d="M510 1158 L540 1158" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="loop" d="M730 1158 L748 1158 L748 167 L730 167" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="loop2" d="M730 1158 L748 1158 L748 556 L730 556" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="rep" d="M30 1051 L14 1051 L14 724 L46 724" fill="none" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="lo" d="M565 220 L565 248" fill="none" stroke="#993C1D" stroke-width="1" marker-end="url(#arrow)"/>
 <g font-size="14" text-anchor="middle">
 <rect x="30" y="36" width="220" height="60" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
 <text x="140.0" y="62.0" fill="#444441" font-weight="500" font-size="14">Your keywords</text>
@@ -31,90 +32,98 @@
 <text x="195.0" y="154.0" fill="#0C447C" font-weight="500" font-size="14">find: where your searchers land</text>
 <text x="195.0" y="173.0" fill="#185FA5" font-size="12">Google's top 30 · by visitors</text>
 <text x="195.0" y="189.5" fill="#185FA5" font-size="12">lists · directories · articles · videos · threads</text>
-<rect x="400" y="130" width="330" height="74" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="565.0" y="154.0" fill="#0C447C" font-weight="500" font-size="14">audit: your own link profile</text>
-<text x="565.0" y="173.0" fill="#185FA5" font-size="12">rating · new and lost per week · anchors</text>
-<text x="565.0" y="189.5" fill="#185FA5" font-size="12">spammy sites linking to you</text>
-<rect x="30" y="240" width="700" height="382" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="380.0" y="258.0" fill="#0C447C" font-weight="500" font-size="15">vet: is this site worth it?</text>
-<text x="380.0" y="277.0" fill="#185FA5" font-size="12">settled by its own pages: no paid check</text>
-<rect x="46" y="296" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="209.0" y="318.0" fill="#712B13" font-weight="500" font-size="14">Reading the pages (free)</text>
-<text x="209.0" y="337.0" fill="#993C1D" font-size="12">dead · parked · sells links · link back</text>
-<text x="209.0" y="353.5" fill="#993C1D" font-size="12">shortener · link network · gambling</text>
-<text x="209.0" y="370.0" fill="#993C1D" font-size="12">checkout links · shared analytics account</text>
-<rect x="388" y="296" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="551.0" y="318.0" fill="#712B13" font-weight="500" font-size="14">GoAnyAPI</text>
-<text x="551.0" y="337.0" fill="#993C1D" font-size="12">rating · a year of visits · cliffs</text>
-<text x="551.0" y="353.5" fill="#993C1D" font-size="12">still indexed? · registration date</text>
-<text x="551.0" y="370.0" fill="#993C1D" font-size="12">visitor sources (AI too) · write-for-us</text>
-<rect x="46" y="392" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="209.0" y="414.0" fill="#712B13" font-weight="500" font-size="14">AIsa</text>
-<text x="209.0" y="433.0" fill="#993C1D" font-size="12">spam score · hit by Google before?</text>
-<text x="209.0" y="449.5" fill="#993C1D" font-size="12">thousands of pages, no rankings</text>
-<text x="209.0" y="466.0" fill="#993C1D" font-size="12">how many look-alikes share its checkout</text>
-<rect x="388" y="392" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="1" stroke-dasharray="5 3"/>
-<text x="551.0" y="414.0" fill="#712B13" font-weight="500" font-size="14">Optional</text>
-<text x="551.0" y="433.0" fill="#993C1D" font-size="12">--deep badge network · unproven · Ahrefs</text>
-<text x="551.0" y="449.5" fill="#993C1D" font-size="12">tech · ChatGPT mentions · inner checkouts</text>
-<text x="551.0" y="466.0" fill="#993C1D" font-size="12">--recent new pages · --topic rank</text>
-<rect x="46" y="488" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="209.0" y="511.0" fill="#712B13" font-weight="500" font-size="14">Free context</text>
-<text x="209.0" y="530.0" fill="#993C1D" font-size="12">Wayback first copy · re-registered domain</text>
-<text x="209.0" y="546.5" fill="#993C1D" font-size="12">known to Google's Knowledge Graph?</text>
-<rect x="388" y="488" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="551.0" y="511.0" fill="#712B13" font-weight="500" font-size="14">Networks seen before</text>
-<text x="551.0" y="530.0" fill="#993C1D" font-size="12">templates and accounts from past checks</text>
-<text x="551.0" y="546.5" fill="#993C1D" font-size="12">one site alone still matches its network</text>
-<rect x="46" y="568" width="668" height="40" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="380.0" y="593.0" fill="#712B13" font-weight="500" font-size="14">The shared spam-link list (GitHub): a listed site is avoid, no paid check</text>
-<rect x="30" y="652" width="220" height="72" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
-<text x="140.0" y="675.0" fill="#791F1F" font-weight="500" font-size="14">avoid: do not submit</text>
-<text x="140.0" y="694.0" fill="#A32D2D" font-size="12">dead · parked · link seller</text>
-<text x="140.0" y="710.5" fill="#A32D2D" font-size="12">checkout network · injected</text>
-<rect x="270" y="652" width="220" height="72" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
-<text x="380.0" y="675.0" fill="#633806" font-weight="500" font-size="14">caution: read the evidence</text>
-<text x="380.0" y="694.0" fill="#854F0B" font-size="12">two findings or more</text>
-<text x="380.0" y="710.5" fill="#854F0B" font-size="12">sells links · hit by Google</text>
-<rect x="510" y="652" width="220" height="72" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
-<text x="620.0" y="675.0" fill="#085041" font-weight="500" font-size="14">ok: then look at value</text>
-<text x="620.0" y="694.0" fill="#0F6E56" font-size="12">value: high to none</text>
-<text x="620.0" y="710.5" fill="#0F6E56" font-size="12">and what it sent you (GA)</text>
-<rect x="30" y="776" width="700" height="74" rx="4" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="380.0" y="796" fill="#444441" font-weight="500" font-size="14">Action: verdict, link policy and value read together</text>
-<rect x="46" y="808" width="124" height="30" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
-<text x="108" y="828" fill="#791F1F" font-weight="500" font-size="13">skip</text>
-<rect x="182" y="808" width="124" height="30" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
-<text x="244" y="828" fill="#633806" font-weight="500" font-size="13">look first</text>
-<rect x="318" y="808" width="124" height="30" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="380" y="828" fill="#0C447C" font-weight="500" font-size="13">free only</text>
-<rect x="454" y="808" width="124" height="30" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="516" y="828" fill="#444441" font-weight="500" font-size="13">low value</text>
-<rect x="590" y="808" width="124" height="30" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
-<text x="652" y="828" fill="#085041" font-weight="500" font-size="13">submit</text>
-<rect x="30" y="882" width="220" height="66" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
-<text x="140.0" y="902.0" fill="#791F1F" font-weight="500" font-size="14">Report a network</text>
-<text x="140.0" y="921.0" fill="#A32D2D" font-size="12">sites the shared list lacks</text>
-<text x="140.0" y="937.5" fill="#A32D2D" font-size="12">a filled-in form you submit</text>
-<rect x="270" y="882" width="460" height="66" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="500.0" y="902.0" fill="#444441" font-weight="500" font-size="14">The rules</text>
-<text x="500.0" y="921.0" fill="#5F5E5A" font-size="12">your own project only · a few a week · vary the anchor</text>
-<text x="500.0" y="937.5" fill="#5F5E5A" font-size="12">never pay for a followed link (paid: sponsored or nofollow)</text>
-<rect x="30" y="982" width="220" height="80" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="140.0" y="1018.0" fill="#444441" font-weight="500" font-size="14">You submit</text>
-<text x="140.0" y="1037.0" fill="#5F5E5A" font-size="12">the tool never does</text>
-<rect x="280" y="982" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="395.0" y="1009.0" fill="#0C447C" font-weight="500" font-size="14">verify: after it is live</text>
-<text x="395.0" y="1028.0" fill="#185FA5" font-size="12">there? passing credit?</text>
-<text x="395.0" y="1044.5" fill="#185FA5" font-size="12">in the text, or the footer?</text>
-<rect x="540" y="982" width="190" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="635.0" y="1000.0" fill="#0C447C" font-weight="500" font-size="14">log: your submissions</text>
-<text x="635.0" y="1019.0" fill="#185FA5" font-size="12">over 5 a week: warned</text>
-<text x="635.0" y="1035.5" fill="#185FA5" font-size="12">same anchor again: warned</text>
-<text x="635.0" y="1052.0" fill="#185FA5" font-size="12">recheck them monthly</text>
+<rect x="400" y="130" width="330" height="90" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="565.0" y="153.0" fill="#0C447C" font-weight="500" font-size="14">audit: your own link profile</text>
+<text x="565.0" y="172.0" fill="#185FA5" font-size="12">rating · new and lost per week · anchors</text>
+<text x="565.0" y="188.5" fill="#185FA5" font-size="12">spammy sites linking to you</text>
+<text x="565.0" y="205.0" fill="#993C1D" font-weight="500" font-size="12">Counted by referring site · site-wide counted once</text>
+<rect x="400" y="248" width="330" height="104" rx="4" fill="#E6F1FB" stroke="#993C1D" stroke-width="1.5"/>
+<text x="565.0" y="273.0" fill="#0C447C" font-weight="500" font-size="13">lost: backlinks landing on 404 → suggested 301</text>
+<text x="565.0" y="292.0" fill="#185FA5" font-size="12">audit's backlinks (AIsa, up to 1,000, cached 7 days)</text>
+<text x="565.0" y="308.5" fill="#185FA5" font-size="12">only 404 / 410 are dead · most referring sites first</text>
+<text x="565.0" y="325.0" fill="#185FA5" font-size="12">301 target from your sitemaps · none under 0.50</text>
+<text x="565.0" y="341.5" fill="#185FA5" font-size="12">a suggestion only: nothing is redirected</text>
+<rect x="660" y="239" width="58" height="18" rx="9" fill="#993C1D"/><text x="689" y="252" fill="#FFFFFF" font-weight="500" font-size="10.5">NEW 0.7</text>
+<rect x="30" y="376" width="700" height="382" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="380.0" y="394.0" fill="#0C447C" font-weight="500" font-size="15">vet: is this site worth it?</text>
+<text x="380.0" y="413.0" fill="#185FA5" font-size="12">settled by its own pages: no paid check</text>
+<rect x="46" y="432" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="209.0" y="454.0" fill="#712B13" font-weight="500" font-size="14">Reading the pages (free)</text>
+<text x="209.0" y="473.0" fill="#993C1D" font-size="12">dead · parked · sells links · link back</text>
+<text x="209.0" y="489.5" fill="#993C1D" font-size="12">shortener · link network · gambling</text>
+<text x="209.0" y="506.0" fill="#993C1D" font-size="12">checkout links · shared analytics account</text>
+<rect x="388" y="432" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="551.0" y="454.0" fill="#712B13" font-weight="500" font-size="14">GoAnyAPI</text>
+<text x="551.0" y="473.0" fill="#993C1D" font-size="12">rating · a year of visits · cliffs</text>
+<text x="551.0" y="489.5" fill="#993C1D" font-size="12">still indexed? · registration date</text>
+<text x="551.0" y="506.0" fill="#993C1D" font-size="12">visitor sources (AI too) · write-for-us</text>
+<rect x="46" y="528" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="209.0" y="550.0" fill="#712B13" font-weight="500" font-size="14">AIsa</text>
+<text x="209.0" y="569.0" fill="#993C1D" font-size="12">spam score · hit by Google before?</text>
+<text x="209.0" y="585.5" fill="#993C1D" font-size="12">thousands of pages, no rankings</text>
+<text x="209.0" y="602.0" fill="#993C1D" font-size="12">how many look-alikes share its checkout</text>
+<rect x="388" y="528" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="551.0" y="550.0" fill="#712B13" font-weight="500" font-size="14">Optional</text>
+<text x="551.0" y="569.0" fill="#993C1D" font-size="12">--deep badge network · unproven · Ahrefs</text>
+<text x="551.0" y="585.5" fill="#993C1D" font-size="12">tech · ChatGPT mentions · inner checkouts</text>
+<text x="551.0" y="602.0" fill="#993C1D" font-size="12">--recent new pages · --topic rank</text>
+<rect x="46" y="624" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="209.0" y="647.0" fill="#712B13" font-weight="500" font-size="14">Free context</text>
+<text x="209.0" y="666.0" fill="#993C1D" font-size="12">Wayback first copy · re-registered domain</text>
+<text x="209.0" y="682.5" fill="#993C1D" font-size="12">known to Google's Knowledge Graph?</text>
+<rect x="388" y="624" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="551.0" y="647.0" fill="#712B13" font-weight="500" font-size="14">Networks seen before</text>
+<text x="551.0" y="666.0" fill="#993C1D" font-size="12">templates and accounts from past checks</text>
+<text x="551.0" y="682.5" fill="#993C1D" font-size="12">one site alone still matches its network</text>
+<rect x="46" y="704" width="668" height="40" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="380.0" y="729.0" fill="#712B13" font-weight="500" font-size="14">The shared spam-link list (GitHub): a listed site is avoid, no paid check</text>
+<rect x="30" y="788" width="220" height="72" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="140.0" y="811.0" fill="#791F1F" font-weight="500" font-size="14">avoid: do not submit</text>
+<text x="140.0" y="830.0" fill="#A32D2D" font-size="12">dead · parked · link seller</text>
+<text x="140.0" y="846.5" fill="#A32D2D" font-size="12">checkout network · injected</text>
+<rect x="270" y="788" width="220" height="72" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="380.0" y="811.0" fill="#633806" font-weight="500" font-size="14">caution: read the evidence</text>
+<text x="380.0" y="830.0" fill="#854F0B" font-size="12">two findings or more</text>
+<text x="380.0" y="846.5" fill="#854F0B" font-size="12">sells links · hit by Google</text>
+<rect x="510" y="788" width="220" height="72" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="620.0" y="811.0" fill="#085041" font-weight="500" font-size="14">ok: then look at value</text>
+<text x="620.0" y="830.0" fill="#0F6E56" font-size="12">value: high to none</text>
+<text x="620.0" y="846.5" fill="#0F6E56" font-size="12">and what it sent you (GA)</text>
+<rect x="30" y="912" width="700" height="74" rx="4" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="380.0" y="932" fill="#444441" font-weight="500" font-size="14">Action: verdict, link policy and value read together</text>
+<rect x="46" y="944" width="124" height="30" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="108" y="964" fill="#791F1F" font-weight="500" font-size="13">skip</text>
+<rect x="182" y="944" width="124" height="30" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="244" y="964" fill="#633806" font-weight="500" font-size="13">look first</text>
+<rect x="318" y="944" width="124" height="30" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="380" y="964" fill="#0C447C" font-weight="500" font-size="13">free only</text>
+<rect x="454" y="944" width="124" height="30" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="516" y="964" fill="#444441" font-weight="500" font-size="13">low value</text>
+<rect x="590" y="944" width="124" height="30" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="652" y="964" fill="#085041" font-weight="500" font-size="13">submit</text>
+<rect x="30" y="1018" width="220" height="66" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="140.0" y="1038.0" fill="#791F1F" font-weight="500" font-size="14">Report a network</text>
+<text x="140.0" y="1057.0" fill="#A32D2D" font-size="12">sites the shared list lacks</text>
+<text x="140.0" y="1073.5" fill="#A32D2D" font-size="12">a filled-in form you submit</text>
+<rect x="270" y="1018" width="460" height="66" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="500.0" y="1038.0" fill="#444441" font-weight="500" font-size="14">The rules</text>
+<text x="500.0" y="1057.0" fill="#5F5E5A" font-size="12">your own project only · a few a week · vary the anchor</text>
+<text x="500.0" y="1073.5" fill="#5F5E5A" font-size="12">never pay for a followed link (paid: sponsored or nofollow)</text>
+<rect x="30" y="1118" width="220" height="80" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="140.0" y="1154.0" fill="#444441" font-weight="500" font-size="14">You submit</text>
+<text x="140.0" y="1173.0" fill="#5F5E5A" font-size="12">the tool never does</text>
+<rect x="280" y="1118" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="395.0" y="1145.0" fill="#0C447C" font-weight="500" font-size="14">verify: after it is live</text>
+<text x="395.0" y="1164.0" fill="#185FA5" font-size="12">there? passing credit?</text>
+<text x="395.0" y="1180.5" fill="#185FA5" font-size="12">in the text, or the footer?</text>
+<rect x="540" y="1118" width="190" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="635.0" y="1136.0" fill="#0C447C" font-weight="500" font-size="14">log: your submissions</text>
+<text x="635.0" y="1155.0" fill="#185FA5" font-size="12">over 5 a week: warned</text>
+<text x="635.0" y="1171.5" fill="#185FA5" font-size="12">same anchor again: warned</text>
+<text x="635.0" y="1188.0" fill="#185FA5" font-size="12">recheck them monthly</text>
 </g>
-<text x="30" y="744" font-size="11" fill="#5F5E5A">Each finding carries its evidence and the Google spam policy line it stands next to</text><text x="30" y="760" font-size="11" fill="#5F5E5A">plus link policy and value columns · a check that failed: incomplete, run it again</text><path d="M30 1080 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1100" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Command line: backlink-guard  find · vet · verify · audit · log · recheck</text><text x="380" y="1117" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code plugin · Agent Skill: npx skills add zhuyansen/backlink-guard</text>
-<rect x="30" y="1150" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text x="52" y="1162" font-size="12" fill="#444441">input</text><rect x="118" y="1150" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="140" y="1162" font-size="12" fill="#444441">checks</text><rect x="213" y="1150" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/><text x="235" y="1162" font-size="12" fill="#444441">data</text><rect x="294" y="1150" width="10" height="14" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="306" y="1150" width="10" height="14" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="318" y="1150" width="10" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/><text x="336" y="1162" font-size="12" fill="#444441">avoid / caution / ok</text><path d="M526 1157 H556" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" fill="none"/><text x="564" y="1162" font-size="12" fill="#444441">look back · report back</text>
+<text x="30" y="880" font-size="11" fill="#5F5E5A">Each finding carries its evidence and the Google spam policy line it stands next to</text><text x="30" y="896" font-size="11" fill="#5F5E5A">plus link policy and value columns · a check that failed: incomplete, run it again</text><path d="M30 1216 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1236" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Command line: backlink-guard  find · vet · verify · audit · lost · log · recheck</text><text x="380" y="1253" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code plugin · Agent Skill: npx skills add zhuyansen/backlink-guard</text><text x="380" y="1270" text-anchor="middle" font-size="11.5" fill="#993C1D">orange text and the NEW 0.7 tag: new in 0.7</text>
+<rect x="30" y="1286" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text x="52" y="1298" font-size="12" fill="#444441">input</text><rect x="118" y="1286" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="140" y="1298" font-size="12" fill="#444441">checks</text><rect x="213" y="1286" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/><text x="235" y="1298" font-size="12" fill="#444441">data</text><rect x="294" y="1286" width="10" height="14" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="306" y="1286" width="10" height="14" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="318" y="1286" width="10" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/><text x="336" y="1298" font-size="12" fill="#444441">avoid / caution / ok</text><path d="M526 1293 H556" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" fill="none"/><text x="564" y="1298" font-size="12" fill="#444441">look back · report back</text>
 <circle r="4" fill="#888780"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.0s"><mpath href="#k"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="2.0s" repeatCount="indefinite" begin="0.4s"><mpath href="#l"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.2s"><mpath href="#d"/></animateMotion></circle>
@@ -131,4 +140,5 @@
 <circle r="4" fill="#888780"><animateMotion dur="4.0s" repeatCount="indefinite" begin="0.0s"><mpath href="#loop"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="4.0s" repeatCount="indefinite" begin="2.0s"><mpath href="#loop2"/></animateMotion></circle>
 <circle r="4" fill="#A32D2D"><animateMotion dur="4.0s" repeatCount="indefinite" begin="1.0s"><mpath href="#rep"/></animateMotion></circle>
+<circle r="4" fill="#993C1D"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.3s"><mpath href="#lo"/></animateMotion></circle>
 </svg>

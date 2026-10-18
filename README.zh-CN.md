@@ -2,11 +2,11 @@
 
 [English](README.md)
 
-先找出搜你这个词的人现在都落在哪些页面上，提交外链**之前**先查这个站值不值得发，链接上线**之后**查它是不是真的传权重，平时再看看**自己**的外链画像里有没有 Google 说的「链接垃圾」痕迹。
+先找出搜你这个词的人现在都落在哪些页面上，提交外链**之前**先查这个站值不值得发，链接上线**之后**查它是不是真的传权重，平时再看看**自己**的外链画像里有没有 Google 说的「链接垃圾」痕迹，并找出指向你已经不存在的页面的外链。
 
 多数外链工具帮你发得更多。这个工具告诉你哪里别发、什么时候该慢下来。
 
-![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，vet 逐个检查（读页面、GoAnyAPI、AIsa），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像](docs/flow.zh.gif)
+![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，vet 逐个检查（读页面、GoAnyAPI、AIsa），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，按网站个数计、全站链接只算 1 个；lost 找出落在 404 页面的外链并建议 301](docs/flow.zh.gif)
 
 ## 快速上手
 
@@ -111,7 +111,40 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 | 它挂的收款链接（Stripe、Gumroad、Lemon Squeezy、Polar、Creem、Dodo、Paddle）同时出现在几十个和它长得一样的站上：通过这条链接卖外链的站群，或被注入到被黑网站里的赌博、色情产品。卖家本人和只是引用这个产品的站不会被标。`--deep` 还会找出它内页上的收款链接（站群都挂在内页） | 外链数据，另读那些站的首页拿标题 | AIsa | 每条收款链接约 $0.02；`--deep` 每站另加约 $0.05 |
 | `--recent`：它不断加的新页面 Google 收不收 | 近一周、近一月的 `site:` 搜索，结果为 0 要查两次，并对照它自己的 sitemap | GoAnyAPI | 每站 $0.008 |
 
-查自己的域名（`audit`）：外链总量、有多少来源域名传权重（GoAnyAPI），每周新增和丢失的来源域名、锚文本分布（AIsa），以及给你链接的站各自的垃圾分。
+查自己的域名（`audit`）：外链总量、有多少来源域名传权重（GoAnyAPI），每周新增和丢失的来源域名，逐条读最多 1,000 条外链、每个锚文本背后有几个来源域名、全站链接（AIsa），以及给你链接的站各自的垃圾分。`lost` 用同一批外链，找出它们指向的、你已经不存在的页面。
+
+## 自己的外链：audit 和 lost
+
+只看链接数说明不了什么：一个站把你的链接放进页脚，它有多少页你就有多少条链接。所以每个链接数旁边都会写上来源域名数（按可注册域名算：`blog.a.example` 和 `a.example` 算一个，`alice.github.io` 和 `bob.github.io` 算两个）。一个站从 20 个以上页面链向你的同一个页面（`--sitewide` 可改），或从 3 个以上页面、且大多在页脚、侧边栏或导航里，就是全站链接：凡是算占比的地方都只算一个来源，报告里会写明。
+
+```bash
+backlink-guard audit yoursite.example
+```
+
+> - Read one by one: 60 of 1,840 links from 21 referring domains (AIsa); 40 links from 1 site, counted once
+>
+> ℹ️ **Some sites link to you from many of their pages (site-wide): each counts as one source.** 40 links from 40 pages of news.example to /blog/old-launch-notes, 100% in its footer, sidebar or navigation. Each site counted once in the shares here _(Google: Widely distributed links in the footers or templates of various sites)_
+
+| Anchor | Links | Referring domains |
+|---|---|---|
+| YourSite | 13 | 13 |
+| best csv tool | 4 | 4 |
+
+`lost` 会逐个询问你那些有外链指向的页面还在不在：每页一次 GET，跟随跳转，同时 4 个，最多 200 页，外链最多的先查。只有 404 和 410 才算死链，跳转链最后落到 404 也算；其他错误单独列出（被拒或没有响应），绝不算死链。每个死链页面都会给出建议的去处：你自己 sitemap 里（robots.txt 或 /sitemap.xml，跟随索引，最多 10 个文件、5 万个页面）路径最接近、且确认能打开的页面，附上 0 到 1 的匹配度，低于 0.50 不给建议。
+
+```bash
+backlink-guard lost yoursite.example
+```
+
+| Page of yours | Answer | Referring domains | Links | Strongest referring domain | Suggestion | Match |
+|---|---|---|---|---|---|---|
+| /blog/old-launch-notes | 404 | 8 | 8 | news.example (AIsa rank 520) | 301 to /blog/launch-notes-2026 | 0.77 |
+| http://yoursite.example/tools/csv-cleaner | 410 | 3 | 3 | d0.example (AIsa rank 210) | 301 to /tools/csv-cleaner-online | 0.85 |
+| /2019/careers | 404 | 1 | 1 | e.example (AIsa rank 90) | no good match (best 0.11) | – |
+
+> ℹ️ **Sites link to pages of yours that no longer exist: the links reach nothing.** 3 pages of yours answer 404 or 410 and have links from 12 referring domains … _(Google: a page that has moved for good takes a permanent server-side redirect, 301 or 308)_
+
+按来源域名数排序，Links 列里全站链接只算一条。工具不做任何跳转：这是一份给人看的清单，没有好匹配的页面，也许保留 404、或跳到你自己选的上级页面更合适。参考 Google 关于[跳转](https://developers.google.com/search/docs/crawling-indexing/301-redirects)的说明。
 
 价格是 2026-10-13、14 两天的实际调用成本。付费结果缓存 7 天。
 
@@ -122,7 +155,8 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 ```bash
 backlink-guard find "<关键词>" [更多 ...] [--site 你的域名] [--skip 竞品清单.txt] [--vet] [--json]
 backlink-guard vet <站点> [更多 ...] [--from 清单.xlsx] [--skip 你的域名] [--limit 30] [--topic "关键词"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
-backlink-guard audit <你的域名> [--deep] [--json]
+backlink-guard audit <你的域名> [--deep] [--sitewide 20] [--rows 1000] [--json]
+backlink-guard lost <你的域名> [--sitewide 20] [--rows 1000] [--json]
 backlink-guard verify <页面地址> --to <你的域名>
 backlink-guard log add <站点> --kind directory --anchor "你的品牌名"
 backlink-guard log
@@ -133,7 +167,8 @@ backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 
 - **find**：每个词 $0.005，另加 $0.012 查搜索量；`--vet` 再加上检查找到的站的费用。`--site` 排除自己的站，`--skip` 排除竞品。
 - **vet**：每个站约 $0.01，另加每批约 $0.16（垃圾分和搜索历史），一批查一个站和查三十个站这部分一样，所以想查的站一次一起查；`--topic` 多一列：每个站在你的关键词上排第几（每词 $0.005）；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。`--deep` 加查对方自己的外链画像（每站 $0.024），并找它内页上的收款链接（约 $0.05，每找到一条再加 $0.02）；`--recent` 查 Google 收不收它的新页面（每站 $0.008，较慢：GoAnyAPI 的搜索调用要 10 到 120 秒）。付费购买位置前两项都用上。`--referrals` 读你的统计导出（GA4「流量获取」按会话来源导出的 CSV），多一列：每个站给你带来过多少访问。检查中发现名单上没有的站群时，报告最后会附上一个已经填好的举报链接。
-- **audit**：约 $0.06，加 `--deep`（完整锚文本分布）约 $0.10。
+- **audit**：约 $0.12，加 `--deep`（完整锚文本分布）约 $0.16。其中约 $0.06 是逐条读 1,000 条外链（`--rows` 可以少读：2026-10-18 读 100 条花了 $0.028）。没有 AIsa key 时，用 GoAnyAPI 给的前 20 个来源页面代替。
+- **lost**：用同一批外链，同一个站 7 天内跑过 `audit` 就不再花钱，否则约 $0.06；询问你的页面、读你的 sitemap 都免费。
 - **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。只有那三个 rel 值会拦住权重，`noopener`、`external` 不会。每条链接还会标出位置，从它外层的元素读出来：`body text`（正文）、`main area`（主区域）、`header`、`navigation`、`sidebar`、`footer`、`comments`、`author box`。传权重的链接如果只在页脚、侧边栏或导航里，会单独提示：Google 把大范围分发的页脚、模板和小部件链接列为链接垃圾的例子，编辑放在正文里的链接分量更重。
 - **log**：你的提交记录，存在 `ledger.jsonl`；一周超过五个、或同一个锚文本反复用时会提醒。
 - **recheck**：把记录里已提交或已上线的站重查一遍，和上次比：结论变差、新查出的问题，加 `--to` 还会看你的链接还在不在。结果存在 `recheck.json`。十来个站几分钱，一个月查一次就够。
@@ -185,6 +220,7 @@ skill 带着 agent 按同样的顺序走：先查、守规则、验收、审计�
 - 是信号，不是判定。访问量在垃圾更新前后下滑，只是时间上的重合。
 - 拦截陌生客户端的站读不到页面信号，报告里写「被拦」。
 - 由脚本后加的链接，`verify` 看不到。
+- `lost` 最多读最强的 1,000 条外链；页面不存在却返回 200（软 404）的，它会当成还在。建议只比路径、不比内容：跳转前先看一眼那个页面。
 - 私下卖链接的站查不出来。
 - 访问量和评分是第三方估算。
 - 搜索历史只看美国 Google。读者主要在别的国家的站，可能在美国掉了、本土没掉。要两个月的数据都对得上才算下跌，所以上周刚结束的更新可能还看不出来。

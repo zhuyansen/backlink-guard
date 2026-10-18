@@ -22,6 +22,10 @@ AUTOMATED = "Using automated programs or services to create links to your site"
 OPTIMIZED = "Links with optimized anchor text in articles, guest posts or press releases"
 EXPIRED = "Expired domain abuse: an expired domain bought and used to profit from its old reputation"
 HACKED = "Hacked content: content placed on a site without permission"      # the same page, outside "Link spam"
+TEMPLATE = "Widely distributed links in the footers or templates of various sites"
+# Not a spam policy: Google's page on redirects (read 2026-10-18), for links to pages of yours that are gone.
+REDIRECTS_URL = "https://developers.google.com/search/docs/crawling-indexing/301-redirects"
+MOVED = "a page that has moved for good takes a permanent server-side redirect, 301 or 308"
 
 # id: (level, what it says, the clause it relates to or "")
 FLAGS = {
@@ -64,6 +68,8 @@ FLAGS = {
     "spam_anchor": ("caution", "Links to you carry anchors that sell links or name gambling, adult or loan sites", BUYING),
     "pace": ("caution", "More submissions this week than your own limit", AUTOMATED),
     "few_followed": ("note", "Very few of your links pass ranking credit", ""),
+    "sitewide": ("note", "Some sites link to you from many of their pages (site-wide): each counts as one source", TEMPLATE),
+    "dead_target": ("note", "Sites link to pages of yours that no longer exist: the links reach nothing", MOVED),
 }
 # Findings that are a link-spam behaviour of the site itself (selling links, asking for them back, a network, an
 # expired domain picked up, a hacked page), with the short label a report column uses. The other findings say how

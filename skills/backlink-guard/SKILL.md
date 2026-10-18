@@ -14,7 +14,7 @@ Four jobs, in the order a careful person does them: find the pages your searcher
    - `GOANYAPI_API_KEY` (https://goanyapi.com/r/ga-95708898fb): a site's rating, a year of monthly visits, whether Google still lists it, and the summary of your own backlinks.
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu): spam scores, new and lost referring domains by week, anchors.
    Without a key the page checks still run. Say which signals are missing: a site can pass the page checks and have no audience at all.
-3. Say the cost before a paid run. `find`: about 0.005 USD a keyword plus 0.012 USD for the search volumes, `--vet` then adds the vet cost. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history), the same for one site or thirty, so put every site the user is considering in one call (one site about 0.17 USD in all, thirty about 0.46 USD); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.06 USD, with `--deep` about 0.10 USD. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
+3. Say the cost before a paid run. `find`: about 0.005 USD a keyword plus 0.012 USD for the search volumes, `--vet` then adds the vet cost. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history), the same for one site or thirty, so put every site the user is considering in one call (one site about 0.17 USD in all, thirty about 0.46 USD); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.12 USD, with `--deep` about 0.16 USD. `lost`: about 0.06 USD, nothing more after an `audit` of the same site in the last 7 days. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
 
 ## 1. Where to be: find
 
@@ -100,12 +100,21 @@ Verdicts: `followed link` (passes ranking credit), `qualified link` (nofollow, s
 backlink-guard audit yoursite.com --deep --json
 ```
 
-It reports the totals, how many referring domains pass credit, new and lost referring domains by week, the anchors, and which of the top linking sites score high for spam. Flags:
+It reports the totals, how many referring domains pass credit, new and lost referring domains by week, the anchors with the referring domains behind each, the site-wide links, and which of the top linking sites score high for spam. Every count of links comes with its count of referring domains: say both, and lead with domains. Flags:
 
 - `velocity_spike`: a week far above the usual. Ask what was done that week.
 - `anchor_repeat`: one keyword anchor on a large share of links.
 - `spam_anchor`: anchors that sell links or name gambling and similar trades. Someone else's network usually puts them there. Report it; do not alarm.
 - `spammy_referrers`: several of the top linking sites score high for spam. If the user paid any of them, that is the lesson for next time.
+- `sitewide` (a note): one site links to one page of the user's from many of its pages (20 or more by default, `--sitewide` changes it), or from a few with most of them in its footer, sidebar or navigation. It is counted as one source in the anchor shares, and the output says so ("N links from 1 site, counted once"). Say it that way: a partner's footer link is common; it is the pattern Google describes only when it is placed for ranking.
+
+## 5b. Links to pages that are gone: lost
+
+```bash
+backlink-guard lost yoursite.com --json
+```
+
+From the same backlinks, it asks each page of the user's that gets links whether it is still there (free, four at a time) and lists the ones that answer 404 or 410, most referring domains first, each with the strongest referring domain and a `suggest`: the live page in the user's own sitemaps whose path is closest, with its `score` from 0 to 1, or no good match under 0.50. Any other error is `blocked` and no answer is `unreachable`: neither is dead, so do not call them lost. Present the list as suggestions for permanent (301 or 308) redirects, the user's call page by page; the tool redirects nothing, and a suggestion with a low score or a different subject is better left as a 404 or pointed at a parent page the user picks.
 
 Google ignores most junk links rather than punishing them. Do not recommend a disavow file unless the user has a manual action for links in Search Console.
 
@@ -124,4 +133,5 @@ If the user has analytics, ask for the referral export (GA4: Reports, Acquisitio
 - For `find`: the keywords with their searches, then the pages worth being on, busiest first (page, kind, where it ranks, visitors, what to do), then the five or so the user should act on this week and how. Say plainly that visitors are an estimate of size.
 - For `vet`: a table (site, action, verdict, reach, rating, visits a month, spam score, fit when `--topic` was given, why), then each flagged site's evidence, then what was not checked and why (missing key, failed source, blocked site), then a short recommendation: where to submit first, what to skip, and the report links of any `networks`.
 - For `audit`: the numbers, the findings with evidence, and at most three things to do.
+- For `lost`: the dead pages with their referring domains and the suggested 301 targets, the ones with no good match apart, then what was blocked or unreachable.
 - Never add a site, a number or a verdict from your own knowledge. The output is what the tool saw today.

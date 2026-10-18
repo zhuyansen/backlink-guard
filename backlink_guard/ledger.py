@@ -65,5 +65,7 @@ def checks(rows: list[dict], today: date | None = None, limit: int = WEEKLY_LIMI
     if anchors and sum(anchors.values()) >= ANCHOR_MIN:
         text, n = anchors.most_common(1)[0]
         if n / sum(anchors.values()) >= ANCHOR_SHARE:
-            flags.append(flag("anchor_repeat", f"\"{text}\" used for {n} of {sum(anchors.values())} submissions"))
+            sites = len({r["target"] for r in rows if r.get("anchor", "").strip().lower() == text})
+            flags.append(flag("anchor_repeat", f"\"{text}\" used for {n} of {sum(anchors.values())} submissions, "
+                                               f"on {sites} site{'s' if sites != 1 else ''}"))
     return flags

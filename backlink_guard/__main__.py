@@ -3,7 +3,8 @@
   python -m backlink_guard find "<keyword>" [more ...] [--site yoursite.com] [--skip site|file] [--vet] [--limit 30] [--fresh] [--json]
   python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
   python -m backlink_guard recheck [--to your-domain] [--deep] [--free] [--fresh] [--json]
-  python -m backlink_guard audit <your-domain> [--deep] [--fresh] [--json]
+  python -m backlink_guard audit <your-domain> [--deep] [--sitewide 20] [--rows 1000] [--fresh] [--json]
+  python -m backlink_guard lost <your-domain> [--sitewide 20] [--rows 1000] [--fresh] [--json]
   python -m backlink_guard verify <page-url> --to <your-domain> [--json]
   python -m backlink_guard log                                  the record, with pace and anchor checks
   python -m backlink_guard log add <site> --kind directory [--anchor TEXT] [--paid USD] [--url URL] [--note TEXT]
@@ -20,8 +21,12 @@ vet     reads each site, and with keys asks for its rating, a year of visits and
         what each site has sent you. A site its own pages put at avoid gets no paid check.
 recheck the sites in your log checked again and compared with the last look: what got
         worse, and with --to, whether your links are still there. Monthly is enough.
-audit   your own profile: totals, new and lost referring domains by week, anchors, and
-        the spam score of the sites linking to you: about $0.06, with --deep about $0.10.
+audit   your own profile: totals, new and lost referring domains by week, anchors with their
+        referring domains, site-wide links (one site linking from many of its pages, counted once),
+        and the spam score of the sites linking to you: about $0.11, with --deep about $0.15.
+lost    links to pages of yours that answer 404 or 410, by referring domains, each with the
+        closest live page in your sitemaps to 301 it to. The same backlinks as audit (about
+        $0.06, nothing more after an audit the same week); asking your pages is free.
 verify  whether a page links to you and whether that link passes ranking credit. Free.
 log     kept in state/ledger.jsonl on this machine. Free.
 
@@ -37,7 +42,7 @@ import sys
 from pathlib import Path
 
 from . import find as finding
-from . import ledger, lists, page, profile, recheck, report
+from . import ledger, links, lists, lost, page, profile, recheck, report
 from . import verify as verification
 from . import vet as vetting
 
@@ -127,6 +132,13 @@ def parser() -> argparse.ArgumentParser:
     a = sub.add_parser("audit", parents=[common])
     a.add_argument("domain")
     a.add_argument("--deep", action="store_true", help="also the full anchor distribution")
+    o = sub.add_parser("lost", parents=[common])
+    o.add_argument("domain")
+    for x in (a, o):
+        x.add_argument("--sitewide", type=int, default=links.SITEWIDE_PAGES, metavar="PAGES",
+                       help=f"pages of one site linking to one page of yours that make a site-wide link (default {links.SITEWIDE_PAGES})")
+        x.add_argument("--rows", type=int, default=links.ROWS, metavar="LINKS",
+                       help=f"backlinks read one by one from AIsa (default and most {links.ROWS}; about $0.06 for 1,000)")
     c = sub.add_parser("verify", parents=[common])
     c.add_argument("page")
     c.add_argument("--to", required=True, metavar="DOMAIN")
@@ -154,8 +166,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "find":
         return cmd_find(args)
     if args.command == "audit":
-        result = profile.audit(args.domain, deep=args.deep, fresh=args.fresh)
+        result = profile.audit(args.domain, deep=args.deep, fresh=args.fresh, sitewide=args.sitewide, rows=args.rows)
         return _print(args, result, report.audit(result))
+    if args.command == "lost":
+        result = lost.lost(args.domain, fresh=args.fresh, rows=args.rows, sitewide=args.sitewide)
+        return _print(args, result, report.lost(result))
     if args.command == "verify":
         result = verification.verify(args.page, args.to)
         return _print(args, result, report.verify(result))

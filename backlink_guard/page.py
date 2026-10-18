@@ -21,7 +21,12 @@ MAX_BYTES = 1_500_000
 GONE = {404, 410}             # any other HTTP error means the request was refused, not that the site is gone
 # Two-label public suffixes common among the sites people submit to; enough to tell
 # "blog.example.co.uk" from "example.co.uk" without a suffix list.
-TWO_LABEL_SUFFIXES = {"co.uk", "com.au", "com.br", "co.jp", "com.cn", "co.in", "com.tr", "co.kr", "com.mx", "co.nz"}
+TWO_LABEL_SUFFIXES = {"co.uk", "com.au", "com.br", "co.jp", "com.cn", "co.in", "com.tr", "co.kr", "com.mx", "co.nz",
+                      "org.uk", "ac.uk", "net.au", "org.au", "com.sg", "com.hk", "com.tw", "co.za", "com.ar", "co.id"}
+# Hosts where each subdomain is somebody else's site: when links are counted by referring domain,
+# alice.github.io and bob.github.io are two (page.registrable). vet keeps reading them as one platform.
+HOSTED = {"github.io", "blogspot.com", "wordpress.com", "netlify.app", "vercel.app", "pages.dev", "substack.com",
+          "tumblr.com", "web.app", "gitbook.io", "notion.site", "herokuapp.com"}
 SKIP_TAGS = {"script", "style", "noscript", "template", "svg"}
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 # A <p> ends where one of these starts, even when the page never closes it.
@@ -39,6 +44,13 @@ def site(url: str) -> str:
     labels = host(url).split(".")
     keep = 3 if ".".join(labels[-2:]) in TWO_LABEL_SUFFIXES else 2
     return ".".join(labels[-keep:])
+
+
+def registrable(url: str) -> str:
+    """site(), except that a subdomain of a shared host (HOSTED) is its own site: the referring domain of a link."""
+    name = host(url)
+    hosted = next((h for h in HOSTED if name.endswith("." + h)), "")
+    return ".".join(name.split(".")[-(hosted.count(".") + 2):]) if hosted else site(url)
 
 
 class _Reader(HTMLParser):
@@ -132,7 +144,8 @@ def _get(url: str) -> dict:
             raw = res.read(MAX_BYTES)
             out.update(status=res.status, final=res.geturl(), html=_decode(raw, res.headers.get_content_charset()))
     except urllib.error.HTTPError as exc:
-        out.update(status=exc.code, error=f"HTTP {exc.code}", blocked=exc.code not in GONE, dead=exc.code in GONE)
+        out.update(status=exc.code, final=exc.geturl() or url, error=f"HTTP {exc.code}", blocked=exc.code not in GONE,
+                   dead=exc.code in GONE)
     except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError) as exc:
         reason = getattr(exc, "reason", exc)
         out.update(error=re.sub(r"\s+", " ", f"{type(reason).__name__}: {reason}")[:120], dead=True)

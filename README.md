@@ -2,11 +2,11 @@
 
 [中文](https://github.com/zhuyansen/backlink-guard/blob/main/README.zh-CN.md)
 
-Find the pages your searchers already land on, check a link source **before** you submit your site to it, check the link **after** it goes live, and look at your **own** backlink profile for the patterns Google calls link spam.
+Find the pages your searchers already land on, check a link source **before** you submit your site to it, check the link **after** it goes live, look at your **own** backlink profile for the patterns Google calls link spam, and find the links that point at pages of yours that are gone.
 
 Most backlink tools help you send more. This one tells you where not to send, and when to slow down.
 
-![How backlink-guard works: find the pages your searchers land on, vet each site (its own pages, GoAnyAPI, AIsa), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
+![How backlink-guard works: find the pages your searchers land on, vet each site (its own pages, GoAnyAPI, AIsa), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, counted by referring site with a site-wide link counted once; lost lists backlinks landing on 404 pages with a suggested 301](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
 
 ## Quick start
 
@@ -111,7 +111,40 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | A checkout link it carries (Stripe, Gumroad, Lemon Squeezy, Polar, Creem, Dodo, Paddle) also sits on dozens of sites built like it: a network selling links through it, or a gambling or adult product injected into hacked sites. Its seller and the sites that merely cite it are not flagged. `--deep` also finds the checkout links on its inner pages, where networks put them | backlinks, plus the other sites' home pages for their titles | AIsa | about $0.02 a checkout link; with `--deep` about $0.05 more a site |
 | `--recent`: whether Google takes in the pages it keeps adding | `site:` search for the last week and month, each zero asked twice, checked against the site's own sitemap | GoAnyAPI | $0.008 a site |
 
-For your own domain (`audit`): totals and how many referring domains pass ranking credit (GoAnyAPI), new and lost referring domains by week and the anchors (AIsa), and the spam score of the sites linking to you.
+For your own domain (`audit`): totals and how many referring domains pass ranking credit (GoAnyAPI), new and lost referring domains by week, up to 1,000 of your backlinks one by one with the referring domains behind each anchor, the site-wide links (AIsa), and the spam score of the sites linking to you. `lost` reads the same backlinks for the pages of yours they point at that are gone.
+
+## Your own links: audit and lost
+
+A count of links says little on its own: a site that puts your link in its footer gives you as many links as it has pages. So every count of links comes with the number of referring domains (the registrable domain: `blog.a.example` and `a.example` are one, `alice.github.io` and `bob.github.io` two). One site linking to one page of yours from 20 or more of its pages (`--sitewide` changes it), or from three or more with most of them in its footer, sidebar or navigation, is a site-wide link: one source wherever a share is worked out, and the report says so.
+
+```bash
+backlink-guard audit yoursite.example
+```
+
+> - Read one by one: 60 of 1,840 links from 21 referring domains (AIsa); 40 links from 1 site, counted once
+>
+> ℹ️ **Some sites link to you from many of their pages (site-wide): each counts as one source.** 40 links from 40 pages of news.example to /blog/old-launch-notes, 100% in its footer, sidebar or navigation. Each site counted once in the shares here _(Google: Widely distributed links in the footers or templates of various sites)_
+
+| Anchor | Links | Referring domains |
+|---|---|---|
+| YourSite | 13 | 13 |
+| best csv tool | 4 | 4 |
+
+`lost` asks each page of yours that gets links whether it is still there: one GET each, redirects followed, four at a time, at most 200 pages, the most linked first. Only 404 and 410 make a page dead, also at the end of a redirect chain; any other error is reported apart, as refused or unanswered, never as dead. For each dead page it suggests where to send it: the live page in your own sitemaps (robots.txt or /sitemap.xml, indexes followed, up to 10 files and 50,000 pages) whose path is closest, with the match from 0 to 1, and no suggestion under 0.50.
+
+```bash
+backlink-guard lost yoursite.example
+```
+
+| Page of yours | Answer | Referring domains | Links | Strongest referring domain | Suggestion | Match |
+|---|---|---|---|---|---|---|
+| /blog/old-launch-notes | 404 | 8 | 8 | news.example (AIsa rank 520) | 301 to /blog/launch-notes-2026 | 0.77 |
+| http://yoursite.example/tools/csv-cleaner | 410 | 3 | 3 | d0.example (AIsa rank 210) | 301 to /tools/csv-cleaner-online | 0.85 |
+| /2019/careers | 404 | 1 | 1 | e.example (AIsa rank 90) | no good match (best 0.11) | – |
+
+> ℹ️ **Sites link to pages of yours that no longer exist: the links reach nothing.** 3 pages of yours answer 404 or 410 and have links from 12 referring domains … _(Google: a page that has moved for good takes a permanent server-side redirect, 301 or 308)_
+
+Sorted by referring domains, a site-wide source counted once in Links. Nothing is redirected: it is a list to read, and a page with no good match may be better left a 404 or sent to a parent page you choose. Google's page on [redirects](https://developers.google.com/search/docs/crawling-indexing/301-redirects) is the reference.
 
 Prices are what the calls cost on 2026-10-13 and 14. Paid answers are cached for 7 days.
 
@@ -122,7 +155,8 @@ A site its own pages already put at avoid (dead, parked, a URL shortener, a netw
 ```bash
 backlink-guard find "<keyword>" [more ...] [--site yoursite.com] [--skip competitors.txt] [--vet] [--json]
 backlink-guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
-backlink-guard audit <your-domain> [--deep] [--json]
+backlink-guard audit <your-domain> [--deep] [--sitewide 20] [--rows 1000] [--json]
+backlink-guard lost <your-domain> [--sitewide 20] [--rows 1000] [--json]
 backlink-guard verify <page-url> --to <your-domain>
 backlink-guard log add <site> --kind directory --anchor "Your Brand"
 backlink-guard log
@@ -133,7 +167,8 @@ From a clone, `python -m backlink_guard` runs the same. Your log, the paid answe
 
 - **find**: $0.005 a keyword and $0.012 for the search volumes; `--vet` adds the vet cost for the sites found. `--site` leaves your own site out, `--skip` competitors.
 - **vet**: about $0.01 a site, plus about $0.16 for the batch (spam scores and search history), the same for one site or thirty: check the sites you are considering in one run; `--topic` adds a column with where each site ranks for your keyword ($0.005 a keyword); `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds the site's own backlink profile ($0.024 a site) and looks for its checkout links on inner pages (about $0.05, plus $0.02 a link found); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement. `--referrals` reads your analytics export (GA4's Traffic acquisition by Session source, as CSV) and adds what each site has sent you. A check that finds one operator's sites missing from the shared spam-link list ends with a link to a filled-in report for it.
-- **audit**: about $0.06, with `--deep` (full anchor distribution) about $0.10.
+- **audit**: about $0.12, with `--deep` (full anchor distribution) about $0.16. Of that, about $0.06 is the 1,000 backlinks read one by one (`--rows` asks for fewer: 100 cost $0.028 on 2026-10-18). Without an AIsa key the 20 top linking pages from GoAnyAPI stand in.
+- **lost**: the same backlinks, so nothing more after an `audit` of the same site in the last 7 days, else about $0.06; asking your pages and reading your sitemaps is free.
 - **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
 - **log**: your submissions in `ledger.jsonl`, with a warning past five a week or when one anchor is used over and over.
 - **recheck**: the sites in your log (submitted or live) checked again and compared with the last look: a lower verdict, a new finding, and with `--to` a link of yours no longer found. Kept in `recheck.json`. A dozen sites cost a few cents; monthly is enough.
@@ -185,6 +220,7 @@ The skill walks an agent through the same order: vet, the rules, verify, audit. 
 - Signals, not verdicts. A fall in visits next to a spam update is a coincidence in time until someone shows otherwise.
 - A site that blocks unknown clients gives no page signals; the report says "blocked".
 - Links added by script are not seen by `verify`.
+- `lost` reads the strongest 1,000 backlinks at most, and a page that answers 200 for a missing page (a soft 404) looks alive to it. A suggestion matches paths, not content: read the page before you redirect to it.
 - Private link sellers are invisible to it.
 - Visit and rating numbers are third-party estimates.
 - The search history is US Google only. A site whose readers are elsewhere can fall in the US and hold at home. A fall shows once two monthly readings agree, so an update that ended last week may not show yet.

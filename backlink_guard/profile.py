@@ -2,9 +2,13 @@
 reads as manufactured.
 
 GoAnyAPI gives the totals and the top linking pages ($0.004). AIsa gives
-the weekly count of new and lost referring domains ($0.025), and the spam score of the
-sites that link to you ($0.025 for the batch). With --deep it also gives the full anchor
-distribution (about $0.04).
+the weekly count of new and lost referring domains ($0.025), up to 1,000 of your backlinks
+one by one (about $0.06: the anchors, the referring domains and the site-wide sources, see
+links.py), and the spam score of the sites that link to you ($0.025 for the batch). With
+--deep it also gives the full anchor distribution (about $0.04).
+
+Every count of links comes with its count of referring domains, and a site that links to one
+page of yours from many of its pages is counted once in the anchor shares.
 """
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from collections import Counter
 from datetime import date, timedelta
 from statistics import median
 
-from . import aisa, goanyapi, page
+from . import aisa, goanyapi, links, page
 from .policy import flag, ranked
 from .vet import SPAM_SCORE_HIGH, SPAM_WORDS, paid, spam_scores
 
@@ -38,7 +42,7 @@ def summary(domain: str, fresh: bool) -> tuple[dict, list[dict], int]:
     data, cost = paid("goanyapi", f"backlink:{domain}", lambda: goanyapi.call("backlink", domain=domain), fresh)
     totals = {"dr": data.get("domainRating"), "backlinks": data.get("backlinks"), "refdomains": data.get("refdomains"),
               "followed_backlinks": data.get("dofollowBacklinks"), "followed_refdomains": data.get("dofollowRefdomains")}
-    top = [{"from": b.get("urlFrom", ""), "site": page.site(b.get("urlFrom", "")), "anchor": " ".join((b.get("anchor") or "").split()),
+    top = [{"from": b.get("urlFrom", ""), "to": b.get("urlTo") or "", "site": page.site(b.get("urlFrom", "")), "anchor": " ".join((b.get("anchor") or "").split()),
             "dr": b.get("domainRating"), "title": (b.get("title") or "")[:100]} for b in data.get("topBacklinks") or []]
     return totals, top, cost
 
@@ -74,32 +78,41 @@ def kind_of(anchor: str, domain: str) -> str:
     return "brand" if stem in re.sub(r"[\s\-_]+", "", text) else "keyword"
 
 
-def anchor_flag(anchors: list[tuple[str, int]], domain: str) -> dict | None:
-    """anchors: [(text, links)]. A flag when one keyword anchor carries a large share of the links."""
-    total = sum(n for _, n in anchors)
-    keyword = [(a, n) for a, n in anchors if kind_of(a, domain) == "keyword"]
+def from_domains(entry: tuple) -> str:
+    """" from 7 referring domains" when the anchor row carries its count of domains, else ""."""
+    return f" from {entry[2]:,} referring domain{'s' if entry[2] != 1 else ''}" if len(entry) > 2 and entry[2] else ""
+
+
+def anchor_flag(anchors: list[tuple], domain: str) -> dict | None:
+    """anchors: [(text, links)] or [(text, links, referring domains)], a site-wide source counted once.
+    A flag when one keyword anchor carries a large share of the links."""
+    total = sum(a[1] for a in anchors)
+    keyword = [a for a in anchors if kind_of(a[0], domain) == "keyword"]
     if total < ANCHOR_MIN or not keyword:
         return None
-    text, n = max(keyword, key=lambda p: p[1])
+    top = max(keyword, key=lambda p: p[1])
+    text, n = top[0], top[1]
     if n / total >= ANCHOR_SHARE:
-        return flag("anchor_repeat", f"\"{text[:60]}\" on {n} of {total} links ({round(n / total * 100)}%)")
+        return flag("anchor_repeat", f"\"{text[:60]}\" on {n} of {total} links ({round(n / total * 100)}%){from_domains(top)}")
     return None
 
 
-def spam_anchor_flag(anchors: list[tuple[str, int]]) -> dict | None:
+def spam_anchor_flag(anchors: list[tuple]) -> dict | None:
     """A flag when anchors pointing at you advertise links or belong to the usual spam trades.
     Someone else's network usually puts them there; knowing is the point, not blame."""
-    hits = [(a, n) for a, n in anchors if LINK_SELLER.search(a) or SPAM_WORDS.search(a)]
+    hits = [a for a in anchors if LINK_SELLER.search(a[0]) or SPAM_WORDS.search(a[0])]
     if not hits:
         return None
     worst = sorted(hits, key=lambda p: -p[1])[:3]
-    return flag("spam_anchor", "; ".join(f"\"{a[:70]}\" on {n} links" for a, n in worst))
+    return flag("spam_anchor", "; ".join(f"\"{a[0][:70]}\" on {a[1]} links{from_domains(a)}" for a in worst))
 
 
-def full_anchors(domain: str, fresh: bool) -> tuple[list[tuple[str, int]], int]:
+def full_anchors(domain: str, fresh: bool) -> tuple[list[tuple[str, int, int]], int]:
+    """[(anchor, links, referring domains)] from AIsa's anchor table, and the cost."""
     result, cost = paid("aisa", f"anchors:{domain}", lambda: aisa.call(ANCHORS_TOOL, {
         "target": domain, "limit": ANCHOR_ROWS, "order_by": ["backlinks,desc"]}), fresh)
-    return [(" ".join((i.get("anchor") or "").split()), int(i.get("backlinks") or 0)) for i in result.get("items") or []], cost
+    return [(" ".join((i.get("anchor") or "").split()), int(i.get("backlinks") or 0), int(i.get("referring_domains") or 0))
+            for i in result.get("items") or []], cost
 
 
 def referrer_flag(top: list[dict], scores: dict[str, int]) -> tuple[dict | None, list[dict]]:
@@ -113,14 +126,18 @@ def referrer_flag(top: list[dict], scores: dict[str, int]) -> tuple[dict | None,
     return None, worst
 
 
-def audit(domain: str, deep: bool = False, today: date | None = None, fresh: bool = False) -> dict:
-    """{"domain", "totals", "top", "weeks", "anchors", "worst_referrers", "flags", "cost", "errors"}"""
+def audit(domain: str, deep: bool = False, today: date | None = None, fresh: bool = False,
+          sitewide: int = links.SITEWIDE_PAGES, rows: int = links.ROWS) -> dict:
+    """{"domain", "totals", "top", "links", "weeks", "anchors", "worst_referrers", "flags", "cost", "errors"}.
+    "links": the backlinks read one by one ({"read", "domains", "total", "source", "sitewide"}); "anchors":
+    [(text, links, referring domains)], a site-wide source counted once."""
     today, domain = today or date.today(), page.site(domain)
-    out = {"domain": domain, "totals": {}, "top": [], "weeks": [], "anchors": [], "worst_referrers": [], "flags": [],
-           "cost": 0, "errors": []}
+    out = {"domain": domain, "totals": {}, "top": [], "links": {}, "weeks": [], "anchors": [], "worst_referrers": [],
+           "flags": [], "cost": 0, "errors": []}
     steps = []
     if goanyapi.key():
         steps.append(("links", lambda: _links(out, domain, fresh)))
+    steps.append(("backlinks", lambda: _rows(out, domain, fresh, sitewide, rows)))
     if aisa.key():
         steps += [("weekly", lambda: _weekly(out, domain, today, fresh)), ("referrers", lambda: _referrers(out, fresh))]
         if deep:
@@ -130,12 +147,36 @@ def audit(domain: str, deep: bool = False, today: date | None = None, fresh: boo
             step()
         except (goanyapi.GoAnyError, aisa.AisaError) as exc:
             out["errors"].append(f"{name}: {exc}")
-    if not deep and out["top"]:
-        counts = Counter(t["anchor"] for t in out["top"])
-        out["anchors"] = counts.most_common()
+    if not deep and (out["links"].get("rows") or out["top"]):
+        out["anchors"] = _sampled_anchors(out)
         out["flags"] += [f for f in [anchor_flag(out["anchors"], domain), spam_anchor_flag(out["anchors"])] if f]
+    out["links"].pop("rows", None)
     out["flags"] = ranked(out["flags"])
     return out
+
+
+def _sampled_anchors(out: dict) -> list[tuple[str, int, int]]:
+    """The anchors of the backlinks read one by one, a site-wide source counted once; the top linking pages
+    when none were read."""
+    if out["links"].get("rows"):
+        return links.anchors(out["links"]["rows"], out["links"]["sitewide"])
+    counts, sites = Counter(t["anchor"] for t in out["top"]), {}
+    for t in out["top"]:
+        sites.setdefault(t["anchor"], set()).add(t["site"])
+    return [(a, n, len(sites[a])) for a, n in counts.most_common()]
+
+
+def _rows(out: dict, domain: str, fresh: bool, pages_min: int, limit: int) -> None:
+    got = links.fetch(domain, fresh, limit, top=out["top"])
+    out["cost"] += got["cost"]
+    out["errors"] += got["errors"]
+    if not got["rows"]:
+        return
+    groups = links.sitewide(got["rows"], pages_min)
+    out["links"] = {"rows": got["rows"], "read": len(got["rows"]), "domains": links.domains(got["rows"]),
+                    "total": got["total"], "source": got["source"], "sitewide": groups,
+                    "counted_once": links.counted_once(groups)}
+    out["flags"] += [f for f in [links.sitewide_flag(groups)] if f]
 
 
 def _links(out: dict, domain: str, fresh: bool) -> None:
@@ -163,6 +204,7 @@ def _referrers(out: dict, fresh: bool) -> None:
 
 
 def _anchors(out: dict, domain: str, fresh: bool) -> None:
-    out["anchors"], cost = full_anchors(domain, fresh)
+    table, cost = full_anchors(domain, fresh)
+    out["anchors"] = links.collapse(table, out["links"].get("sitewide") or [], out["links"].get("rows") or [])
     out["cost"] += cost
     out["flags"] += [f for f in [anchor_flag(out["anchors"], domain), spam_anchor_flag(out["anchors"])] if f]

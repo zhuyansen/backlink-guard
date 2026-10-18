@@ -1,7 +1,10 @@
 """Markdown for people; the same results are available as JSON with --json."""
 from __future__ import annotations
 
-from .policy import POLICY, POLICY_URL
+import urllib.parse
+
+from .links import clean
+from .policy import POLICY, POLICY_URL, REDIRECTS_URL
 
 MARK = {"avoid": "⛔ avoid", "caution": "⚠️ caution", "ok": "✅ ok", "incomplete": "❔ incomplete", "note": "ℹ️"}
 MISSING = "–"
@@ -151,6 +154,7 @@ def audit(a: dict) -> str:
     if t:
         lines += [f"- Rating {num(t.get('dr'))}; {num(t.get('backlinks'))} backlinks from {num(t.get('refdomains'))} referring domains",
                   f"- Passing ranking credit: {num(t.get('followed_backlinks'))} links from {num(t.get('followed_refdomains'))} domains"]
+    lines += links_read_lines(a.get("links") or {})
     if a["weeks"]:
         recent = ", ".join(f"{w['week'][5:]}: +{w['new']}/−{w['lost']}" for w in a["weeks"][-6:])
         lines.append(f"- New and lost referring domains by week: {recent}")
@@ -159,14 +163,93 @@ def audit(a: dict) -> str:
         lines += ["", "## Linking sites with a high spam score", "| Site | Spam score |", "|---|---|"]
         lines += [f"| {w['site']} | {w['spam_score']} |" for w in a["worst_referrers"][:10]]
     if a["anchors"]:
-        lines += ["", "## Anchors", "| Anchor | Links |", "|---|---|"]
-        lines += [f"| {(text or '(empty)')[:70]} | {n} |" for text, n in a["anchors"][:12]]
+        once = " (a site-wide source counted once)" if (a.get("links") or {}).get("sitewide") else ""
+        lines += ["", f"## Anchors{once}", "| Anchor | Links | Referring domains |", "|---|---|---|"]
+        lines += [f"| {(x[0] or '(empty)')[:70]} | {x[1]:,} | {num(x[2]) if len(x) > 2 else MISSING} |" for x in a["anchors"][:12]]
+    lines += sitewide_lines((a.get("links") or {}).get("sitewide") or [])
     if a["top"]:
         lines += ["", "## Top linking pages", "| Page | Rating | Anchor |", "|---|---|---|"]
         lines += [f"| {x['from'][:80]} | {num(x['dr'])} | {(x['anchor'] or '(empty)')[:50]} |" for x in a["top"][:12]]
     if a["errors"]:
         lines += ["", "**Incomplete**"] + [f"- Failed: {e}" for e in a["errors"]]
     lines += ["", f"Cost of this run: {usd(a['cost'])}."]
+    return "\n".join(lines)
+
+
+def links_read_lines(l: dict) -> list[str]:
+    """The backlinks read one by one: how many, from how many sites, and the site-wide ones counted once."""
+    if not l:
+        return []
+    of = f" of {l['total']:,}" if l.get("total", 0) > l["read"] else ""
+    line = f"- Read one by one: {l['read']:,}{of} links from {l['domains']:,} referring domains ({l['source']})"
+    return [line + (f"; {l['counted_once']}" if l.get("counted_once") else "")]
+
+
+def sitewide_lines(groups: list[dict]) -> list[str]:
+    if not groups:
+        return []
+    out = ["", "## Site-wide links (each counted once)", "| Site | Your page | Links | Its pages | In footer, sidebar or navigation |",
+           "|---|---|---|---|---|"]
+    out += [f"| {g['site']} | {path_of(g['to'])} | {g['links']:,} | {g['pages']:,} | {round(g['template'] * 100)}% |" for g in groups[:12]]
+    return out
+
+
+def path_of(url: str) -> str:
+    parts = urllib.parse.urlsplit(url)
+    return (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+
+
+def page_of(url: str, domain: str) -> str:
+    """The path, with the host in front when it is not `domain` itself (a subdomain, or plain http)."""
+    host = urllib.parse.urlsplit(url).netloc.lower().removeprefix("www.")
+    return ("" if host == domain and url.startswith("https://") else url.split("://", 1)[0] + "://" + host) + path_of(url)
+
+
+def answer(d: dict) -> str:
+    return f"HTTP {d['status']}" if d["status"] else d["error"] or "no answer"
+
+
+def strongest(d: dict, label: str) -> str:
+    return f"{d['strongest']} ({label} {d['rank']:,})" if d.get("rank") is not None and label else d["strongest"]
+
+
+def suggestion(d: dict) -> tuple[str, str]:
+    s = d.get("suggest") or {}
+    if s.get("url"):
+        return f"301 to {path_of(s['url'])}", f"{s['score']:.2f}"
+    return "no good match" + (f" (best {s['score']:.2f})" if s.get("score") else ""), MISSING
+
+
+def lost(r: dict) -> str:
+    """Pages of yours that are gone, most referring domains first, each with where it could be sent."""
+    of = f" of {r['total']:,}" if r["total"] > r["read"] else ""
+    lines = [f"# Links to pages of {r['domain']} that are gone", "",
+             f"{r['read']:,}{of} backlinks read ({r['source'] or 'no source'}), from {r['domains']:,} referring domains; "
+             f"{r['pages']:,} pages of yours get links, {r['checked']:,} asked for."]
+    if r["dead"]:
+        lines += ["", "| Page of yours | Answer | Referring domains | Links | Strongest referring domain | Suggestion | Match |",
+                  "|---|---|---|---|---|---|---|"]
+        for d in r["dead"]:
+            via = f" (redirects to {page_of(d['final'], r['domain'])})" if clean(d["final"]) != clean(d["url"]) else ""
+            to, score = suggestion(d)
+            lines.append(f"| {page_of(d['url'], r['domain'])}{via} | {d['status']} | {d['domains']:,} | {d['links']:,} | "
+                         f"{strongest(d, r['strength'])} | {to} | {score} |")
+        read = f"{r['sitemap']:,} pages listed" if r["sitemap"] else "none found, so nothing to suggest"
+        lines += ["", f"A suggestion is the page in your own sitemaps ({read}) whose path is closest to the dead one, "
+                      "checked to be live; under a match of 0.50 none is given. Nothing has been redirected: "
+                      "read each before you add a 301."]
+    else:
+        lines += ["", "No page of yours that gets links answers 404 or 410."]
+    lines += ["", "## Findings"] + (flag_lines(r["flags"]) or ["  - Nothing lost."])
+    for state, what in (("blocked", "Answered with an error other than 404 or 410 (not counted as dead)"), ("unreachable", "No answer (not counted as dead)")):
+        if r[state]:
+            lines += ["", f"**{what}**"] + [f"- {page_of(d['url'], r['domain'])}: {answer(d)}" for d in r[state][:12]]
+    if r["redirected"]:
+        lines += ["", f"Already redirected: {len(r['redirected'])} page(s), e.g. "
+                  + ", ".join(f"{page_of(d['url'], r['domain'])} → {page_of(d['final'], r['domain'])}" for d in r["redirected"][:4]) + "."]
+    if r["errors"]:
+        lines += ["", "**Incomplete**"] + [f"- Failed: {e}" for e in r["errors"]]
+    lines += ["", f"Google on redirects: {REDIRECTS_URL}", f"Cost of this run: {usd(r['cost'])}."]
     return "\n".join(lines)
 
 

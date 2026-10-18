@@ -436,8 +436,8 @@ def test_verify_says_what_it_found(monkeypatch):
 def test_ledger_flags_pace_and_a_repeated_anchor():
     for i in range(6):
         ledger.add(f"dir{i}.example", "directory", anchor="best mcp directory", today=TODAY)
-    names = [f["flag"] for f in ledger.checks(ledger.entries(), today=TODAY)]
-    assert names == ["pace", "anchor_repeat"]
+    found = ledger.checks(ledger.entries(), today=TODAY)
+    assert [f["flag"] for f in found] == ["pace", "anchor_repeat"] and found[1]["evidence"].endswith("on 6 sites")
     assert ledger.update("dir0.example", status="live", url="https://dir0.example/x")["status"] == "live"
     assert ledger.checks(ledger.entries()[:3], today=TODAY) == []           # three with one anchor: too few to judge
 
@@ -1118,3 +1118,181 @@ def test_one_version_everywhere():
     market = json.loads((root / ".claude-plugin/marketplace.json").read_text())
     import backlink_guard
     assert backlink_guard.__version__ == plugin["version"] == market["plugins"][0]["version"] == version
+
+
+# ── referring domains and site-wide links ──────────────────────────────────
+
+from backlink_guard import links, lost  # noqa: E402
+
+MINE = "https://mine.example/"
+
+
+def link(src, to=MINE, anchor="Mine", rank=100, place=""):
+    return links.row(src, to, anchor, rank, place)
+
+
+def test_registrable_domains_group_subdomains_and_keep_hosted_sites_apart():
+    assert page.registrable("https://blog.a.example/post") == page.registrable("a.example") == "a.example"
+    assert page.registrable("https://shop.example.co.uk/x") == "example.co.uk"
+    assert page.registrable("https://alice.github.io/notes") == "alice.github.io" != page.registrable("bob.github.io")
+    assert page.site("https://alice.github.io/notes") == "github.io"          # vet still reads the platform as one
+    rows = [link("https://a.example/1"), link("https://blog.a.example/2"), link("https://alice.github.io/"), link("https://bob.github.io/")]
+    assert links.domains(rows) == 3
+
+
+def test_one_site_linking_from_many_pages_is_site_wide_and_counted_once():
+    wide = [link(f"https://big.example/p{i}", anchor="best seo tool") for i in range(25)]
+    others = [link(f"https://s{i}.example/", anchor="Mine") for i in range(8)]
+    groups = links.sitewide(wide + others)
+    assert [(g["site"], g["pages"], g["links"]) for g in groups] == [("big.example", 25, 25)]
+    assert links.sitewide(wide + others, pages_min=30) == []                  # the threshold is configurable
+    raw = [("best seo tool", 25), ("Mine", 8)]
+    assert profile.anchor_flag(raw, "mine.example")["flag"] == "anchor_repeat"   # 25 of 33 when counted by link
+    once = links.anchors(wide + others, groups)
+    assert once == [("Mine", 8, 8), ("best seo tool", 1, 1)] and profile.anchor_flag(once, "mine.example") is None
+    assert links.counted_once(groups) == "25 links from 1 site, counted once"
+    assert "Each site counted once" in links.sitewide_flag(groups)["evidence"]
+    assert links.sitewide_flag(groups)["policy"] == policy.TEMPLATE
+
+
+def test_a_few_footer_links_from_one_site_are_site_wide_too():
+    footer = [link(f"https://f.example/p{i}", place="footer") for i in range(3)]
+    body = [link(f"https://g.example/p{i}", place="article") for i in range(3)]
+    assert [g["site"] for g in links.sitewide(footer + body)] == ["f.example"]
+    assert links.sitewide(footer[:2]) == []                                   # two pages: not yet a pattern
+
+
+def test_a_deep_anchor_table_counts_a_site_wide_source_once():
+    wide = [link(f"https://big.example/p{i}", anchor="best seo tool") for i in range(25)]
+    table = [("best seo tool", 30, 6), ("Mine", 20, 15)]
+    assert links.collapse(table, links.sitewide(wide), wide) == [("Mine", 20, 15), ("best seo tool", 6, 6)]
+
+
+def test_audit_reports_referring_domains_and_site_wide_sources(monkeypatch):
+    items = ([{"url_from": f"https://big.example/p{i}", "url_to": MINE, "anchor": "best seo tool", "domain_from_rank": 300,
+               "semantic_location": "footer", "dofollow": True} for i in range(24)]
+             + [{"url_from": f"https://s{i}.example/a", "url_to": MINE, "anchor": "Mine", "domain_from_rank": 100 + i}
+                for i in range(6)])
+
+    def call(tool, args):
+        if tool == links.TOOL:
+            return {"total_count": 4210, "items": items}, 60000
+        if tool == profile.NEW_LOST_TOOL:
+            return {"items": []}, 25000
+        return {"items": [{"target": s, "spam_score": 3} for s in args["targets"]]}, 25000
+    monkeypatch.setattr(vet.aisa, "key", lambda: "k")
+    monkeypatch.setattr(vet.aisa, "call", call)
+    monkeypatch.setattr(vet.goanyapi, "key", lambda: "")
+    a = profile.audit("mine.example", today=TODAY)
+    assert a["links"]["read"] == 30 and a["links"]["domains"] == 7 and a["links"]["total"] == 4210
+    assert a["anchors"][0] == ("Mine", 6, 6) and ("best seo tool", 1, 1) in a["anchors"]
+    assert [f["flag"] for f in a["flags"]] == ["sitewide"] and "rows" not in a["links"]
+    text = report.audit(a)
+    assert "30 of 4,210 links from 7 referring domains (AIsa); 24 links from 1 site, counted once" in text
+    assert "| Anchor | Links | Referring domains |" in text and "| big.example | / | 24 | 24 | 100% |" in text
+    assert "_(Google: Widely distributed links in the footers or templates of various sites)_" in text
+
+
+def test_without_aisa_the_top_linking_pages_give_the_rows():
+    top = [{"from": "https://a.example/x", "to": "https://mine.example/gone", "anchor": "Mine", "dr": 50}]
+    assert links.fetch("mine.example", False, top=top)["rows"][0]["to"] == "https://mine.example/gone"
+
+
+# ── lost links ──────────────────────────────────────────────────────────────
+
+def answering(monkeypatch, pages):
+    """urlopen that answers from {url: status or (status, final url)}: a 3xx chain ends at the final URL."""
+    class Response(io.BytesIO):
+        def __init__(self, status, final):
+            super().__init__(b"<html></html>")
+            self.status, self.final, self.headers = status, final, type("H", (), {"get_content_charset": lambda s: "utf-8"})()
+
+        def geturl(self):
+            return self.final
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def urlopen(req, timeout):
+        got = pages.get(req.full_url, 404)
+        status, final = got if isinstance(got, tuple) else (got, req.full_url)
+        if status == "down":
+            raise urllib.error.URLError(ConnectionRefusedError("refused"))
+        if status >= 400:
+            raise urllib.error.HTTPError(final, status, "error", {}, io.BytesIO(b""))
+        return Response(status, final)
+    monkeypatch.setattr(page.urllib.request, "urlopen", urlopen)
+
+
+def test_only_404_and_410_make_a_page_dead_also_at_the_end_of_a_redirect_chain(monkeypatch):
+    answering(monkeypatch, {"https://mine.example/live": 200, "https://mine.example/gone": 410,
+                            "https://mine.example/moved": (200, "https://mine.example/new"),
+                            "https://mine.example/chain": (404, "https://mine.example/also-gone"),
+                            "https://mine.example/refused": 403, "https://mine.example/busy": 503,
+                            "https://mine.example/down": "down"})
+    states = {u: lost.status(f"https://mine.example/{u}") for u in ("live", "gone", "moved", "chain", "refused", "busy", "down")}
+    assert {u: s["state"] for u, s in states.items()} == {"live": "live", "gone": "dead", "moved": "redirected", "chain": "dead",
+                                                          "refused": "blocked", "busy": "blocked", "down": "unreachable"}
+    assert states["moved"]["final"] == "https://mine.example/new" and states["chain"]["final"] == "https://mine.example/also-gone"
+
+
+def test_the_closest_live_path_is_suggested_and_a_poor_match_is_not():
+    live = {"state": "live", "final": ""}
+    check = lambda url: {**live, "final": url} if "dead" not in url else {"state": "dead", "final": url}  # noqa: E731
+    pages = ["https://mine.example/", "https://mine.example/blog/", "https://mine.example/blog/new-post-name",
+             "https://mine.example/docs/installation", "https://mine.example/pricing", "https://mine.example/blog/dead-post-name"]
+    got = lost.suggest("https://mine.example/blog/old-post-name", pages, check)
+    assert got["url"] == "https://mine.example/blog/new-post-name" and got["score"] >= lost.MATCH_MIN   # the dead twin is skipped
+    assert lost.suggest("https://mine.example/docs/install.html", pages, check)["url"] == "https://mine.example/docs/installation"
+    poor = lost.suggest("https://mine.example/careers/intern-2019", pages, check)
+    assert poor["url"] == "" and 0 < poor["score"] < lost.MATCH_MIN
+    assert lost.similarity("/blog/old-post-name", "/blog/old-post-name/") == 1.0
+
+
+def test_sitemap_indexes_are_followed_and_capped(monkeypatch):
+    def urlset(*paths):
+        return "<urlset>" + "".join(f"<loc>https://mine.example{p}</loc>" for p in paths) + "</urlset>"
+    files = {"https://mine.example/robots.txt": "User-agent: *\nSitemap: https://mine.example/index.xml\n",
+             "https://mine.example/index.xml": "<sitemapindex><loc>https://mine.example/a.xml</loc><loc>https://mine.example/nested.xml</loc>"
+                                               "<loc>https://mine.example/b.xml.gz</loc></sitemapindex>",
+             "https://mine.example/a.xml": urlset("/a1", "/a2", "/a1") + "<loc>https://elsewhere.example/x</loc>",
+             "https://mine.example/nested.xml": "<sitemapindex><loc>https://mine.example/c.xml</loc></sitemapindex>",
+             "https://mine.example/c.xml": urlset("/c1", "/c2", "/c3")}
+    asked = []
+
+    def fetch(url):
+        asked.append(url)
+        html = files.get(url)
+        return {"url": url, "final": url, "status": 200 if html else 404, "html": html or "", "error": "",
+                "blocked": False, "dead": html is None}
+    monkeypatch.setattr(lost.page, "fetch", fetch)
+    assert lost.sitemap_urls("mine.example") == [f"https://mine.example/{p}" for p in ("a1", "a2", "c1", "c2", "c3")]
+    assert "https://mine.example/b.xml.gz" not in asked                       # a gzipped sitemap is not read
+    assert lost.sitemap_urls("mine.example", files=2) == ["https://mine.example/a1", "https://mine.example/a2"]
+    assert len(lost.sitemap_urls("mine.example", cap=3)) == 3
+
+
+def test_lost_lists_dead_pages_by_referring_domains_with_a_301_suggestion(monkeypatch):
+    rows = ([link(f"https://r{i}.example/", "https://mine.example/blog/old-post-name", rank=100 + i) for i in range(5)]
+            + [link("https://r0.example/more", "http://www.mine.example/blog/old-post-name")]   # the same page, spelled otherwise
+            + [link(f"https://q{i}.example/", "https://mine.example/tools/gone-tool", rank=50) for i in range(2)]
+            + [link("https://q0.example/", "https://mine.example/pricing"), link("https://q1.example/", "https://other.example/x")])
+    monkeypatch.setattr(lost.links, "fetch", lambda domain, fresh, limit=1000, top=None: {
+        "rows": rows, "total": 900, "source": "AIsa", "strength": "AIsa rank", "cost": 60000, "errors": []})
+    answers = {"https://mine.example/blog/old-post-name": "dead", "https://mine.example/tools/gone-tool": "dead"}
+    check = lambda url: {"url": url, "state": answers.get(url, "live"), "status": 404 if url in answers else 200,  # noqa: E731
+                         "final": url, "error": ""}
+    sitemap = lambda domain: ["https://mine.example/blog/new-post-name", "https://mine.example/pricing"]  # noqa: E731
+    r = lost.lost("mine.example", check=check, sitemap=sitemap)
+    assert r["pages"] == 3 and r["checked"] == 3 and [d["url"] for d in r["dead"]] == [
+        "https://mine.example/blog/old-post-name", "https://mine.example/tools/gone-tool"]
+    first = r["dead"][0]
+    assert (first["domains"], first["links"], first["strongest"], first["rank"]) == (5, 6, "r4.example", 104)
+    assert first["suggest"]["url"] == "https://mine.example/blog/new-post-name" and r["dead"][1]["suggest"]["url"] == ""
+    assert r["flags"][0]["flag"] == "dead_target" and "2 pages of yours answer 404 or 410" in r["flags"][0]["evidence"]
+    text = report.lost(r)
+    assert "| /blog/old-post-name | 404 | 5 | 6 | r4.example (AIsa rank 104) | 301 to /blog/new-post-name |" in text
+    assert "no good match" in text and policy.REDIRECTS_URL in text and "301 or 308" in text
