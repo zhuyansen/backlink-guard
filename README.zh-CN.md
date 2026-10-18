@@ -11,11 +11,11 @@
 ## 快速上手
 
 ```bash
-pip install "git+https://github.com/zhuyansen/backlink-guard"
+pip install backlink-guard
 backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx --from git+https://github.com/zhuyansen/backlink-guard backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上[两个 key](#key) 会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
+需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上[两个 key](#key) 会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
 
 2026-10-13、14 两天配齐两个 key 的检查结果：
 

@@ -9,7 +9,7 @@ Four jobs, in the order a careful person does them: find the pages your searcher
 
 ## Before you run anything
 
-1. Find the tool, in this order: the `backlink-guard` command (installed with `pip install "git+https://github.com/zhuyansen/backlink-guard"`); `uvx --from git+https://github.com/zhuyansen/backlink-guard backlink-guard` when `uv` is there; else clone https://github.com/zhuyansen/backlink-guard to `$BACKLINK_GUARD_DIR` or `~/backlink-guard` and run `python -m backlink_guard` from that folder. The commands below are written as `backlink-guard`; use the form that works. Python 3.10 or newer, no dependencies. The log, the paid answers and the networks seen before are kept in `~/.backlink-guard` (or `./state` in a clone that has one).
+1. Find the tool, in this order: the `backlink-guard` command (installed with `pip install backlink-guard`); `uvx backlink-guard` when `uv` is there; else clone https://github.com/zhuyansen/backlink-guard to `$BACKLINK_GUARD_DIR` or `~/backlink-guard` and run `python -m backlink_guard` from that folder. The commands below are written as `backlink-guard`; use the form that works. Python 3.10 or newer, no dependencies. The log, the paid answers and the networks seen before are kept in `~/.backlink-guard` (or `./state` in a clone that has one).
 2. Keys are optional, and each adds signals:
    - `GOANYAPI_API_KEY` (https://goanyapi.com/r/ga-95708898fb): a site's rating, a year of monthly visits, whether Google still lists it, and the summary of your own backlinks.
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu): spam scores, new and lost referring domains by week, anchors.

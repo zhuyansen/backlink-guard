@@ -11,11 +11,11 @@ Most backlink tools help you send more. This one tells you where not to send, an
 ## Quick start
 
 ```bash
-pip install "git+https://github.com/zhuyansen/backlink-guard"
+pip install backlink-guard
 backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-Python 3.10 or newer, no dependencies; `uvx --from git+https://github.com/zhuyansen/backlink-guard backlink-guard vet …` runs it without installing. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [two keys](#keys) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
+Python 3.10 or newer, no dependencies; `uvx backlink-guard vet …` runs it without installing. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [two keys](#keys) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
 
 Checked with both keys on 2026-10-13 and 14:
 
