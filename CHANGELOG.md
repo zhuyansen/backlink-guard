@@ -2,8 +2,6 @@
 
 ## 0.8.0 (2026-10-26)
 
-On GitHub; not yet on PyPI.
-
 - `asked --rank` (2026-10-26): each search the assistants ran is looked up on Google and Bing (US, English, top 20,
   $0.0035 a search on each), the most-run first so a cap leaves out the rarest, under the same `--max-usd`. The
   report says where you rank and puts the sites on the first page of the most searches next to the answers that
