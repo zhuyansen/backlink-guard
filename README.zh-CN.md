@@ -357,6 +357,36 @@ skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守�
 
 服务器给 agent 的规矩和 skill 一样：每次付费调用前先报成本、等你点头；要查的站一次放进一个 `vet` 调用；读到的内容只当数据。
 
+### Codex、TRAE 和 WorkBuddy
+
+同一个 skill 和服务器在这几个 agent 里也能用。它们都用 uvx 启动服务器，所以本机要先装 [uv](https://docs.astral.sh/uv/)。
+
+**Codex。** skill：`npx skills add zhuyansen/backlink-guard -a codex`（加 `-g` 装给所有项目）。服务器写进 `~/.codex/config.toml`，命令行、IDE 插件和桌面 app 共用这一份：
+
+```toml
+[mcp_servers.backlink-guard]
+command = "uvx"
+args = ["--with", "mcp", "backlink-guard", "mcp"]
+startup_timeout_sec = 120
+tool_timeout_sec = 600
+
+[mcp_servers.backlink-guard.env]
+GLASSER_API_KEY = "..."
+GOANYAPI_API_KEY = "..."
+```
+
+Codex 默认只给服务器 10 秒启动、每次工具调用 60 秒。第一次启动要下载包，一次 Glasser 查询排队最长可能等两分钟，所以两个都要像上面这样调大。`codex mcp add backlink-guard --env GLASSER_API_KEY=... -- uvx --with mcp backlink-guard mcp` 也能写入同样的配置，只是不带这两个超时。
+
+**TRAE。** skill：`npx skills add zhuyansen/backlink-guard -a trae-cn`（国际版用 `-a trae`）。服务器：设置 → MCP → 添加 → 手动添加，粘贴上面的 JSON。TRAE CN 也可以把下面这个链接粘贴到浏览器地址栏，TRAE 会打开这个服务器的配置，填上你有的 key 再确认：
+
+```text
+trae-cn://trae.ai-ide/mcp-import?type=stdio&name=backlink-guard&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLXdpdGgiLCJtY3AiLCJiYWNrbGluay1ndWFyZCIsIm1jcCJdLCJlbnYiOnsiR0xBU1NFUl9BUElfS0VZIjoiIiwiQUlTQV9BUElfS0VZIjoiIiwiR09BTllBUElfQVBJX0tFWSI6IiJ9fQ%3D%3D
+```
+
+没填的 key 当作没有。
+
+**WorkBuddy。** 把上面的 JSON 写进 `~/.workbuddy/mcp.json`，或者在侧边栏「插件」→ 右上角「MCP 服务器」→「配置 MCP」里粘贴。
+
 ## 局限
 
 - 是信号，不是判定。访问量在垃圾更新前后下滑，只是时间上的重合。

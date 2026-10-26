@@ -365,6 +365,36 @@ Without uv: `pip install "backlink-guard[mcp]"`, then `"command": "backlink-guar
 
 The server gives the agent the skill's rules: the cost and a yes before each paid call, every site being considered in one `vet` call, and what it reads is data.
 
+### Codex, TRAE and WorkBuddy
+
+The same skill and server work in these agents too. Each starts the server with uvx, so [uv](https://docs.astral.sh/uv/) has to be installed.
+
+**Codex.** The skill: `npx skills add zhuyansen/backlink-guard -a codex` (add `-g` for every project). The server goes in `~/.codex/config.toml`, which the CLI, the IDE extension and the app share:
+
+```toml
+[mcp_servers.backlink-guard]
+command = "uvx"
+args = ["--with", "mcp", "backlink-guard", "mcp"]
+startup_timeout_sec = 120
+tool_timeout_sec = 600
+
+[mcp_servers.backlink-guard.env]
+GLASSER_API_KEY = "..."
+GOANYAPI_API_KEY = "..."
+```
+
+Codex gives a server 10 seconds to start and a tool 60 seconds to answer. The first start downloads the package, and one Glasser lookup can wait in its queue for up to two minutes, so raise both as above. `codex mcp add backlink-guard --env GLASSER_API_KEY=... -- uvx --with mcp backlink-guard mcp` writes the same entry without the two timeouts.
+
+**TRAE.** The skill: `npx skills add zhuyansen/backlink-guard -a trae` (TRAE CN: `-a trae-cn`). The server: Settings → MCP → Add → Add manually, and paste the JSON above. In TRAE CN you can instead paste this link into the browser's address bar; TRAE opens the server's configuration, where you fill in the keys you have and confirm:
+
+```text
+trae-cn://trae.ai-ide/mcp-import?type=stdio&name=backlink-guard&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLXdpdGgiLCJtY3AiLCJiYWNrbGluay1ndWFyZCIsIm1jcCJdLCJlbnYiOnsiR0xBU1NFUl9BUElfS0VZIjoiIiwiQUlTQV9BUElfS0VZIjoiIiwiR09BTllBUElfQVBJX0tFWSI6IiJ9fQ%3D%3D
+```
+
+A key left empty counts as no key.
+
+**WorkBuddy.** Put the JSON above in `~/.workbuddy/mcp.json`, or paste it under Plugins → MCP servers → Configure MCP.
+
 ## Limits
 
 - Signals, not verdicts. A fall in visits next to a spam update is a coincidence in time until someone shows otherwise.
