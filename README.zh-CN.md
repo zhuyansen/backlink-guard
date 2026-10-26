@@ -260,9 +260,9 @@ backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 
 都是可选的。不配也能跑页面检查，报告会写明哪些没查。
 
-- **`GOANYAPI_API_KEY`**（[goanyapi.com](https://goanyapi.com/r/ga-95708898fb)）：评分、访问量、收录情况、你自己的外链概况。
 - **`GLASSER_API_KEY`**（[glasser.ai](https://link.glasser.ai/JasonZhu)），首选：垃圾分、Google 搜索历史、每周新增和丢失的来源域名、锚文本、逐条读你的外链、竞品的来源域名、Google 的 AI 概览。
 - **`AISA_API_KEY`**（[aisa.one](https://go.aisa.one/yansen-zhu)），或 `aisa login`：同样这些，没有 Glasser key 时用它；另外这几样只有 AIsa 有：AI 助手的回答和它们搜索词的结果（`questions`、`asked`）、`--deep` 里的 Ahrefs 评分和 Semrush 数据、GoAnyAPI 失败时顶上的 `site:` 搜索。只配 Glasser 时，`--deep` 不查 Ahrefs 和 Semrush，报告会写明。
+- **`GOANYAPI_API_KEY`**（[goanyapi.com](https://goanyapi.com/r/ga-95708898fb)）：评分、访问量、收录情况、你自己的外链概况。
 
 > 这三个都是推荐链接：通过它们注册等于支持这个项目。直接去官网拿 key，工具用起来完全一样。
 

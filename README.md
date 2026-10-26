@@ -268,9 +268,9 @@ From a clone, `python -m backlink_guard` runs the same. Your log, the paid answe
 
 All are optional. Without them the page checks still run, and the report says what was not checked.
 
-- **`GOANYAPI_API_KEY`** ([goanyapi.com](https://goanyapi.com/r/ga-95708898fb)): rating, visits, index status, your backlink summary.
 - **`GLASSER_API_KEY`** ([glasser.ai](https://link.glasser.ai/JasonZhu)), the first choice: spam scores, Google search history, weekly new and lost referring domains, anchors, your backlinks one by one, your competitors' referring domains, Google's AI Overviews.
 - **`AISA_API_KEY`** ([aisa.one](https://go.aisa.one/yansen-zhu)), or `aisa login`: the same, used when there is no Glasser key; and what only AIsa sells here: the AI assistants' answers and the results for their searches (`questions`, `asked`), `--deep`'s Ahrefs rating and Semrush numbers, and the `site:` search that stands in when GoAnyAPI's fails. With Glasser alone, `--deep` leaves Ahrefs and Semrush out and says so.
+- **`GOANYAPI_API_KEY`** ([goanyapi.com](https://goanyapi.com/r/ga-95708898fb)): rating, visits, index status, your backlink summary.
 
 > All three are referral links: signing up through them supports this project. The tool works the same with a key from each site directly.
 
