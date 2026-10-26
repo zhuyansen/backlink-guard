@@ -26,6 +26,12 @@ TEMPLATE = "Widely distributed links in the footers or templates of various site
 # Not a spam policy: Google's page on redirects (read 2026-10-18), for links to pages of yours that are gone.
 REDIRECTS_URL = "https://developers.google.com/search/docs/crawling-indexing/301-redirects"
 MOVED = "a page that has moved for good takes a permanent server-side redirect, 301 or 308"
+# Google's page on site moves (read 2026-10-20), for links that reach pages of yours through a redirect.
+SITE_MOVE_URL = "https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes"
+SOFT_404 = ("redirecting many old URLs to one irrelevant destination, such as the home page, \"might be treated as a "
+            "soft 404 error\"")
+HOPS = ("a temporary redirect (302, 303, 307) keeps the source page in search results; redirect to the final page "
+        "directly, \"ideally no more than 3\" hops")
 
 # id: (level, what it says, the clause it relates to or "")
 FLAGS = {
@@ -70,6 +76,12 @@ FLAGS = {
     "few_followed": ("note", "Very few of your links pass ranking credit", ""),
     "sitewide": ("note", "Some sites link to you from many of their pages (site-wide): each counts as one source", TEMPLATE),
     "dead_target": ("note", "Sites link to pages of yours that no longer exist: the links reach nothing", MOVED),
+    "soft_lost": ("note", "Sites link to pages of yours that redirect to your home page, to another site or to an "
+                          "unrelated page, which Google may count as gone", SOFT_404),
+    "weak_redirect": ("note", "Sites link to pages of yours that redirect temporarily or through a chain of redirects", HOPS),
+    "broken_redirect": ("note", "Sites link to pages of yours whose redirect loops or ends in an error: the links reach nothing", ""),
+    "owner_network": ("caution", "Several sites linking to you report to one analytics or ads account: one owner's "
+                                 "network, whose links count as one source", AUTOMATED),
 }
 # Findings that are a link-spam behaviour of the site itself (selling links, asking for them back, a network, an
 # expired domain picked up, a hacked page), with the short label a report column uses. The other findings say how

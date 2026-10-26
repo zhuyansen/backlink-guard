@@ -10,6 +10,13 @@ For each dead page the closest live page in your own sitemaps is suggested as th
 with how close the paths are (0 to 1); below MATCH_MIN there is no good match and nothing is suggested.
 Nothing is redirected: it is a list for a person to read. Google's page on redirects says a page that
 has moved for good takes a permanent server-side redirect (301 or 308), policy.REDIRECTS_URL.
+
+Pages of yours that redirect (0.8) are followed one hop at a time (page.trace) and judged, worst first:
+broken (a loop, more than ten hops, or no page at the end), soft-lost (it ends on your home page, on
+another site, or on a page whose path matches the old one under MATCH_MIN: Google's page on site moves
+says such a redirect "might be treated as a soft 404", so the closest live page is suggested as for a
+dead one), temporary (a 302, 303 or 307 on the way: Google keeps the old URL), chain (two hops or
+more), or fine (one permanent hop to a page like it).
 """
 from __future__ import annotations
 
@@ -32,6 +39,11 @@ TRIES = 3                   # suggestions checked, best first, until one is live
 SHORTLIST = 50              # candidates scored in full after the quick token score
 EXTENSIONS = {"html", "htm", "php", "asp", "aspx", "jsp"}
 SITEMAP_LINE = re.compile(r"(?im)^\s*sitemap:\s*(\S+)")
+TEMPORARY = {302, 303, 307}
+CHAIN = 2                   # redirects in a row that make a chain
+# A home page: /, a language root (/zh/, /en-us) or an index file.
+HOME = re.compile(r"^/(?:[a-z]{2}(?:[-_][a-z]{2,4})?/?)?(?:index\.(?:html?|php))?$", re.I)
+VERDICTS = ("broken", "soft_lost", "temporary", "chain", "fine")       # worst first
 
 
 def same_page(url: str) -> str:
@@ -60,19 +72,20 @@ def targets(rows: list[dict], domain: str) -> list[dict]:
 
 
 def status(url: str) -> dict:
-    """{"url", "state", "status", "final"}: state is "live", "redirected" (to final), "dead" (404 or 410, also
-    at the end of a redirect chain), "blocked" (any other HTTP error) or "unreachable" (no answer)."""
-    got = page.fetch(url)
-    final = got.get("final") or url
+    """{"url", "state", "status", "final", "error", "hops"}: state is "live", "redirected" (to final), "dead" (404 or
+    410, also at the end of a redirect chain), "broken" (a redirect that loops, runs past ten hops or ends in no answer
+    or another error), "blocked" (any other HTTP error) or "unreachable" (no answer)."""
+    got = page.trace(url)
     if got["status"] in page.GONE:
         state = "dead"
-    elif got["blocked"]:
-        state = "blocked"
-    elif got["dead"]:
-        state = "unreachable"
+    elif got["hops"] and got["error"]:
+        state = "broken"
+    elif got["error"]:
+        state = "blocked" if got["status"] else "unreachable"
     else:
-        state = "redirected" if links.clean(final) != links.clean(url) else "live"
-    return {"url": url, "state": state, "status": got["status"], "final": final, "error": got.get("error", "")}
+        state = "redirected" if got["hops"] else "live"
+    return {"url": url, "state": state, "status": got["status"], "final": got["final"], "error": got["error"],
+            "hops": got["hops"]}
 
 
 def sitemap_urls(domain: str, files: int = SITEMAP_FILES, cap: int = SITEMAP_URLS) -> list[str]:
@@ -139,6 +152,56 @@ def suggest(dead: str, candidates: list[str], check=status) -> dict:
     return {"url": "", "score": scored[0][0] if scored else 0.0}
 
 
+def drift(d: dict, own: str) -> str:
+    """Why a redirect lands where the link did not mean to go, "" when it does not: on another site, on your home page,
+    or on a page whose path matches the old one under MATCH_MIN. A home page sent to a language root is fine."""
+    start, end = urllib.parse.urlsplit(d["url"]).path or "/", urllib.parse.urlsplit(d["final"]).path or "/"
+    if page.registrable(d["final"]) != page.registrable(own):
+        return f"ends on another site, {page.host(d['final'])}"
+    if HOME.match(start):
+        return ""
+    if HOME.match(end):
+        return "ends on your home page"
+    score = similarity(start, end)
+    return f"ends on {end}, a path that matches it {score:.2f}" if score < MATCH_MIN else ""
+
+
+def findings(d: dict, own: str) -> list[tuple[str, str]]:
+    """[(verdict, why)] for a page of yours that redirects, worst first; [] when it is fine."""
+    if d["state"] == "broken":
+        return [("broken", d["error"] or "no page at the end")]
+    found = []
+    off = drift(d, own)
+    if off:
+        found.append(("soft_lost", off))
+    temporary = [h["status"] for h in d["hops"] if h["status"] in TEMPORARY]
+    if temporary:
+        found.append(("temporary", f"{temporary[0]}, a temporary redirect"))
+    if len(d["hops"]) >= CHAIN:
+        found.append(("chain", f"{len(d['hops'])} redirects in a row"))
+    return found
+
+
+def judge(d: dict, own: str) -> dict:
+    """The page with its "verdict" (the worst of VERDICTS found) and "why"."""
+    found = findings(d, own)
+    return {**d, "verdict": found[0][0] if found else "fine", "why": [w for _, w in found]}
+
+
+def redirect_flags(redirects: list[dict]) -> list[dict]:
+    """A note for each kind of redirect that costs links: soft-lost, temporary or chained, broken."""
+    kinds = (("soft_lost", {"soft_lost"}), ("weak_redirect", {"temporary", "chain"}), ("broken_redirect", {"broken"}))
+    out = []
+    for name, verdicts in kinds:
+        hit = [d for d in redirects if d["verdict"] in verdicts]
+        if hit:
+            domains = len({s for d in hit for s in d["sites"]})
+            worst = "; ".join(f"{urllib.parse.urlsplit(d['url']).path or '/'}: {', '.join(d['why'])}" for d in hit[:3])
+            out.append(flag(name, f"{len(hit)} page{'s' if len(hit) != 1 else ''} of yours, linked from {domains} referring "
+                                  f"domain{'s' if domains != 1 else ''}: {worst}"))
+    return out
+
+
 def dead_flag(dead: list[dict]) -> dict | None:
     if not dead:
         return None
@@ -151,22 +214,33 @@ def dead_flag(dead: list[dict]) -> dict | None:
 
 def lost(domain: str, fresh: bool = False, rows: int = links.ROWS, sitewide: int = links.SITEWIDE_PAGES,
          check=status, sitemap=sitemap_urls) -> dict:
-    """{"domain", "read", "total", "domains", "source", "strength", "pages", "checked", "dead", "redirected",
-    "blocked", "unreachable", "sitemap", "flags", "cost", "errors"}"""
+    """{"domain", "read", "total", "domains", "source", "strength", "pages", "checked", "dead", "redirected" (with
+    "verdict", "why" and, when soft-lost, "suggest"; "broken" ones among them), "blocked", "unreachable", "sitemap",
+    "flags", "cost", "errors"}"""
     domain = page.host(domain)
     got = links.fetch(page.site(domain), fresh, rows)
     once = links.counted(got["rows"], links.sitewide(got["rows"], sitewide))
     found = targets(once, domain)
-    asked = found[:CHECKED]
+    by_state = asked_all(found[:CHECKED], check)
+    moved = sorted((judge(d, domain) for d in by_state["redirected"] + by_state["broken"]),
+                   key=lambda d: (VERDICTS.index(d["verdict"]), -d["domains"], d["url"]))
+    gone = by_state["dead"] + [d for d in moved if d["verdict"] == "soft_lost"]
+    candidates = sitemap(domain) if gone else []
+    for d in gone:
+        d["suggest"] = suggest(d["url"], candidates, check)
+    flags = [f for f in [dead_flag(by_state["dead"])] if f] + redirect_flags(moved)
+    return {"domain": domain, "read": len(got["rows"]), "total": got["total"], "domains": links.domains(got["rows"]),
+            "source": got["source"], "strength": got["strength"], "pages": len(found), "checked": min(len(found), CHECKED),
+            "dead": by_state["dead"], "redirected": moved, "blocked": by_state["blocked"],
+            "unreachable": by_state["unreachable"], "sitemap": len(candidates), "flags": ranked(flags), "cost": got["cost"],
+            "errors": got["errors"]}
+
+
+def asked_all(asked: list[dict], check) -> dict[str, list[dict]]:
+    """{state: [target with its answer]}: every page asked, WORKERS at a time."""
     with ThreadPoolExecutor(WORKERS) as pool:
         answers = list(pool.map(lambda t: check(t["url"]), asked))
-    by_state = defaultdict(list)
+    by_state: dict[str, list[dict]] = defaultdict(list)
     for t, a in zip(asked, answers):
         by_state[a["state"]].append({**t, **a})
-    candidates = sitemap(domain) if by_state["dead"] else []
-    for d in by_state["dead"]:
-        d["suggest"] = suggest(d["url"], candidates, check)
-    return {"domain": domain, "read": len(got["rows"]), "total": got["total"], "domains": links.domains(got["rows"]),
-            "source": got["source"], "strength": got["strength"], "pages": len(found), "checked": len(asked),
-            **{s: by_state[s] for s in ("dead", "redirected", "blocked", "unreachable")}, "sitemap": len(candidates),
-            "flags": ranked([f for f in [dead_flag(by_state["dead"])] if f]), "cost": got["cost"], "errors": got["errors"]}
+    return by_state

@@ -1,6 +1,6 @@
 ---
 name: backlink-guard
-description: Check a link source before submitting a site to it, verify a listing after it goes live, and audit a site's own backlink profile for patterns that read as link spam. Use when the user wants to submit a site, tool or repository to directories, awesome lists or guest-post sites, asks whether a directory or link source is safe or worth it, wants to check whether a backlink is followed, or asks for a backlink audit or spam check after a Google spam update. Runs the backlink-guard command line; a GOANYAPI_API_KEY and an AISA_API_KEY add the paid signals.
+description: Check a link source before submitting a site to it, verify a listing after it goes live, and audit a site's own backlink profile for patterns that read as link spam. Use when the user wants to submit a site, tool or repository to directories, awesome lists or guest-post sites, asks whether a directory or link source is safe or worth it, wants to check whether a backlink is followed, asks for a backlink audit or spam check after a Google spam update, asks which sites link to their competitors and not to them, which sites Google's AI Overviews cite for their keywords, or what ChatGPT, Perplexity, Claude and Gemini answer, search for and cite when asked for what they make. Runs the backlink-guard command line; a GOANYAPI_API_KEY and an AISA_API_KEY add the paid signals.
 ---
 
 # Backlink guard
@@ -14,7 +14,7 @@ Four jobs, in the order a careful person does them: find the pages your searcher
    - `GOANYAPI_API_KEY` (https://goanyapi.com/r/ga-95708898fb): a site's rating, a year of monthly visits, whether Google still lists it, and the summary of your own backlinks.
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu): spam scores, new and lost referring domains by week, anchors.
    Without a key the page checks still run. Say which signals are missing: a site can pass the page checks and have no audience at all.
-3. Say the cost before a paid run. `find`: about 0.005 USD a keyword plus 0.012 USD for the search volumes, `--vet` then adds the vet cost. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history), the same for one site or thirty, so put every site the user is considering in one call (one site about 0.17 USD in all, thirty about 0.46 USD); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.12 USD, with `--deep` about 0.16 USD. `lost`: about 0.06 USD, nothing more after an `audit` of the same site in the last 7 days. `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
+3. Say the cost before a paid run. `find`: about 0.005 USD a keyword plus 0.012 USD for the search volumes, `--vet` then adds the vet cost. `vet`: about 0.01 USD a site plus about 0.16 USD for the batch (spam scores and search history), the same for one site or thirty, so put every site the user is considering in one call (one site about 0.17 USD in all, thirty about 0.46 USD); `--deep` adds 0.024 USD a site, `--recent` 0.008 USD a site (and minutes). Before the user pays for any placement, run both. `audit`: about 0.12 USD, with `--deep` about 0.16 USD (plus about 0.035 USD when its backlinks name fewer than 300 referring domains). `lost`: about 0.06 USD, nothing more after an `audit` of the same site in the last 7 days. `competitors`: about 0.025 USD a call, 2N + 2 calls for N competitors (three: about 0.20 USD), never more than `--max-usd` (0.30 USD unless set). `cited`: 0.002 USD a keyword, 0.004 USD when the overview loads late, never more than `--max-usd` (0.10 USD). `questions`: about 0.01 USD. `asked`: about 0.12 USD a question, `--rank` 0.0035 USD a search on each of Google and Bing, never more than `--max-usd` (1.00 USD). `verify` and `log` are free. Answers are cached for 7 days, so asking again costs nothing.
 
 ## 1. Where to be: find
 
@@ -31,6 +31,37 @@ Start here when the user asks where to get links or listings. It reads Google's 
 - `docs`, `site`: official pages and products; not sources.
 
 `--vet` vets the directories and the article sites found (not platforms like GitHub, Medium or YouTube, where the page and its author matter, not the platform's numbers). Use `--skip` for competitors.
+
+## 1b. What your competitors earned: competitors
+
+```bash
+backlink-guard competitors yoursite.com --vs competitor-a.com competitor-b.com competitor-c.com --json
+```
+
+For each competitor, `new` holds its referring domains first seen in the last `--days` days (7), strongest first, with the ones already linking to the user taken out (`linking_you`); `shared` holds the sites linking to two or more of the competitors and not to the user. Every row has `site`, `rivals` (which competitors it links to), `rank` (what its links pass, 0 to 1,000), `first_seen`, `example` (a linking page with its title) and `kind` with `action`, as in find. `dropped` names the sites left out (on the shared spam-link list, or links scoring 50 or more for spam) and `networks` the groups of three or more sites whose linking pages share one title, each with `report`, a filled-in report for the shared list. `left_out` names what the `--max-usd` cap did not ask: say it, and offer to raise the cap.
+
+These are earned links: places that already cover the user's field. Suggest the honest move by kind (submit to a directory after vet, ask to be added to a list, offer an author what the page lacks). Never suggest buying a link, and vet a site before the user spends time on it.
+
+## 1c. Who AI answers cite: cited
+
+```bash
+backlink-guard cited yoursite.com "keyword one" "keyword two" --json
+```
+
+For each keyword (Google US, English): `overview` (whether there is an AI Overview), `cited` (the pages it cites), `you` (the user's pages among them) and `rank` (the user's organic position in the top 10, or none). `sites` tallies the sites cited across the keywords, most keywords first, with `kind` and `action`: the places where a mention can get the user into the answer. A keyword with `overview: false` has no AI Overview today: say that plainly, and do not call it "not cited".
+
+## 1d. What AI assistants answer: questions and asked
+
+```bash
+backlink-guard questions "what the user makes, the way a buyer would put it" --plain > questions.txt
+backlink-guard asked yoursite.com --file questions.txt --name "Their Brand" --rank --json
+```
+
+`questions` has ChatGPT, Claude and Gemini write the questions they expect; show them to the user and let them pick and edit before `asked` pays for answers. `asked` puts each question to ChatGPT, Google's AI Mode, Perplexity, Claude and Gemini. `by_engine` counts, per assistant, the answers that wrote the user's domain (`named_you`), gave only their name (`name_only`), cited them (`cited_you`) and named a site under their name with another ending (`lookalike`, never counted as the user's); `sites` and `pages` tally what was cited, with `kind` and `action` as in find; `searches` holds the searches the assistants ran.
+
+With `--rank`, `ranks` looks each search up on Google and Bing (top 20): `by_engine` says how many searches were read and where the user ranks, each row of `searches` has `you`, `your_page`, `lookalike` and `first_page` per engine, `sites` puts the sites on the first page of the most searches next to `cited` (the answers citing them), and `cited_elsewhere` lists sites cited without ranking for any search read. Read it as a funnel: a site missing from the results of the searches is rarely read; a site that ranks and is not cited was passed over. A search with `error` failed twice and is not a search the user is missing from; `left_out` was over the cap.
+
+Answers vary from one ask to the next: report counts with their denominators and call a change of one or two a fluctuation. Answers asked in the last 7 days come from the cache, so `--rank` after a run costs only the lookups.
 
 ## 2. Before submitting: vet
 
@@ -106,6 +137,7 @@ It reports the totals, how many referring domains pass credit, new and lost refe
 - `anchor_repeat`: one keyword anchor on a large share of links.
 - `spam_anchor`: anchors that sell links or name gambling and similar trades. Someone else's network usually puts them there. Report it; do not alarm.
 - `spammy_referrers`: several of the top linking sites score high for spam. If the user paid any of them, that is the lesson for next time.
+- `owner_network`: three or more sites linking to the user report to one analytics or ads account (AdSense, Analytics, Tag Manager, Clarity, Facebook pixel, Cloudflare Web Analytics), read from their home pages (`owners` in the result, `--homes` caps how many, 0 skips). Say they count as one source. A media group's titles or a platform's hosted sites can share an account honestly; a network of casino or "mirror" sites cannot. Offer the `report` links of `owners.networks`; do not recommend a disavow file.
 - `sitewide` (a note): one site links to one page of the user's from many of its pages (20 or more by default, `--sitewide` changes it), or from a few with most of them in its footer, sidebar or navigation. It is counted as one source in the anchor shares, and the output says so ("N links from 1 site, counted once"). Say it that way: a partner's footer link is common; it is the pattern Google describes only when it is placed for ranking.
 
 ## 5b. Links to pages that are gone: lost
@@ -115,6 +147,8 @@ backlink-guard lost yoursite.com --json
 ```
 
 From the same backlinks, it asks each page of the user's that gets links whether it is still there (free, four at a time) and lists the ones that answer 404 or 410, most referring domains first, each with the strongest referring domain and a `suggest`: the live page in the user's own sitemaps whose path is closest, with its `score` from 0 to 1, or no good match under 0.50. Any other error is `blocked` and no answer is `unreachable`: neither is dead, so do not call them lost. Present the list as suggestions for permanent (301 or 308) redirects, the user's call page by page; the tool redirects nothing, and a suggestion with a low score or a different subject is better left as a 404 or pointed at a parent page the user picks.
+
+`redirected` holds the pages of the user's that redirect, followed hop by hop, each with a `verdict`, worst first, and `why`: `broken` (a loop, more than ten hops, or no page at the end), `soft_lost` (it ends on the home page, on another site or on an unrelated page: Google may treat that as a soft 404; `suggest` holds the closest live page as for a dead one), `temporary` (a 302, 303 or 307 on the way: Google keeps the old URL), `chain` (two hops or more) or `fine`. A soft-lost verdict comes from paths: a renamed page can be fine, so ask before changing a redirect.
 
 Google ignores most junk links rather than punishing them. Do not recommend a disavow file unless the user has a manual action for links in Search Console.
 
@@ -133,5 +167,8 @@ If the user has analytics, ask for the referral export (GA4: Reports, Acquisitio
 - For `find`: the keywords with their searches, then the pages worth being on, busiest first (page, kind, where it ranks, visitors, what to do), then the five or so the user should act on this week and how. Say plainly that visitors are an estimate of size.
 - For `vet`: a table (site, action, verdict, reach, rating, visits a month, spam score, fit when `--topic` was given, why), then each flagged site's evidence, then what was not checked and why (missing key, failed source, blocked site), then a short recommendation: where to submit first, what to skip, and the report links of any `networks`.
 - For `audit`: the numbers, the findings with evidence, and at most three things to do.
-- For `lost`: the dead pages with their referring domains and the suggested 301 targets, the ones with no good match apart, then what was blocked or unreachable.
+- For `lost`: the dead pages with their referring domains and the suggested 301 targets, the ones with no good match apart, then the redirects that lose something (broken, soft-lost with its suggestion, temporary, chain), then what was blocked or unreachable.
+- For `competitors`: per competitor the new sites worth a look, then the sites linking to several competitors and not to the user, each with its linking page and the honest move; then what was left out and why, and the cost.
+- For `cited`: per keyword whether there is an AI Overview and whether it cites the user, then the sites cited most and what kind of page each is.
+- For `asked`: a table per assistant (answers, domain written, name only, cited, same-name site), the sites cited most with what to do there, and with `--rank` where the user ranks for the assistants' searches and which ranking sites were cited; then the cost.
 - Never add a site, a number or a verdict from your own knowledge. The output is what the tool saw today.

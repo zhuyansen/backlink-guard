@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.8.0 (2026-10-26)
+
+On GitHub; not yet on PyPI.
+
+- `asked --rank` (2026-10-26): each search the assistants ran is looked up on Google and Bing (US, English, top 20,
+  $0.0035 a search on each), the most-run first so a cap leaves out the rarest, under the same `--max-usd`. The
+  report says where you rank and puts the sites on the first page of the most searches next to the answers that
+  cited them, and names the sites cited without ranking for any search read. A failed search is asked once more
+  (AIsa's Google results answered "Internal SE Server Error." to 21 of 67 searches that day); one that fails twice is
+  counted as failed, never as missing. Answers asked in the last 7 days come from the cache, so `--rank` after a run
+  costs only the lookups.
+- `competitors <your-domain> --vs a b c`: the sites your competitors earned links from and you lack. For each
+  competitor, its referring domains first seen in the last `--days` days (7), strongest first, with the ones already
+  linking to you taken out; then the sites linking to two or more of them and not to you, from AIsa's domain
+  intersection in its partial mode (one call: its page says each row links to every target, but tried live with three
+  it returned the domains linking to two or three). Each site comes with a linking page (looked up under its main
+  domain and its www. form), what kind of page that is and what can honestly be done there (find's kinds). Left out
+  and named: the sites on the shared spam-link list, links that score 50 or more for spam (each row of the lists
+  carries the score), and three or more sites whose linking pages share one title (one network's template), with a
+  filled-in report for the list. About $0.025 a call, 2N + 2 calls for N competitors: three cost $0.20.
+- `cited <your-domain> "<keyword>" ...`: for each keyword, Google's first page with its AI Overview (US, English;
+  $0.002 a keyword, $0.004 when the overview loads late), whether the overview cites you and where you rank, then the
+  sites cited most across the keywords, each with its kind. A keyword with no AI Overview is said so, never read as
+  not cited.
+- `questions "<what you make>"` and `asked <your-domain> --file questions.txt` (2026-10-21): the three steps of working
+  on AI answers. `questions` has ChatGPT, Claude and Gemini each write the questions they expect to be asked for it
+  (about $0.01). `asked` puts each question to ChatGPT (its own interface), Google's AI Mode, Perplexity, Claude and
+  Gemini (with their web search) and keeps what each one searched for (fan-out queries, all but AI Mode), the pages
+  it cited with their titles, the tools it named and whether it named or cited you; then the sites and pages cited
+  most, each with its kind, and the searches they ran. ChatGPT and Perplexity are asked twice (their answers vary
+  most): about $0.12 a question, `--max-usd` $1.00 by default.
+- `--max-usd` for both (budget.py; $0.30 and $0.10 by default): a call is made only while its estimate still fits
+  under the cap, answers cached in the last 7 days are free, and the report names what the cap left out. Calls made
+  side by side hold their estimates against the cap while they run.
+- `lost` follows each page of yours that redirects one hop at a time (`page.trace`) and judges it, worst first:
+  broken (a loop, more than ten hops, or no page at the end), soft-lost (it ends on your home page, on another site or
+  on a page whose path matches under 0.50, with the closest live page suggested as for a dead one), temporary (302,
+  303, 307), chain (two hops or more) or fine. They are listed next to the dead pages, each kind with a note citing
+  Google's pages on redirects and site moves. A redirect that ends in an HTTP error other than 404 or 410 is now
+  broken, where it was refused.
+- `audit` reads the home page of each referring domain (free, at most `--homes`, 300) for the analytics and ads
+  accounts it reports to, as `vet` does, and flags three or more on one account, two of them linking to you, as one
+  owner's network (`owner_network`, a caution): its sites, links and listed members in a table, counted as one source,
+  with a report for the shared list when the list already holds half of them. The accounts join the networks seen
+  before. When the backlinks read name fewer sites than `--homes`, AIsa's referring-domains list fills up the rest
+  (about $0.035 for 300).
+- Accounts read from a home page now include Cloudflare Web Analytics tokens (`vet` too): of 106 link-network pages,
+  one carried an AdSense or Google ID and 87 this beacon, one token on 14 of them.
+- `page.site` knows more two-label suffixes (com.co, com.vn, com.ua, co.th and others).
+- Tests: a test that reaches the network fails at once (`tests/conftest.py`). Two `--deep` tests had been calling
+  AIsa through the proxy with the test key.
+
 ## 0.7.0 (2026-10-18)
 
 - `lost <your-domain>`: the pages of yours that backlinks point at and that answer 404 or 410, most referring

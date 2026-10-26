@@ -101,6 +101,9 @@ IDS = {
     "gtm": re.compile(r"\b(GTM-[A-Z0-9]{5,9})\b"),
     "clarity": re.compile(r"[\"']clarity[\"']\s*,\s*[\"']script[\"']\s*,\s*[\"']([a-z0-9]{6,12})[\"']"),
     "pixel": re.compile(r"fbq\(\s*['\"]init['\"]\s*,\s*['\"](\d{10,20})"),
+    # Cloudflare Web Analytics, one token a site. 0.8: of 106 link-network pages among a competitor's new referring
+    # domains (2026-10-20), one carried an AdSense or Google ID and 87 this beacon, one token on 14 of them.
+    "cloudflare": re.compile(r"data-cf-beacon=[^>]*?token(?:&quot;|[\"'])?\s*:\s*(?:&quot;|[\"'])([0-9a-f]{32})"),
 }
 PLACEHOLDER_ID = re.compile(r"X{4,}|0{6,}|1234567", re.I)      # template IDs nobody filled in: G-XXXXXXXXXX
 # Failed checks that could have found something against a site: an ok without them is not an ok. Row errors

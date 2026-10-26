@@ -13,7 +13,7 @@ import pytest
 from backlink_guard import checkout, find, history, ledger, lists, page, placement, policy, profile, report, signals, updates, verify, vet
 
 TODAY = date(2026, 10, 13)
-REAL_LIST_LOAD = vet.blocklist.load          # the fixture below stubs it; one test needs the real one
+REAL_LIST_LOAD = vet.blocklist.load          # conftest's fixture stubs it; one test needs the real one
 UPDATES = [{"name": "September 2026 spam update", "begin": "2026-09-24", "end": "2026-10-08"},
            {"name": "August 2026 spam update", "begin": "2026-08-18", "end": "2026-08-21"},
            {"name": "March 2026 core update", "begin": "2026-03-27", "end": "2026-04-08"}]
@@ -29,16 +29,6 @@ def read_of(text="", links="", dead=False, blocked=False, error="", extra=()):
             "error": error, "blocked": blocked, "dead": dead}
     parsed = page.parse("" if dead or blocked else html, home["final"])
     return {"home": home, "parsed": parsed, "texts": [parsed["text"], *extra]}
-
-
-@pytest.fixture(autouse=True)
-def state(tmp_path, monkeypatch):
-    monkeypatch.setenv("BACKLINK_GUARD_STATE", str(tmp_path))
-    for name in ("GOANYAPI_API_KEY", "AISA_API_KEY"):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(vet.aisa, "key", lambda: "")
-    monkeypatch.setattr(vet.signals, "entity", lambda domain: "")        # no call to Google in tests
-    monkeypatch.setattr(vet.blocklist, "load", lambda fresh=False: {})    # nor to GitHub for the shared list
 
 
 # ── reading a page ──────────────────────────────────────────────────────────
@@ -214,6 +204,7 @@ def paid_world(monkeypatch, visits, dr=50, index=(10,), page_read=None, search=N
         return {"items": [{"target": t, "spam_score": 5} for t in body["targets"]]}, 25000
     monkeypatch.setattr(vet.aisa, "call", aisa_call)
     monkeypatch.setattr(vet.aisa, "tool", lambda name, args: ({}, 0))       # Ahrefs and Semrush, with --deep
+    monkeypatch.setattr(vet.aisa, "rest", lambda path, body: ({"items": []}, 0))   # inner-page checkout links, with --deep
     return asked
 
 
@@ -1179,10 +1170,14 @@ def test_audit_reports_referring_domains_and_site_wide_sources(monkeypatch):
             return {"total_count": 4210, "items": items}, 60000
         if tool == profile.NEW_LOST_TOOL:
             return {"items": []}, 25000
+        if tool == profile.owners.REFERRING_TOOL:          # 7 referring domains read: the list fills up the rest
+            return {"items": []}, 24000
         return {"items": [{"target": s, "spam_score": 3} for s in args["targets"]]}, 25000
     monkeypatch.setattr(vet.aisa, "key", lambda: "k")
     monkeypatch.setattr(vet.aisa, "call", call)
     monkeypatch.setattr(vet.goanyapi, "key", lambda: "")
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": "<p>Home</p>",
+                                                    "error": "", "blocked": False, "dead": False})    # no shared accounts
     a = profile.audit("mine.example", today=TODAY)
     assert a["links"]["read"] == 30 and a["links"]["domains"] == 7 and a["links"]["total"] == 4210
     assert a["anchors"][0] == ("Mine", 6, 6) and ("best seo tool", 1, 1) in a["anchors"]
@@ -1201,7 +1196,9 @@ def test_without_aisa_the_top_linking_pages_give_the_rows():
 # ── lost links ──────────────────────────────────────────────────────────────
 
 def answering(monkeypatch, pages):
-    """urlopen that answers from {url: status or (status, final url)}: a 3xx chain ends at the final URL."""
+    """Pages answering from {url: status, (status, final url) or ("redirect", status, location)}. A (status, final)
+    pair is a 301 to final, which answers status; urlopen (page.fetch) follows it, page._open (page.trace) hands it
+    back hop by hop, as the real ones do."""
     class Response(io.BytesIO):
         def __init__(self, status, final):
             super().__init__(b"<html></html>")
@@ -1216,15 +1213,33 @@ def answering(monkeypatch, pages):
         def __exit__(self, *exc):
             return False
 
-    def urlopen(req, timeout):
-        got = pages.get(req.full_url, 404)
-        status, final = got if isinstance(got, tuple) else (got, req.full_url)
+    hops = {}
+    for url, got in pages.items():
+        if isinstance(got, tuple) and got[0] == "redirect":
+            hops[url] = got[1:]
+        elif isinstance(got, tuple):
+            hops[url] = (301, got[1])
+            hops.setdefault(got[1], (got[0], ""))
+        else:
+            hops[url] = (got, "")
+
+    def answer(url, status, final):
         if status == "down":
             raise urllib.error.URLError(ConnectionRefusedError("refused"))
-        if status >= 400:
-            raise urllib.error.HTTPError(final, status, "error", {}, io.BytesIO(b""))
+        if status >= 300:
+            raise urllib.error.HTTPError(final, status, "error", {"Location": hops.get(url, (0, ""))[1]}, io.BytesIO(b""))
         return Response(status, final)
+
+    def urlopen(req, timeout):
+        got = pages.get(req.full_url, 404)
+        status, final = got if isinstance(got, tuple) and got[0] != "redirect" else (got, req.full_url)
+        return answer(req.full_url, status, final)
+
+    def open_(req, timeout):
+        status, _ = hops.get(req.full_url) or (404, "")
+        return answer(req.full_url, status, req.full_url)
     monkeypatch.setattr(page.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(page, "_open", open_)
 
 
 def test_only_404_and_410_make_a_page_dead_also_at_the_end_of_a_redirect_chain(monkeypatch):

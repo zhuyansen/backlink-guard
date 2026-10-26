@@ -9,6 +9,9 @@ links.py), and the spam score of the sites that link to you ($0.025 for the batc
 
 Every count of links comes with its count of referring domains, and a site that links to one
 page of yours from many of its pages is counted once in the anchor shares.
+
+The home pages of the referring domains are read too (free, owners.py): three or more on one
+analytics or ads account are one owner's network, counted as one source.
 """
 from __future__ import annotations
 
@@ -17,7 +20,7 @@ from collections import Counter
 from datetime import date, timedelta
 from statistics import median
 
-from . import aisa, goanyapi, links, page
+from . import aisa, goanyapi, links, owners, page
 from .policy import flag, ranked
 from .vet import SPAM_SCORE_HIGH, SPAM_WORDS, paid, spam_scores
 
@@ -127,13 +130,14 @@ def referrer_flag(top: list[dict], scores: dict[str, int]) -> tuple[dict | None,
 
 
 def audit(domain: str, deep: bool = False, today: date | None = None, fresh: bool = False,
-          sitewide: int = links.SITEWIDE_PAGES, rows: int = links.ROWS) -> dict:
-    """{"domain", "totals", "top", "links", "weeks", "anchors", "worst_referrers", "flags", "cost", "errors"}.
+          sitewide: int = links.SITEWIDE_PAGES, rows: int = links.ROWS, homes: int = owners.HOMES) -> dict:
+    """{"domain", "totals", "top", "links", "weeks", "anchors", "worst_referrers", "owners", "flags", "cost", "errors"}.
     "links": the backlinks read one by one ({"read", "domains", "total", "source", "sitewide"}); "anchors":
-    [(text, links, referring domains)], a site-wide source counted once."""
+    [(text, links, referring domains)], a site-wide source counted once; "owners": the referring domains one owner
+    runs ({"read", "with_accounts", "groups", "networks"}), up to `homes` home pages read, none when it is 0."""
     today, domain = today or date.today(), page.site(domain)
     out = {"domain": domain, "totals": {}, "top": [], "links": {}, "weeks": [], "anchors": [], "worst_referrers": [],
-           "flags": [], "cost": 0, "errors": []}
+           "owners": {}, "flags": [], "cost": 0, "errors": []}
     steps = []
     if goanyapi.key():
         steps.append(("links", lambda: _links(out, domain, fresh)))
@@ -147,6 +151,8 @@ def audit(domain: str, deep: bool = False, today: date | None = None, fresh: boo
             step()
         except (goanyapi.GoAnyError, aisa.AisaError) as exc:
             out["errors"].append(f"{name}: {exc}")
+    if homes > 0 and out["links"].get("rows"):
+        _owners(out, domain, today, homes, fresh)
     if not deep and (out["links"].get("rows") or out["top"]):
         out["anchors"] = _sampled_anchors(out)
         out["flags"] += [f for f in [anchor_flag(out["anchors"], domain), spam_anchor_flag(out["anchors"])] if f]
@@ -177,6 +183,23 @@ def _rows(out: dict, domain: str, fresh: bool, pages_min: int, limit: int) -> No
                     "total": got["total"], "source": got["source"], "sitewide": groups,
                     "counted_once": links.counted_once(groups)}
     out["flags"] += [f for f in [links.sitewide_flag(groups)] if f]
+
+
+def _owners(out: dict, domain: str, today: date, homes: int, fresh: bool) -> None:
+    """One owner's sites among the referring domains: their home pages read, free (owners.py). When the backlinks read
+    name fewer than `homes` of them, AIsa's list of referring domains fills up the rest."""
+    sites = owners.by_links(out["links"]["rows"])
+    if len(sites) < homes and aisa.key():
+        try:
+            more, cost = owners.referring(domain, homes, fresh)
+            out["cost"] += cost
+            sites.update({s: n for s, n in more.items() if s not in sites})
+        except aisa.AisaError as exc:
+            out["errors"].append(f"referring domains: {exc}")
+    got = owners.networks(sites, homes, today, fresh)
+    out["owners"] = {k: got[k] for k in ("read", "with_accounts", "groups", "networks")}
+    out["flags"] += [f for f in [got["flag"]] if f]
+    out["errors"] += got["errors"]
 
 
 def _links(out: dict, domain: str, fresh: bool) -> None:
