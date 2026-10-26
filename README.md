@@ -185,6 +185,7 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | Several sites sharing one page template, in this check or an earlier one on this machine | the titles with each site's own name taken out (block pages and platform defaults left out) | the batch, earlier checks | free |
 | Several sites reporting to one analytics or ads account (AdSense, Google Analytics, Tag Manager, Clarity, Facebook pixel, Cloudflare Web Analytics), in this check or an earlier one: one operator | the home page | the batch, earlier checks | free |
 | First seen | the Wayback Machine's first copy | archive.org | free |
+| What Google knows it as (a website, a topic, a company), in the audience table | the suggestions Google Trends gives for the domain and for its name | Google Trends | free |
 | A lapsed domain picked up again: archived a year or more before its current registration, registered in the last three years, under 100,000 visits a month | the first copy against the registration date the visits answer carries | archive.org, GoAnyAPI | free with the visits |
 | Rating, and a rating with no readers behind it (30 or more, under 5,000 visits a month) | domain rating | GoAnyAPI | $0.002 |
 | Reach, and a fall in visits | 12 months of monthly visits; a fall within a month counts once a later month shows it has not come back (in the newest month it is a note), and is shown next to the Google updates that ran around it | GoAnyAPI, Google's status feed | $0.004 |
