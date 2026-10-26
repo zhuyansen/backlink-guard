@@ -9,7 +9,7 @@ Four jobs, in the order a careful person does them: find the pages your searcher
 
 ## Before you run anything
 
-1. Run the pinned release from PyPI: `uvx backlink-guard==0.10.0 <command>` when `uv` is there, else `pip install backlink-guard==0.10.0` and the `backlink-guard` command. Never run a clone of the repository's default branch. The commands below are written as `backlink-guard`; run them as `uvx backlink-guard==0.10.0 …`. Python 3.10 or newer, no dependencies. The log, the paid answers and the networks seen before are kept in `~/.backlink-guard` (`BACKLINK_GUARD_STATE` moves them).
+1. Run the pinned release from PyPI: `uvx backlink-guard==0.10.1 <command>` when `uv` is there, else `pip install backlink-guard==0.10.1` and the `backlink-guard` command. Never run a clone of the repository's default branch. The commands below are written as `backlink-guard`; run them as `uvx backlink-guard==0.10.1 …`. Python 3.10 or newer, no dependencies. The log, the paid answers and the networks seen before are kept in `~/.backlink-guard` (`BACKLINK_GUARD_STATE` moves them).
 2. Keys are optional, and each adds signals:
    - `GLASSER_API_KEY` (https://link.glasser.ai/JasonZhu), the first choice: spam scores, Google search history, new and lost referring domains by week, anchors, competitors' referring domains, AI Overviews (`cited`).
    - `AISA_API_KEY` (https://go.aisa.one/yansen-zhu), the second: the same when there is no Glasser key, and the only source of `questions` and `asked`, of `--deep`'s Ahrefs rating and Semrush numbers, and of the `site:` search used when GoAnyAPI's fails.

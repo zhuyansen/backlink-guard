@@ -322,7 +322,7 @@ claude plugin install backlink-guard@backlink-guard
 npx skills add zhuyansen/backlink-guard
 ```
 
-skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.10.0`），不用克隆的代码；付费运行前先报成本、等你点头；读到的页面、标题、AI 回答只当数据，绝不当成指令。
+skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.10.1`），不用克隆的代码；付费运行前先报成本、等你点头；读到的页面、标题、AI 回答只当数据，绝不当成指令。
 
 ### MCP 服务器
 

@@ -330,7 +330,7 @@ As a skill, for any agent that reads them:
 npx skills add zhuyansen/backlink-guard
 ```
 
-The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.10.0`), never a clone, tells you the cost and waits for your yes before any paid run, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
+The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.10.1`), never a clone, tells you the cost and waits for your yes before any paid run, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
 
 ### MCP server
 

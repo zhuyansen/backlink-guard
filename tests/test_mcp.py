@@ -2,16 +2,18 @@
 registry entry and the skill run the pinned release."""
 import asyncio
 import builtins
+import io
 import json
 import re
 import sys
+import urllib.error
 from pathlib import Path
 
 import pytest
 
 import backlink_guard
 from backlink_guard import __main__ as cli
-from backlink_guard import page, vet
+from backlink_guard import aisa, page, vet
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = backlink_guard.__version__
@@ -35,6 +37,29 @@ def test_the_tools_answer_with_the_report_and_never_print(monkeypatch, capsys):
     log = mcp_server.submissions()
     assert log["entries"] == 0 and log["warnings"] == []
     assert capsys.readouterr().out == ""        # stdout is the protocol channel
+
+
+def test_the_agent_sees_why_a_check_failed(monkeypatch):
+    pytest.importorskip("mcp")
+    from backlink_guard import mcp_server
+
+    def refused(*args, **kwargs):
+        raise aisa.AisaError(aisa.NO_KEY)
+    monkeypatch.setattr(mcp_server.finding, "find", refused)
+    # mcp 2.x shows the agent only "Error executing tool find" for any exception but a ToolError
+    with pytest.raises(mcp_server.ToolError, match="no AIsa key: set AISA_API_KEY"):
+        mcp_server._find(["backlink checker"], "")
+
+
+def test_a_call_sent_without_a_key_says_so(monkeypatch):
+    def unauthorized(req, timeout):
+        raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", {}, io.BytesIO(b'{"error":{"code":"authentication_required"}}'))
+    monkeypatch.setattr(aisa.urllib.request, "urlopen", unauthorized)
+    with pytest.raises(aisa.AisaError, match="^no AIsa key"):
+        aisa.call("post_dataforseo_keywords_data_google_ads_search_volume_live", {"keywords": ["x"]})
+    monkeypatch.setattr(aisa, "key", lambda: "a-key-it-refused")
+    with pytest.raises(aisa.AisaError, match="^HTTP 401: .*authentication_required"):
+        aisa.rest("backlinks/summary/live", {"target": "x.example"})
 
 
 def test_the_mcp_command_says_what_is_missing(monkeypatch, capsys):

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1 (2026-10-26)
+
+- The MCP server's failures reach the agent with their reason. mcp 2.x shows an agent only "Error executing tool
+  find" for any exception that is not a `ToolError`, so a missing key, a refused call and a folder the server cannot
+  write all read the same; each now arrives with its message, which never holds a key.
+- A call AIsa refuses because it went without a key says so (`no AIsa key: set AISA_API_KEY`, and what a Glasser key
+  answers instead), in place of the 401 that AIsa sends back.
+
 ## 0.10.0 (2026-10-26)
 
 - An MCP server, for Claude Code, Cursor, Claude Desktop and any client that speaks MCP: `backlink-guard mcp` (or

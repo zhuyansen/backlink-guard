@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-__version__ = "0.10.0"
+__version__ = "0.10.1"
 UA = f"Mozilla/5.0 (compatible; backlink-guard/{__version__}; +https://github.com/zhuyansen/backlink-guard)"
 
 

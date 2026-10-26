@@ -25,12 +25,23 @@ class AisaError(RuntimeError):
     pass
 
 
+NO_KEY = ("no AIsa key: set AISA_API_KEY (or run `aisa login`). A GLASSER_API_KEY also answers the backlink, search "
+          "and keyword data, but not questions, asked, deep's Ahrefs and Semrush numbers or site: searches")
+
+
 def key() -> str:
     """"" when there is no key: callers skip this source, they do not fail."""
     if os.environ.get("AISA_API_KEY"):
         return os.environ["AISA_API_KEY"].strip()
     stored = Path.home() / ".aisa" / "key"
     return stored.read_text().strip() if stored.exists() else ""
+
+
+def _refused(exc: urllib.error.HTTPError) -> AisaError:
+    """The error for a refused call: a 401 to a call sent without a key says there is no key."""
+    if exc.code == 401 and not key():
+        return AisaError(NO_KEY)
+    return AisaError(f"HTTP {exc.code}: {' '.join(exc.read().decode('utf-8', 'replace').split())[:160]}")
 
 
 def _run(tool: str, arguments: dict) -> tuple[object, int]:
@@ -43,7 +54,7 @@ def _run(tool: str, arguments: dict) -> tuple[object, int]:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
             reply = json.load(res)
     except urllib.error.HTTPError as exc:
-        raise AisaError(f"HTTP {exc.code}: {' '.join(exc.read().decode('utf-8', 'replace').split())[:160]}") from exc
+        raise _refused(exc) from exc
     except (OSError, ValueError) as exc:
         raise AisaError(f"{type(exc).__name__}: {exc}") from exc
     row = (reply.get("results") or [{}])[0]
@@ -75,7 +86,7 @@ def rest(path: str, body: dict) -> tuple[dict, int]:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
             reply = json.load(res)
     except urllib.error.HTTPError as exc:
-        raise AisaError(f"HTTP {exc.code}: {' '.join(exc.read().decode('utf-8', 'replace').split())[:160]}") from exc
+        raise _refused(exc) from exc
     except (OSError, ValueError) as exc:
         raise AisaError(f"{type(exc).__name__}: {exc}") from exc
     task = (reply.get("tasks") or [{}])[0]

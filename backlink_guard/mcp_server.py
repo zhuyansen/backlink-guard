@@ -16,7 +16,9 @@ Keys come from the environment, as on the command line: GLASSER_API_KEY (asked f
 and GOANYAPI_API_KEY. The log, the cache and the networks seen before are kept where the command line
 keeps them (BACKLINK_GUARD_STATE, else ~/.backlink-guard).
 
-The transport is stdio, so nothing here may print to stdout: every check runs with its output captured.
+The transport is stdio, so nothing here may print to stdout: every check runs with its output captured. A check
+that fails reaches the agent as a ToolError with its reason (no key, a refused call, a folder it cannot write):
+mcp 2.x shows any other exception only as "Error executing tool".
 """
 from __future__ import annotations
 
@@ -34,8 +36,10 @@ from . import vet as vetting
 
 try:                                   # mcp 2.x
     from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
 except ImportError:                    # mcp 1.x called it FastMCP
     from mcp.server.fastmcp import FastMCP as MCPServer
+    from mcp.server.fastmcp.exceptions import ToolError
 
 LIMIT = 30                             # sites one vet call checks, as on the command line
 SHOWN_ERRORS = 10
@@ -52,9 +56,13 @@ server = MCPServer(
 
 
 def _quiet(fn, *args, **kwargs):
-    """Run a check with stdout captured: on stdio, a stray print breaks the protocol."""
+    """Run a check with stdout captured: on stdio, a stray print breaks the protocol. A failure goes back as a
+    ToolError with its message, which no key ever appears in."""
     with contextlib.redirect_stdout(io.StringIO()):
-        return fn(*args, **kwargs)
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            raise ToolError(str(exc) or type(exc).__name__) from exc
 
 
 def _answer(result: dict, text: str, **extra) -> dict:
@@ -76,7 +84,7 @@ async def verify(page_url: str, domain: str) -> dict:
 def submissions() -> dict:
     """The user's submission log on this machine (ledger.jsonl), with its warnings: more than five a week, one anchor
     used over and over. Free and instant."""
-    rows = ledger.entries()
+    rows = _quiet(ledger.entries)
     flags = ledger.checks(rows)
     return {"report_markdown": report.ledger(rows, flags), "entries": len(rows), "warnings": flags}
 
