@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.0 (2026-10-26)
+
+On GitHub; not yet on PyPI.
+
+- Glasser (`GLASSER_API_KEY`, glasser.ai), asked first when its key is set: spam scores, Google search history, the
+  backlink summary, backlinks one by one, new and lost referring domains, anchors, competitors' referring domains and
+  link intersect, AI Overviews (`cited`), `find`'s searches and volumes, and `--deep`'s technology and ChatGPT
+  mentions. It resells the same endpoints as AIsa at the same prices, but for two searches: `find`'s costs $0.006 a
+  keyword ($0.005 through AIsa) and `cited`'s up to $0.006 ($0.004), which `cited`'s cap counts. One Glasser Run a
+  call; a Run still queued or running is polled by its id, never created twice, and none is retried. Answers are
+  cached as before, whichever answered.
+- What Glasser does not sell stays on AIsa: the `site:` search that stands in when GoAnyAPI's fails (Glasser refuses
+  searches with operators), `--deep`'s Ahrefs rating and Semrush numbers, and `questions` and `asked`. With Glasser
+  alone `--deep` leaves Ahrefs and Semrush out and the report says so once, instead of failing on every site.
+- The evidence names who answered: "Glasser rank", "US Google, Glasser estimate", a spam score's "(Glasser)". A row
+  saved before 0.9 still reads AIsa.
+- ChatGPT mentions are read from either answer shape (AIsa's aggregated metrics, Glasser's target metrics), and the
+  provider's own message is kept when it refuses a task through Glasser (such a Run is not billed). `--deep`'s
+  columns show when only the technology and ChatGPT mentions came back.
+- The docs gave `--deep` as $0.024 a site; it is about $0.19 (backlink profile, technology, ChatGPT mentions,
+  checkout links on inner pages), about $0.27 with an AIsa key (Ahrefs' rating, Semrush's numbers).
+
 ## 0.8.0 (2026-10-26)
 
 - `asked --rank` (2026-10-26): each search the assistants ran is looked up on Google and Bing (US, English, top 20,

@@ -1,8 +1,9 @@
 """Which sites Google's AI Overview cites for your keywords (0.8), and whether you are one of them.
 
-For each keyword, Google's first page of results (US, English) with its AI Overview: AIsa's advanced results with
-load_async_ai_overview, which also waits for an overview Google loads after the page. $0.002 a keyword on 2026-10-20;
-AIsa adds $0.002 when the overview it waited for was loaded late, and gives it back when not. The sites an
+For each keyword, Google's first page of results (US, English) with its AI Overview: the advanced results (Glasser or
+AIsa) with load_async_ai_overview, which also waits for an overview Google loads after the page. $0.002 a keyword through
+AIsa on 2026-10-20, $0.004 through Glasser on 2026-10-26; each adds $0.002 when the overview it waited for was loaded
+late, and gives it back when not. The sites an
 overview cites, its references and the links in its text, are the sources the answer was written from: being
 mentioned on them is how a site gets into the answer. Your own organic position on the same page comes free.
 
@@ -13,13 +14,13 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from . import aisa, find, page
+from . import aisa, backend, find, page
 from .budget import Budget, OverBudget
 
 TOOL = "post_dataforseo_serp_google_organic_live"     # the advanced results: SERP features such as ai_overview
 US, EN, DEPTH = 2840, "en", 10
 MAX_USD = 0.10                  # about 25 keywords at the most a keyword can cost
-CALL = 4_000                    # micro-USD a keyword costs at most: the page and a late-loaded overview
+CALL = {"AIsa": 4_000, "Glasser": 6_000}    # micro-USD a keyword costs at most: the page and a late-loaded overview
 OVERVIEW = {"ai_overview", "knowledge_graph_ai_overview_item"}     # an overview of its own, or inside a knowledge panel
 CITING = {"references", "links"}                                    # where an overview names its sources
 
@@ -27,7 +28,8 @@ CITING = {"references", "links"}                                    # where an o
 def results(keyword: str, budget: Budget, fresh: bool) -> dict:
     """Google's first page for the keyword, with its AI Overview."""
     body = {"keyword": keyword, "location_code": US, "language_code": EN, "depth": DEPTH, "load_async_ai_overview": True}
-    data, _ = budget.ask(f"aisa:serp-aio:{US}:{DEPTH}:{keyword.lower()}", CALL, lambda: aisa.call(TOOL, body), fresh,
+    estimate = CALL[backend.name()]
+    data, _ = budget.ask(f"aisa:serp-aio:{US}:{DEPTH}:{keyword.lower()}", estimate, lambda: backend.call(TOOL, body), fresh,
                          f"“{keyword}”")
     return data or {}
 

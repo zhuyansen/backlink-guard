@@ -5,8 +5,8 @@ links as it has pages. So every count here comes with the number of referring do
 domain, page.registrable), and a site that links to one page of yours from many of its own pages is a
 site-wide source: counted once wherever a share or a ratio is worked out, and said so.
 
-The rows come from AIsa's backlink list (DataForSEO, up to ROWS links, strongest linking pages first:
-$0.028 for 100 rows on 2026-10-18, so about $0.06 for 1,000), or, without an AIsa key, from the top
+The rows come from the backlink list (Glasser or AIsa, up to ROWS links, strongest linking pages first:
+$0.028 for 100 rows on 2026-10-18, so about $0.06 for 1,000), or, without either key, from the top
 linking pages GoAnyAPI returns with your backlink summary (about 20 rows, already paid for by `audit`).
 """
 from __future__ import annotations
@@ -14,12 +14,12 @@ from __future__ import annotations
 import urllib.parse
 from collections import Counter, defaultdict
 
-from . import aisa, goanyapi, page
+from . import aisa, backend, goanyapi, page
 from .policy import flag
 from .vet import TEMPLATE_PLACES, paid
 
 TOOL = "post_dataforseo_backlinks_backlinks_live"
-ROWS = 1000                 # links asked for; DataForSEO's most in one call
+ROWS = 1000                 # links asked for; the most one call returns
 SITEWIDE_PAGES = 20         # pages of one site linking to one page of yours: a site-wide link
 TEMPLATE_PAGES = 3          # ... or this many, most of them in a footer, sidebar, header or navigation
 TEMPLATE_SHARE = 0.5
@@ -36,9 +36,9 @@ def row(url_from: str, url_to: str, anchor: str, rank, place: str = "", followed
             "anchor": " ".join((anchor or "").split()), "rank": rank, "place": (place or "").lower(), "followed": followed}
 
 
-def from_aisa(domain: str, fresh: bool, limit: int = ROWS) -> tuple[list[dict], int, int]:
-    """(rows, how many backlinks AIsa knows in all, cost)."""
-    data, cost = paid("aisa", f"backlinks:{domain}:{limit}", lambda: aisa.call(TOOL, {
+def from_backend(domain: str, fresh: bool, limit: int = ROWS) -> tuple[list[dict], int, int]:
+    """(rows, how many backlinks the index knows in all, cost)."""
+    data, cost = paid("aisa", f"backlinks:{domain}:{limit}", lambda: backend.call(TOOL, {
         "target": domain, "mode": "as_is", "limit": limit, "backlinks_status_type": "live", "include_subdomains": True}), fresh)
     rows = [row(i.get("url_from") or "", i.get("url_to") or "", i.get("anchor") or "", i.get("domain_from_rank"),
                 i.get("semantic_location") or "", i.get("dofollow")) for i in (data or {}).get("items") or []]
@@ -51,13 +51,13 @@ def from_goanyapi(top: list[dict]) -> list[dict]:
 
 
 def fetch(domain: str, fresh: bool, limit: int = ROWS, top: list[dict] | None = None) -> dict:
-    """{"rows", "total", "source", "strength", "cost", "errors"}: AIsa when there is a key, else GoAnyAPI's top
+    """{"rows", "total", "source", "strength", "cost", "errors"}: Glasser or AIsa when there is a key, else GoAnyAPI's top
     linking pages (`top`, or asked for here)."""
     out = {"rows": [], "total": 0, "source": "", "strength": "", "cost": 0, "errors": []}
-    if aisa.key():
+    if backend.key():
         try:
-            out["rows"], out["total"], out["cost"] = from_aisa(domain, fresh, limit)
-            out.update(source="AIsa", strength="AIsa rank")
+            out["rows"], out["total"], out["cost"] = from_backend(domain, fresh, limit)
+            out.update(source=backend.name(), strength=f"{backend.name()} rank")
             return out
         except aisa.AisaError as exc:
             out["errors"].append(f"backlinks: {exc}")
@@ -67,8 +67,8 @@ def fetch(domain: str, fresh: bool, limit: int = ROWS, top: list[dict] | None = 
             _, top, out["cost"] = summary(domain, fresh)
         except goanyapi.GoAnyError as exc:
             out["errors"].append(f"links: {exc}")
-    if not aisa.key() and not goanyapi.key() and top is None:
-        out["errors"].append("backlinks: no AISA_API_KEY or GOANYAPI_API_KEY, so no backlinks were read")
+    if not backend.key() and not goanyapi.key() and top is None:
+        out["errors"].append("backlinks: no GLASSER_API_KEY, AISA_API_KEY or GOANYAPI_API_KEY, so no backlinks were read")
     if top:
         out["rows"] = from_goanyapi(top)
         out.update(total=len(out["rows"]), source="GoAnyAPI's top linking pages", strength="rating")
@@ -117,7 +117,7 @@ def anchors(rows: list[dict], groups: list[dict]) -> list[tuple[str, int, int]]:
 
 
 def collapse(table: list[tuple], groups: list[dict], rows: list[dict]) -> list[tuple]:
-    """An anchor table counted elsewhere (AIsa's anchors, with --deep) with the site-wide sources counted once:
+    """An anchor table counted elsewhere (the full one, with --deep) with the site-wide sources counted once:
     each source's links come off its anchors, and one link goes back on its most common anchor."""
     off = Counter()
     wide = {(g["site"], g["to"]): g for g in groups}

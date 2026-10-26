@@ -56,8 +56,10 @@ asked   your questions to ChatGPT, Google's AI Mode, Perplexity, Claude and Gemi
 verify  whether a page links to you and whether that link passes ranking credit. Free.
 log     kept in state/ledger.jsonl on this machine. Free.
 
-Keys: GOANYAPI_API_KEY (rating, visits, index, your backlinks) and AISA_API_KEY (spam
-scores, weekly new and lost domains, anchors, competitors' referring domains, AI Overviews).
+Keys: GOANYAPI_API_KEY (rating, visits, index, your backlinks), and GLASSER_API_KEY or
+AISA_API_KEY (spam scores, weekly new and lost domains, anchors, competitors' referring
+domains, AI Overviews; through Glasser when both are set). questions, asked, --deep's Ahrefs
+and Semrush numbers and the site: search that stands in for GoAnyAPI's need AISA_API_KEY.
 Each is optional; what is missing is said.
 """
 from __future__ import annotations
@@ -204,19 +206,19 @@ def parser() -> argparse.ArgumentParser:
     a.add_argument("--homes", type=int, default=owners.HOMES, metavar="SITES",
                    help=f"referring domains whose home pages are read for shared analytics or ads accounts, the most "
                         f"linking first (default {owners.HOMES}; 0 skips it). The pages are free; when the backlinks read "
-                        f"name fewer sites, AIsa's list of referring domains fills up (about $0.035 for 300)")
+                        f"name fewer sites, the list of referring domains (Glasser or AIsa) fills up (about $0.035 for 300)")
     o = sub.add_parser("lost", parents=[common])
     o.add_argument("domain")
     for x in (a, o):
         x.add_argument("--sitewide", type=int, default=links.SITEWIDE_PAGES, metavar="PAGES",
                        help=f"pages of one site linking to one page of yours that make a site-wide link (default {links.SITEWIDE_PAGES})")
         x.add_argument("--rows", type=int, default=links.ROWS, metavar="LINKS",
-                       help=f"backlinks read one by one from AIsa (default and most {links.ROWS}; about $0.06 for 1,000)")
+                       help=f"backlinks read one by one from Glasser or AIsa (default and most {links.ROWS}; about $0.06 for 1,000)")
     k = sub.add_parser("competitors", parents=[common], description=(
         "The sites your competitors earned links from and you lack: each one's referring domains first seen in the last "
         "--days days, and the sites linking to two or more of them but not to you, each with a linking page and what to "
         "do there. Sites on the shared spam-link list, links scoring 50 or more for spam and one network's template "
-        "pages are left out and named. AIsa: about $0.025 a call, 2N+2 calls for N competitors (three: about $0.20)."))
+        "pages are left out and named. Glasser or AIsa: about $0.025 a call, 2N+2 calls for N competitors (three: about $0.20)."))
     k.add_argument("domain", help="your own domain: sites already linking to it are left out")
     k.add_argument("--vs", nargs="+", required=True, metavar="COMPETITOR", help="the competitors' domains")
     k.add_argument("--days", type=int, default=competitors.DAYS, help=f"new means first seen in this many days (default {competitors.DAYS})")
@@ -227,7 +229,8 @@ def parser() -> argparse.ArgumentParser:
     t = sub.add_parser("cited", parents=[common], description=(
         "Which sites Google's AI Overview cites for each keyword (US, English), whether your domain is one of them and "
         "where you rank, then the sites cited most across the keywords: the places to be mentioned on. A keyword with no "
-        "AI Overview is said so. AIsa: $0.002 a keyword, up to $0.004 when the overview loads late."))
+        "AI Overview is said so. AIsa: $0.002 a keyword, up to $0.004 when the overview loads late; Glasser: $0.004, "
+        "up to $0.006."))
     t.add_argument("domain", help="your own domain")
     t.add_argument("keywords", nargs="+", metavar="KEYWORD")
     t.add_argument("--max-usd", type=float, default=cited.MAX_USD,

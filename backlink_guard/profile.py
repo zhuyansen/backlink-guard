@@ -1,7 +1,7 @@
 """Your own link profile: what it looks like, and whether it is changing in a way that
 reads as manufactured.
 
-GoAnyAPI gives the totals and the top linking pages ($0.004). AIsa gives
+GoAnyAPI gives the totals and the top linking pages ($0.004). Glasser or AIsa gives
 the weekly count of new and lost referring domains ($0.025), up to 1,000 of your backlinks
 one by one (about $0.06: the anchors, the referring domains and the site-wide sources, see
 links.py), and the spam score of the sites that link to you ($0.025 for the batch). With
@@ -20,7 +20,7 @@ from collections import Counter
 from datetime import date, timedelta
 from statistics import median
 
-from . import aisa, goanyapi, links, owners, page
+from . import aisa, backend, goanyapi, links, owners, page
 from .policy import flag, ranked
 from .vet import SPAM_SCORE_HIGH, SPAM_WORDS, paid, spam_scores
 
@@ -53,7 +53,7 @@ def summary(domain: str, fresh: bool) -> tuple[dict, list[dict], int]:
 def weekly(domain: str, today: date, fresh: bool) -> tuple[list[dict], int]:
     """[{"week", "new", "lost"}] oldest first, complete weeks only."""
     start = today - timedelta(weeks=WEEKS)
-    result, cost = paid("aisa", f"newlost:{domain}:{today.isocalendar()[:2]}", lambda: aisa.call(NEW_LOST_TOOL, {
+    result, cost = paid("aisa", f"newlost:{domain}:{today.isocalendar()[:2]}", lambda: backend.call(NEW_LOST_TOOL, {
         "target": domain, "date_from": start.isoformat(), "date_to": today.isoformat(), "group_range": "week"}), fresh)
     rows = [{"week": (i.get("date") or "")[:10], "new": int(i.get("new_referring_domains") or 0),
              "lost": int(i.get("lost_referring_domains") or 0)} for i in result.get("items") or []]
@@ -111,8 +111,8 @@ def spam_anchor_flag(anchors: list[tuple]) -> dict | None:
 
 
 def full_anchors(domain: str, fresh: bool) -> tuple[list[tuple[str, int, int]], int]:
-    """[(anchor, links, referring domains)] from AIsa's anchor table, and the cost."""
-    result, cost = paid("aisa", f"anchors:{domain}", lambda: aisa.call(ANCHORS_TOOL, {
+    """[(anchor, links, referring domains)] from the anchor table (Glasser or AIsa), and the cost."""
+    result, cost = paid("aisa", f"anchors:{domain}", lambda: backend.call(ANCHORS_TOOL, {
         "target": domain, "limit": ANCHOR_ROWS, "order_by": ["backlinks,desc"]}), fresh)
     return [(" ".join((i.get("anchor") or "").split()), int(i.get("backlinks") or 0), int(i.get("referring_domains") or 0))
             for i in result.get("items") or []], cost
@@ -142,7 +142,7 @@ def audit(domain: str, deep: bool = False, today: date | None = None, fresh: boo
     if goanyapi.key():
         steps.append(("links", lambda: _links(out, domain, fresh)))
     steps.append(("backlinks", lambda: _rows(out, domain, fresh, sitewide, rows)))
-    if aisa.key():
+    if backend.key():
         steps += [("weekly", lambda: _weekly(out, domain, today, fresh)), ("referrers", lambda: _referrers(out, fresh))]
         if deep:
             steps.append(("anchors", lambda: _anchors(out, domain, fresh)))
@@ -187,9 +187,9 @@ def _rows(out: dict, domain: str, fresh: bool, pages_min: int, limit: int) -> No
 
 def _owners(out: dict, domain: str, today: date, homes: int, fresh: bool) -> None:
     """One owner's sites among the referring domains: their home pages read, free (owners.py). When the backlinks read
-    name fewer than `homes` of them, AIsa's list of referring domains fills up the rest."""
+    name fewer than `homes` of them, the list of referring domains (Glasser or AIsa) fills up the rest."""
     sites = owners.by_links(out["links"]["rows"])
-    if len(sites) < homes and aisa.key():
+    if len(sites) < homes and backend.key():
         try:
             more, cost = owners.referring(domain, homes, fresh)
             out["cost"] += cost

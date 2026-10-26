@@ -41,8 +41,10 @@ def missing_sources(sources: dict) -> list[str]:
     lines = []
     if not sources.get("goanyapi"):
         lines.append("- No `GOANYAPI_API_KEY`: rating, visits and index status were not checked. A site can pass the page checks and still have no audience.")
-    if not sources.get("aisa"):
-        lines.append("- No `AISA_API_KEY`: spam scores and Google search history were not checked.")
+    if not sources.get("glasser") and not sources.get("aisa"):
+        lines.append("- No `GLASSER_API_KEY` or `AISA_API_KEY`: spam scores and Google search history were not checked.")
+    elif sources.get("deep") and not sources.get("aisa"):
+        lines.append("- No `AISA_API_KEY`: `--deep` left out Ahrefs' rating and Semrush's numbers (Glasser does not sell them).")
     return lines
 
 
@@ -65,7 +67,7 @@ def audience_lines(rows: list[dict]) -> list[str]:
     keys = ("registered", "sources", "entity")
     if not any(k in r["metrics"] for r in rows for k in keys):
         return []
-    deep = any("ahrefs_dr" in r["metrics"] or "semrush_traffic" in r["metrics"] for r in rows)
+    deep = any(k in r["metrics"] for r in rows for k in ("ahrefs_dr", "semrush_traffic", "ai_mentions", "tech"))
     head = "| Site | First archived | Registered | Visitors from | From AI assistants | Google knows it as |"
     head += " Ahrefs DR | Semrush keywords / visits (US) | ChatGPT mentions | Built with |" if deep else ""
     out = ["", "## Audience and identity", "", head, "|---" * head.count(" |") + "|"]
@@ -399,8 +401,8 @@ def competitors(r: dict) -> str:
     lines += shared_lines(r)
     rows = [x for got in r["new"].values() for x in got["rows"][:SHOWN]] + ((r["shared"] or {}).get("rows") or [])[:SHOWN]
     lines += kinds_lines(rows)
-    lines += ["", "Rank is what the site's links pass to the competitor, on AIsa's 0 to 1,000 scale (the highest when it "
-                  "links to several). First seen is when AIsa's crawler first found a link from the site to that "
+    lines += ["", "Rank is what the site's links pass to the competitor, on the backlink index's 0 to 1,000 scale (the highest when it "
+                  "links to several). First seen is when the index's crawler first found a link from the site to that "
                   "competitor: new to its index, which can be later than the link itself.",
               "", "These sites already cover your field. Submit where it fits, ask to be added to a list, offer an author "
                   "what the page lacks; vet a site before you spend time on it (`backlink-guard vet <site>`), since a site "

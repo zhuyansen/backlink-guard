@@ -10,7 +10,7 @@ nothing alike: that is not flagged.
 
 Network sites put their checkout links on a few of thousands of inner pages (/dir/<slug>-<id>),
 which no sample of pages finds (six sitemap pages of two network sites held none). So the home page
-is read for free, and with --deep AIsa also lists the site's links to Stripe and Gumroad, the
+is read for free, and with --deep Glasser or AIsa also lists the site's links to Stripe and Gumroad, the
 platforms of nearly every shared link (one call each, about $0.024). One more call per checkout link
 found (about $0.02), at most LOOKED_AT per site; most link sources carry none and cost little.
 """
@@ -20,7 +20,7 @@ import re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
-from . import aisa, page
+from . import aisa, backend, page
 from .policy import flag
 
 TOOL = "post_dataforseo_backlinks_backlinks_live"
@@ -33,7 +33,7 @@ LIMIT = 100             # other sites read per checkout link
 SHARED_MIN = 5          # other sites carrying the same link before it means anything
 TEMPLATE_SHARE = 0.4    # this share of those sites' titles alike (same ending, or about selling links)
 TAIL_WORDS = 2          # "drjack.world | Keyword Rankingss": the site's name sits right before the template's words
-TITLES_READ = 24        # AIsa's rows leave most page titles empty: this many home pages are read for theirs
+TITLES_READ = 24        # the backlink rows leave most page titles empty: this many home pages are read for theirs
 MIRRORS_MAX = 20        # up to this many sites with one identical title can be one site on several domains (17 seen)
 INJECTED_RELATED = 0.3  # a gambling or adult product cited by sites on its own topic is promotion, not injection
 PLATFORMS = ("stripe.com", "gumroad.com")     # with --deep: where the site's own checkout links are looked for
@@ -60,7 +60,7 @@ def linked(site: str, ask) -> tuple[list[dict], int]:
     """With --deep: the site's links to PLATFORMS, as page links ({"href"}), and the cost."""
     found, cost = [], 0
     for target in PLATFORMS:
-        data, spent = ask(f"checkout-from:{site}:{target}", lambda target=target: aisa.rest("backlinks/backlinks/live", {
+        data, spent = ask(f"checkout-from:{site}:{target}", lambda target=target: backend.rest("backlinks/backlinks/live", {
             "target": target, "mode": "as_is", "limit": LINKED, "backlinks_status_type": "live",
             "filters": [["domain_from", "like", f"%{site}"]]}))
         found += [{"href": i.get("url_to") or ""} for i in (data or {}).get("items") or []]
@@ -71,7 +71,7 @@ def linked(site: str, ask) -> tuple[list[dict], int]:
 def others(url: str, own: str, ask) -> tuple[list[dict], int]:
     """The other sites linking to `url`: [{"site", "title"}] (one row a site), and the cost."""
     try:
-        data, cost = ask(f"checkout:{url}", lambda: aisa.call(TOOL, {
+        data, cost = ask(f"checkout:{url}", lambda: backend.call(TOOL, {
             "target": url, "mode": "one_per_domain", "limit": LIMIT, "backlinks_status_type": "live"}))
     except aisa.AisaError as exc:
         if "no result" in str(exc).lower():         # nobody links to it: nothing shared
@@ -87,7 +87,7 @@ def others(url: str, own: str, ask) -> tuple[list[dict], int]:
 
 
 def titled(rows: list[dict]) -> list[dict]:
-    """Rows with a title: the ones AIsa left empty read from their home pages, TITLES_READ at most."""
+    """Rows with a title: the ones the backlink rows left empty read from their home pages, TITLES_READ at most."""
     blank = [r for r in rows if not r["title"].strip()][:TITLES_READ]
     with ThreadPoolExecutor(12) as pool:
         for r, got in zip(blank, pool.map(lambda r: page.fetch(f"https://{r['host']}/"), blank)):
@@ -138,7 +138,7 @@ def judge(url: str, own_title: str, rows: list[dict], spam: re.Pattern) -> dict 
 
 def shared(read: dict, own: str, ask, spam: re.Pattern, deep: bool = False) -> tuple[list[dict], int, list[str]]:
     """(flags, cost, errors) for the checkout links on a site read by vet.read_site; with `deep`, also the ones
-    AIsa saw on its other pages."""
+    the backlink index saw on its other pages."""
     flags, cost, errors = [], 0, []
     links = list(read["parsed"]["links"])
     if deep:

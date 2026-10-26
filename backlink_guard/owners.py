@@ -5,9 +5,9 @@ vet groups the sites it checks by the accounts their home pages report to (vet.i
 Analytics and Tag Manager IDs, Clarity, the Facebook pixel) and keeps them across checks (seen.py). This does the same
 for the sites that link to you: the home page of each referring domain, once, free, WORKERS at a time, at most
 --homes of them. The referring domains are the ones in the backlinks read (links.fetch), the most links first; when
-those hold fewer than --homes, AIsa's list of referring domains fills up the rest, strongest first (one call, about
-$0.035 for 300): on 2026-10-20 a site's strongest 1,000 backlinks came from 29 referring domains, 949 of them from
-three site-wide sources. NETWORK_MIN or more on one
+those hold fewer than --homes, the list of referring domains (Glasser or AIsa) fills up the rest, strongest first
+(one call, about $0.035 for 300): on 2026-10-20 a site's strongest 1,000 backlinks came from 29 referring domains,
+949 of them from three site-wide sources. NETWORK_MIN or more on one
 account, counting the sites seen with it in earlier checks, are one owner's network: their links are one owner's
 votes, not independent ones (lower value), and a network built to link is the pattern Google's spam policies describe
 (higher risk). This run's accounts are kept for the next check, so a site vetted later is matched against them too.
@@ -19,7 +19,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
-from . import aisa, blocklist, page, seen
+from . import backend, blocklist, page, seen
 from .policy import flag
 from .vet import ids_of, paid, remember, shared_owners
 
@@ -36,8 +36,8 @@ def by_links(rows: list[dict]) -> Counter:
 
 
 def referring(domain: str, limit: int, fresh: bool) -> tuple[Counter, int]:
-    """({referring domain: backlinks} for up to `limit` of them, strongest first, cost): AIsa's list, kept 7 days."""
-    data, cost = paid("aisa", f"refdomains:{domain}:{limit}", lambda: aisa.call(REFERRING_TOOL, {
+    """({referring domain: backlinks} for up to `limit` of them, strongest first, cost): kept 7 days."""
+    data, cost = paid("aisa", f"refdomains:{domain}:{limit}", lambda: backend.call(REFERRING_TOOL, {
         "target": domain, "limit": limit, "order_by": ["rank,desc"], "backlinks_status_type": "live"}), fresh)
     return Counter({page.registrable(i["domain"]): int(i.get("backlinks") or 0) for i in (data or {}).get("items") or []
                     if i.get("domain")}), cost

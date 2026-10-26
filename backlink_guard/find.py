@@ -3,7 +3,7 @@
 A link is first of all a way in for visitors. A page that ranks for your keyword already
 gets the people looking for what you make, so a mention there sends them on: the most
 precise referral traffic there is, and relevant by construction. For each keyword this
-reads Google's top 30 (AIsa, $0.005 a keyword) and the keyword's
+reads Google's top 30 (Glasser or AIsa: $0.006 or $0.005 a keyword) and the keyword's
 monthly searches ($0.012 a call), sorts the pages by the visitors they get from these
 searches, and says what kind of page each is and what can honestly be done there.
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-from . import aisa, cache
+from . import aisa, backend, cache
 from .page import host, site
 
 SERP_TOOL = "post_dataforseo_serp_google_organic_live_regular"
@@ -91,7 +91,7 @@ def serp(keyword: str, fresh: bool, depth: int = DEPTH) -> tuple[list[dict], int
     held = None if fresh else cache.get(key)
     if held is not None:
         return held, 0
-    result, cost = aisa.call(SERP_TOOL, {"keyword": keyword, "location_code": US, "language_code": EN, "depth": depth})
+    result, cost = backend.call(SERP_TOOL, {"keyword": keyword, "location_code": US, "language_code": EN, "depth": depth})
     rows = [{"url": i["url"], "title": i.get("title") or "", "position": i.get("rank_absolute") or i.get("rank_group")}
             for i in result.get("items") or [] if i.get("type") == "organic" and i.get("url")]
     cache.put(key, rows)
@@ -105,7 +105,7 @@ def volumes(keywords: list[str], fresh: bool) -> tuple[dict[str, dict], int]:
     missing = [k for k in keywords if k not in out]
     if not missing:
         return out, 0
-    result, cost = aisa.call(VOLUME_TOOL, {"keywords": missing, "location_code": US, "language_code": EN})
+    result, cost = backend.call(VOLUME_TOOL, {"keywords": missing, "location_code": US, "language_code": EN})
     for item in result.get("items") or []:
         info, props = item.get("keyword_info") or {}, item.get("keyword_properties") or {}
         out[item["keyword"]] = {"volume": info.get("search_volume") or 0, "kd": props.get("keyword_difficulty")}

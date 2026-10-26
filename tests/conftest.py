@@ -14,7 +14,7 @@ from backlink_guard import vet
 @pytest.fixture(autouse=True)
 def state(tmp_path, monkeypatch):
     monkeypatch.setenv("BACKLINK_GUARD_STATE", str(tmp_path))
-    for name in ("GOANYAPI_API_KEY", "AISA_API_KEY"):
+    for name in ("GOANYAPI_API_KEY", "AISA_API_KEY", "GLASSER_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(vet.aisa, "key", lambda: "")
     monkeypatch.setattr(vet.signals, "entity", lambda domain: "")        # no call to Google in tests

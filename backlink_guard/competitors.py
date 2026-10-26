@@ -5,17 +5,17 @@ The point is earned links. The directories, lists and articles that cover your f
 so the people who run them are the ones to tell about what you make: submit where it fits, ask to be added to a list,
 offer an author what the page lacks. Nothing here is a link to buy.
 
-From AIsa's backlink data, at about $0.024 a call plus $0.000036 a row (seen 2026-10-20):
+From the backlink data (Glasser or AIsa), at about $0.024 a call plus $0.000036 a row (seen 2026-10-20, the same on both):
 - each competitor's referring domains first seen in the last --days days, strongest first: one call each;
 - which of those already link to you: one call for all of them;
-- the link intersect: AIsa's domain intersection in its "partial" mode, with your domain excluded. Its page
+- the link intersect: the domain intersection in its "partial" mode, with your domain excluded. Its page
   says each row links to all the targets; tried on 2026-10-20 with three, partial mode returned the domains linking
   to two or three of them (86 in all), so one call covers "two or more";
 - one linking page for each site shown: one call per competitor that has any.
 --max-usd caps the run (budget.py).
 
 Left out, and named: your site and the competitors themselves when they link to each other; the sites on the shared
-spam-link list; the sites whose links to the competitor score 50 or more for spam (each row of AIsa's lists
+spam-link list; the sites whose links to the competitor score 50 or more for spam (each row of the lists
 carries it; vet counts a site's own score from 50); and NETWORK_MIN or more sites whose linking pages share one title,
 each site's own name taken out (vet.templates): one network's template, not places that chose to cover the field. On
 2026-10-20, 86 of one competitor's 100 newest referring domains were such pages, all scoring 45 or 55, against 0 to
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from . import aisa, blocklist, find, page
+from . import aisa, backend, blocklist, find, page
 from .budget import Budget, OverBudget
 from .vet import SPAM_SCORE_HIGH, templates
 
@@ -33,14 +33,14 @@ REFERRING = "backlinks/referring_domains/live"      # AIsa's passthrough: the to
 INTERSECTION = "backlinks/domain_intersection/live"
 BACKLINKS = "backlinks/backlinks/live"
 DAYS = 7
-LIMIT = 100             # referring domains read from each list; AIsa's most is 1,000
+LIMIT = 100             # referring domains read from each list; the most is 1,000
 ROWS_MAX = 1000
 SHOWN = 25              # sites a table shows
 LOOKED_UP = 2 * SHOWN   # sites a linking page is looked up for: one call per competitor whatever their number, and a
                         # network's pages taken out of a table (12 of one competitor's first 25 on 2026-10-20) leave
                         # sites with pages to show
 MAX_USD = 0.30          # three competitors cost about $0.20 at most
-RIVALS_MAX = 20         # the most targets AIsa's intersection takes
+RIVALS_MAX = 20         # the most targets the intersection takes
 CALL = 24_000           # micro-USD a backlinks call costs before its rows (20 rows: $0.0247, 2026-10-20)
 ROW = 36                # micro-USD a row
 NETWORK_MIN = 3         # sites sharing one linking-page title that make a network
@@ -67,7 +67,7 @@ def new_domains(rival: str, start: str, limit: int, budget: Budget, fresh: bool)
     body = {"target": rival, "limit": limit, "order_by": ["rank,desc"], "backlinks_status_type": "live",
             "filters": [["first_seen", ">=", start]]}
     data, _ = budget.ask(f"aisa:refdomains-new:{rival}:{start}:{limit}", estimate(limit),
-                         lambda: aisa.rest(REFERRING, body), fresh, f"the new referring domains of {rival}")
+                         lambda: backend.rest(REFERRING, body), fresh, f"the new referring domains of {rival}")
     rows = [site_row(i["domain"], i.get("rank"), i.get("first_seen") or "", [rival], i.get("backlinks_spam_score"))
             for i in (data or {}).get("items") or [] if i.get("domain")]
     return rows, int((data or {}).get("total_count") or len(rows))
@@ -81,7 +81,7 @@ def linking_you(own: str, hosts: list[str], budget: Budget, fresh: bool) -> set[
         return set()
     body = {"target": own, "limit": len(asked), "backlinks_status_type": "live", "filters": [["domain", "in", asked]]}
     data, _ = budget.ask(f"aisa:refdomains-of:{own}:{','.join(asked)}", estimate(len(asked)),
-                         lambda: aisa.rest(REFERRING, body), fresh, f"which of them already link to {own}")
+                         lambda: backend.rest(REFERRING, body), fresh, f"which of them already link to {own}")
     return {page.registrable(i["domain"]) for i in (data or {}).get("items") or [] if i.get("domain")}
 
 
@@ -105,7 +105,7 @@ def intersect(own: str, rivals: list[str], limit: int, budget: Budget, fresh: bo
     body = {"targets": {str(i + 1): r for i, r in enumerate(rivals)}, "exclude_targets": [own],
             "intersection_mode": "partial", "limit": limit, "backlinks_status_type": "live"}
     data, _ = budget.ask(f"aisa:intersect:{own}:{','.join(rivals)}:{limit}", estimate(limit),
-                         lambda: aisa.rest(INTERSECTION, body), fresh, "the link intersect")
+                         lambda: backend.rest(INTERSECTION, body), fresh, "the link intersect")
     rows = [r for r in (shared_row(i, rivals) for i in (data or {}).get("items") or []) if r]
     return rows, int((data or {}).get("total_count") or len(rows))
 
@@ -123,7 +123,7 @@ def examples(rival: str, hosts: list[str], budget: Budget, fresh: bool) -> dict[
     body = {"target": rival, "mode": "one_per_domain", "limit": len(asked), "backlinks_status_type": "live",
             "filters": [["domain_from", "in", asked]]}
     data, _ = budget.ask(f"aisa:examples:{rival}:{','.join(asked)}", estimate(len(asked)),
-                         lambda: aisa.rest(BACKLINKS, body), fresh, f"the linking pages of {rival}")
+                         lambda: backend.rest(BACKLINKS, body), fresh, f"the linking pages of {rival}")
     found: dict[str, dict] = {}
     for i in (data or {}).get("items") or []:
         found.setdefault(page.registrable(i.get("url_from") or ""), {

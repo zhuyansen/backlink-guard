@@ -354,7 +354,8 @@ def test_without_keys_the_page_checks_still_run(monkeypatch):
     monkeypatch.setattr(vet, "read_site", lambda url: read_of("Dofollow backlink for $39."))
     monkeypatch.setattr(vet, "first_seen", lambda d: "")
     result = vet.vet(["dir.example"], today=TODAY)
-    assert result["rows"][0]["grade"] == "ok" and result["sources"] == {"goanyapi": False, "aisa": False, "free": False}
+    assert result["rows"][0]["grade"] == "ok" and result["sources"] == {"goanyapi": False, "glasser": False, "aisa": False,
+                                                                           "deep": False, "free": False}
     from backlink_guard import report
     text = report.vet(result)
     assert "No `GOANYAPI_API_KEY`" in text and "not Google's judgment" in text
@@ -791,6 +792,7 @@ def test_deep_numbers_from_ahrefs_dataforseo_and_semrush(monkeypatch):
         if name == signals.MENTIONS_TOOL:
             return {"total": {"platform": [{"key": "chat_gpt", "mentions": 910}]}}, 101000
         return call(name, body)
+    monkeypatch.setattr(signals.aisa, "key", lambda: "k")
     monkeypatch.setattr(signals.aisa, "tool", tool)
     monkeypatch.setattr(signals.aisa, "call", mentions)
     got, cost, errors = signals.deep("x.dev", TODAY, lambda q, fn: fn())

@@ -11,10 +11,11 @@
 - Entity: whether Google's Knowledge Graph knows the site and as what ("Website", "Company",
   "AI agent"), from Google Trends' suggestions (free). Real publications and brands are
   entities; link networks rarely are.
-- With --deep, three more (Ahrefs and others through AIsa; they draw on AIsa's media
-  credits while an account has them): Ahrefs' Domain Rating as a second rating ($0.08), the
-  site's technology ($0.012), and how often ChatGPT's answers mention it ($0.10). Semrush's
-  organic keywords and traffic come from AIsa's pay-as-you-go balance ($0.001).
+- With --deep, three more: Ahrefs' Domain Rating as a second rating ($0.08, through AIsa; it
+  draws on AIsa's media credits while an account has them), the site's technology ($0.012) and
+  how often ChatGPT's answers mention it ($0.10), both through Glasser or AIsa. Semrush's
+  organic keywords and traffic come from AIsa's pay-as-you-go balance ($0.001). Glasser does
+  not sell Ahrefs or Semrush: without an AIsa key those two are left out, and the report says so.
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta
 
-from . import UA, aisa, goanyapi
+from . import UA, aisa, backend, goanyapi
 from .policy import flag
 
 REREGISTERED_GAP = 365          # days between the first archived copy and the current registration
@@ -134,19 +135,29 @@ def semrush(domain: str) -> tuple[dict, int]:
     return {"semrush_keywords": to_int(rows[0].get("Organic Keywords")), "semrush_traffic": to_int(rows[0].get("Organic Traffic"))}, cost
 
 
+def mentions(answer: dict | None) -> int:
+    """ChatGPT mentions, from either shape of the answer: AIsa's aggregated-metrics tool gives
+    {"total": {"platform": [...]}}, the target-metrics endpoint Glasser sells {"aggregated_metrics": {"platform": [...]}}."""
+    answer = answer or {}
+    rows = ((answer.get("total") or {}).get("platform") or ((answer.get("aggregated_metrics") or {}).get("platform")) or [])
+    return sum(int(x.get("mentions") or 0) for x in rows)
+
+
 def deep(domain: str, today: date, ask) -> tuple[dict, int, list[str]]:
     """Ahrefs' rating, the site's technology, ChatGPT mentions and Semrush's organic numbers.
-    `ask(question, fn)` is vet.paid bound to the cache: each is bought once."""
+    `ask(question, fn)` is vet.paid bound to the cache: each is bought once. Ahrefs and Semrush only
+    with an AIsa key: Glasser does not sell them."""
     metrics, cost, errors = {}, 0, []
-    steps = [
-        ("ahrefs", lambda: aisa.tool(AHREFS_TOOL, {"target": domain, "date": (today - timedelta(days=1)).isoformat()}),
-         lambda d: {"ahrefs_dr": ((d or {}).get("domain_rating") or {}).get("domain_rating")}),
-        ("technology", lambda: aisa.call(TECH_TOOL, {"target": domain}),
+    on_aisa = bool(aisa.key())
+    ahrefs = ("ahrefs", lambda: aisa.tool(AHREFS_TOOL, {"target": domain, "date": (today - timedelta(days=1)).isoformat()}),
+              lambda d: {"ahrefs_dr": ((d or {}).get("domain_rating") or {}).get("domain_rating")})
+    steps = ([ahrefs] if on_aisa else []) + [
+        ("technology", lambda: backend.call(TECH_TOOL, {"target": domain}),
          lambda d: {"tech": sorted({name for group in ((d or {}).get("technologies") or {}).values()
                                     for names in (group or {}).values() for name in names or []})}),
-        ("AI mentions", lambda: aisa.call(MENTIONS_TOOL, {"target": [{"domain": domain}], "platform": "chat_gpt",
-                                                          "location_code": 2840, "language_code": "en"}),
-         lambda d: {"ai_mentions": sum(int(x.get("mentions") or 0) for x in (((d or {}).get("total") or {}).get("platform") or []))}),
+        ("AI mentions", lambda: backend.call(MENTIONS_TOOL, {"target": [{"domain": domain}], "platform": "chat_gpt",
+                                                             "location_code": 2840, "language_code": "en"}),
+         lambda d: {"ai_mentions": mentions(d)}),
     ]
     for name, fetch, read in steps:
         try:
@@ -154,10 +165,12 @@ def deep(domain: str, today: date, ask) -> tuple[dict, int, list[str]]:
             metrics.update(read(data))
             cost += spent
         except aisa.AisaError as exc:
-            if "no result" in str(exc).lower():     # AIsa knows nothing of the site: zero, not a failure
+            if "no result" in str(exc).lower():     # the index knows nothing of the site: zero, not a failure
                 metrics.update(read({}))
             else:
                 errors.append(f"{name}: {exc}")
+    if not on_aisa:
+        return metrics, cost, errors
     try:
         more, spent = ask(f"semrush:{domain}", lambda: semrush(domain))
         metrics.update(more)

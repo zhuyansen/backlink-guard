@@ -1,6 +1,6 @@
 """Has the site lost its Google search traffic before, and when?
 
-AIsa's monthly estimate of each site's US Google organic traffic and ranking keywords:
+The monthly estimate (Glasser or AIsa) of each site's US Google organic traffic and ranking keywords:
 one call for every site of a run, about $0.12 a call plus $0.0012 a site (seen
 2026-10-14). The months run from January 2022: that December the whole database moved, seven
 in ten sites "falling" more than 60% in one month.
@@ -21,7 +21,7 @@ from __future__ import annotations
 from datetime import date
 from statistics import median
 
-from . import aisa, cache, updates
+from . import backend, cache, updates
 from .policy import flag
 
 TOOL = "post_dataforseo_labs_google_historical_bulk_traffic_live"
@@ -39,7 +39,7 @@ SCALED_RATIO = 1000             # pages listed for each keyword the site ranks f
 
 
 def months(item: dict) -> dict:
-    """{"2026-09": [traffic, keywords]} from one AIsa history item."""
+    """{"2026-09": [traffic, keywords]} from one history item."""
     return {f"{p['year']}-{p['month']:02d}": [p.get("etv") or 0, p.get("count") or 0]
             for p in (item.get("metrics") or {}).get("organic") or []}
 
@@ -52,7 +52,7 @@ def series(domains: list[str], fresh: bool) -> tuple[dict, int]:
     missing, cost = [d for d in wanted if d not in data], 0
     for i in range(0, len(missing), MAX_TARGETS):
         asked = missing[i:i + MAX_TARGETS]
-        result, spent = aisa.call(TOOL, {"targets": asked, "location_code": US, "language_code": "en",
+        result, spent = backend.call(TOOL, {"targets": asked, "location_code": US, "language_code": "en",
                                          "date_from": START, "item_types": ["organic"]})
         cost += spent
         got = {item["target"]: months(item) for item in result.get("items") or []}
@@ -104,7 +104,7 @@ def flags_for(monthly: dict, level: dict, today: date, known: list[dict]) -> tup
     year, month = map(int, last["month"].split("-"))
     age = (today.year - year) * 12 + today.month - month
     near = updates.around(last["month"], known)
-    text = (f"US Google, AIsa estimate: about {last['before']:,} search visits a month before {last['month']},"
+    text = (f"US Google, {backend.name()} estimate: about {last['before']:,} search visits a month before {last['month']},"
             f" {last['after']:,} after; ranking keywords {last['keywords'][0]:,} to {last['keywords'][1]:,}"
             + (f". Google updates around then: {'; '.join(near)}" if near else "")
             + (f". Earlier falls: {', '.join(f['month'] for f in found[:-1])}" if len(found) > 1 else ""))
@@ -122,7 +122,7 @@ def scaled(pages: int | None, words: int | None, lang: str | None) -> list[dict]
     if per < SCALED_RATIO:
         return []
     return [flag("scaled_pages", f"its sitemaps list {pages:,} or more pages; it ranks for {words:,} keywords on US Google "
-                                 f"(AIsa), about {round(per):,} pages for each")]
+                                 f"({backend.name()}), about {round(per):,} pages for each")]
 
 
 def check(rows: list[dict], today: date, known: list[dict], fresh: bool) -> int:

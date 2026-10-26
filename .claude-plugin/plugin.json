@@ -1,6 +1,6 @@
 {
   "name": "backlink-guard",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies.",
   "author": { "name": "zhuyansen" },
   "homepage": "https://github.com/zhuyansen/backlink-guard",

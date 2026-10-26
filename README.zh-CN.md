@@ -15,7 +15,7 @@ pip install backlink-guard
 backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上[两个 key](#key) 会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
+需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上 [key](#key)（GoAnyAPI，加 Glasser 或 AIsa）会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
 
 2026-10-13、14 两天配齐两个 key 的检查结果：
 
@@ -79,7 +79,7 @@ python -m backlink_guard find "claude skills" "claude code skills" "agent skills
 
 ## 竞品挣到的外链：competitors
 
-已经在写你竞品的站，就是最该告诉他们你在做什么的站。`competitors` 对每个竞品列出 AIsa 最近 7 天第一次看到的来源域名（已经链向你的会拿掉），再列出链向两个及以上竞品、却没链向你的站（链接交集）。每个站都附上一个链过去的页面、它是哪类页面，以及在那里能正当做什么。
+已经在写你竞品的站，就是最该告诉他们你在做什么的站。`competitors` 对每个竞品列出最近 7 天第一次被发现的来源域名（已经链向你的会拿掉），再列出链向两个及以上竞品、却没链向你的站（链接交集）。每个站都附上一个链过去的页面、它是哪类页面，以及在那里能正当做什么。
 
 ```bash
 backlink-guard competitors yoursite.example --vs competitor-a.example competitor-b.example competitor-c.example
@@ -98,9 +98,9 @@ backlink-guard competitors yoursite.example --vs competitor-a.example competitor
 > |---|---|---|---|---|---|
 > | compare.example | competitor-a.example, competitor-b.example | 25 | 2026-10-09 | [Best Claude skills marketplaces compared](https://compare.example/compare/claude-skills-marketplaces/) | list |
 
-会拿掉并在最后列出：[共享垃圾外链名单](https://github.com/zhuyansen/backlink-spam-list)上的站，垃圾分 50 及以上的链接（AIsa 返回的每一行都带这个分），以及链接页面标题相同的三个及以上的站（同一个站群的模板），并附上填好的举报链接。2026-10-20 实测，一个竞品最新的 100 个来源域名里有 86 个是这种页面。Rank 是该站的链接传给竞品的权重（AIsa 的 0 到 1,000）；First seen 是 AIsa 爬虫发现这条链接的时间。
+会拿掉并在最后列出：[共享垃圾外链名单](https://github.com/zhuyansen/backlink-spam-list)上的站，垃圾分 50 及以上的链接（返回的每一行都带这个分），以及链接页面标题相同的三个及以上的站（同一个站群的模板），并附上填好的举报链接。2026-10-20 实测，一个竞品最新的 100 个来源域名里有 86 个是这种页面。Rank 是该站的链接传给竞品的权重（外链库的 0 到 1,000）；First seen 是外链库的爬虫发现这条链接的时间。
 
-链接交集只要一次调用：AIsa 的 domain intersection 用 partial 模式，返回链向其中至少两个站的域名（它的文档写的是全部，实测是两个及以上）。每次调用约 $0.025，N 个竞品 2N + 2 次：2026-10-20 三个竞品花了 $0.20。`--max-usd` 给一次运行封顶（默认 $0.30）：只有预估还放得下才调用，7 天内缓存过的免费，封顶没问的会在报告里写明。花时间之前先 vet 一下这个站；绝不为传权重的链接付钱。
+链接交集只要一次调用：domain intersection 用 partial 模式，返回链向其中至少两个站的域名（它的文档写的是全部，实测是两个及以上）。每次调用约 $0.025，N 个竞品 2N + 2 次：2026-10-20 三个竞品花了 $0.20。`--max-usd` 给一次运行封顶（默认 $0.30）：只有预估还放得下才调用，7 天内缓存过的免费，封顶没问的会在报告里写明。花时间之前先 vet 一下这个站；绝不为传权重的链接付钱。
 
 ## AI 回答从哪来：cited
 
@@ -144,8 +144,8 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 
 | 信号 | 怎么查 | 数据来源 | 成本 |
 |---|---|---|---|
-| `find`：排在你关键词上的页面，按它们从这些搜索得到的访客排序，并标出页面类型 | 每个词的 Google 前 30 和月搜索量 | AIsa | 每词 $0.005，另加 $0.012 |
-| `--topic`：对方站在你的关键词上排第几，页面里有没有写到它 | 同一次搜索；对方的页面 | AIsa、网站本身 | 每词 $0.005 |
+| `find`：排在你关键词上的页面，按它们从这些搜索得到的访客排序，并标出页面类型 | 每个词的 Google 前 30 和月搜索量 | Glasser 或 AIsa | 每词 $0.005，另加 $0.012 |
+| `--topic`：对方站在你的关键词上排第几，页面里有没有写到它 | 同一次搜索；对方的页面 | Glasser 或 AIsa、网站本身 | 每词 $0.005 |
 | 打不开，或域名已停放、过期 | 读首页；完全没有响应的，5 秒后再试一次 | 网站本身 | 免费 |
 | 出售传权重的链接或文章 | 首页、提交页、价格页里，价格旁边出现 dofollow、guest post、link insertion 等字样 | 网站本身 | 免费 |
 | 有招客座稿、赞助文章的页面（只作提示），首页没链到也能找到 | 用 Google 搜它的「write for us」和投稿指南页 | GoAnyAPI | $0.002 |
@@ -158,17 +158,19 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 | 域名过期后被人重新注册：第一份存档比现在的注册日期早一年以上、注册在三年内、月访问不到 10 万 | 第一份存档对比访问量接口里带的注册日期 | archive.org、GoAnyAPI | 随访问量一起，免费 |
 | 评分，以及没人访问的高评分（30 分以上、月访问不到 5,000） | 域名评分（DR） | GoAnyAPI | $0.002 |
 | 触达，以及访问量是否骤降 | 12 个月的逐月访问量；一个月内的骤降要等后一个月仍没回升才算（发生在最新一个月的只作提示），并和那段时间的 Google 更新并排列出 | GoAnyAPI、Google 状态页 | $0.004 |
-| Google 搜索流量掉了大半、一直没回来，最早查到 2022 年（一年内的标 caution，更早的标 note） | 逐月的美国 Google 流量和排名关键词数；两者一起跌、连续两个月不回升才算，并用同一次调用里十二个大站做基准校正；和那段时间的 Google 更新并排列出 | AIsa、Google 状态页 | 每批 $0.12，另加每站 $0.0012 |
+| Google 搜索流量掉了大半、一直没回来，最早查到 2022 年（一年内的标 caution，更早的标 note） | 逐月的美国 Google 流量和排名关键词数；两者一起跌、连续两个月不回升才算，并用同一次调用里十二个大站做基准校正；和那段时间的 Google 更新并排列出 | Glasser 或 AIsa、Google 状态页 | 每批 $0.12，另加每站 $0.0012 |
 | Google 是否还收录 | `site:` 搜索；只对访问量很小的站查；查两次都为空才算，两个来源都报错时隔几秒再查一次，报错绝不当成「没收录」 | GoAnyAPI，失败时转 AIsa | $0.004–0.01 |
-| 该站自身外链的垃圾分，50 分起算 | 一批站一次调用 | AIsa | 每批 $0.025 |
+| 该站自身外链的垃圾分，50 分起算 | 一批站一次调用 | Glasser 或 AIsa | 每批 $0.025 |
 | 在共享的垃圾外链来源库里，每条附公开证据（[backlink-spam-list](https://github.com/zhuyansen/backlink-spam-list)） | 名单每次运行读一次、缓存一天；在库里的站不再做付费检查 | GitHub | 免费 |
 | 以卖外链为业（标题里写着 PBN、DR/DA 套餐） | 页面标题 | 网站本身 | 免费 |
-| 页面成千上万、几乎没有排名：规模化的低价值内容（只判英文站） | 对方自己 sitemap 里的页面数（每个文件最多读 1.5 MB，所以是下限）对比它在美国 Google 上排名的关键词数 | 网站本身；AIsa | 随搜索历史一起，免费 |
-| `--deep`：徽章站群（每个被收录的站给它几百条链接，大多在页脚，几乎全是 dofollow；月访问 10 万以上的站不判），或没有根基的新站（不到一年、来源域名不到 100、月访问不到 1,000） | 外链概况 | AIsa | 每站 $0.024 |
-| 它挂的收款链接（Stripe、Gumroad、Lemon Squeezy、Polar、Creem、Dodo、Paddle）同时出现在几十个和它长得一样的站上：通过这条链接卖外链的站群，或被注入到被黑网站里的赌博、色情产品。卖家本人和只是引用这个产品的站不会被标。`--deep` 还会找出它内页上的收款链接（站群都挂在内页） | 外链数据，另读那些站的首页拿标题 | AIsa | 每条收款链接约 $0.02；`--deep` 每站另加约 $0.05 |
+| 页面成千上万、几乎没有排名：规模化的低价值内容（只判英文站） | 对方自己 sitemap 里的页面数（每个文件最多读 1.5 MB，所以是下限）对比它在美国 Google 上排名的关键词数 | 网站本身；Glasser 或 AIsa | 随搜索历史一起，免费 |
+| `--deep`：徽章站群（每个被收录的站给它几百条链接，大多在页脚，几乎全是 dofollow；月访问 10 万以上的站不判），或没有根基的新站（不到一年、来源域名不到 100、月访问不到 1,000） | 外链概况 | Glasser 或 AIsa | 每站 $0.024 |
+| 它挂的收款链接（Stripe、Gumroad、Lemon Squeezy、Polar、Creem、Dodo、Paddle）同时出现在几十个和它长得一样的站上：通过这条链接卖外链的站群，或被注入到被黑网站里的赌博、色情产品。卖家本人和只是引用这个产品的站不会被标。`--deep` 还会找出它内页上的收款链接（站群都挂在内页） | 外链数据，另读那些站的首页拿标题 | Glasser 或 AIsa | 每条收款链接约 $0.02；`--deep` 每站另加约 $0.05 |
 | `--recent`：它不断加的新页面 Google 收不收 | 近一周、近一月的 `site:` 搜索，结果为 0 要查两次，并对照它自己的 sitemap | GoAnyAPI | 每站 $0.008 |
 
-查自己的域名（`audit`）：外链总量、有多少来源域名传权重（GoAnyAPI），每周新增和丢失的来源域名，逐条读最多 1,000 条外链、每个锚文本背后有几个来源域名、全站链接（AIsa），给你链接的站各自的垃圾分，以及同一个人运营的来源域名（读它们的首页，免费）。`lost` 用同一批外链，找出它们指向的、你已经不存在或跳转得不好的页面。
+「Glasser 或 AIsa」指配了哪个用哪个，两个都配时用 Glasser：两家转售的是同样的接口、同样的价格，只有两种搜索不同，`find` 的搜索（Glasser 每词 $0.006，AIsa $0.005）和 `cited` 的搜索（最多 $0.006，AIsa $0.004）。Glasser 不卖的还走 AIsa：GoAnyAPI 失败时顶上的 `site:` 搜索、`--deep` 里的 Ahrefs 评分和 Semrush 数据，以及 `questions` 和 `asked` 的全部调用。见 [Key](#key)。
+
+查自己的域名（`audit`）：外链总量、有多少来源域名传权重（GoAnyAPI），每周新增和丢失的来源域名，逐条读最多 1,000 条外链、每个锚文本背后有几个来源域名、全站链接（Glasser 或 AIsa），给你链接的站各自的垃圾分，以及同一个人运营的来源域名（读它们的首页，免费）。`lost` 用同一批外链，找出它们指向的、你已经不存在或跳转得不好的页面。
 
 ## 自己的外链：audit 和 lost
 
@@ -187,7 +189,7 @@ backlink-guard audit yoursite.example
 | YourSite | 13 | 13 |
 | best csv tool | 4 | 4 |
 
-`audit` 还会读每个来源域名的首页（免费，最多 300 个，`--homes` 可改，0 表示不读），像 `vet` 一样找它接的统计和广告账号：AdSense、Google Analytics、Tag Manager、Clarity、Facebook 像素、Cloudflare Web Analytics。同一个账号上有三个及以上的站、其中至少两个链向你，就是同一个人的站群：它的链接是同一个人投的票（只算一个来源），而专门用来发链接的站群正是 Google 垃圾政策描述的做法。这些账号会和之前查到的站群记在一起，以后 vet 别的站也会对上；共享名单里已经有一半成员时，报告会附上其余站的举报链接。读到的外链里来源域名少于 `--homes` 时（有个站最强的 1,000 条外链只来自 29 个来源域名），会再用 AIsa 的来源域名列表补足，300 个约 $0.035。
+`audit` 还会读每个来源域名的首页（免费，最多 300 个，`--homes` 可改，0 表示不读），像 `vet` 一样找它接的统计和广告账号：AdSense、Google Analytics、Tag Manager、Clarity、Facebook 像素、Cloudflare Web Analytics。同一个账号上有三个及以上的站、其中至少两个链向你，就是同一个人的站群：它的链接是同一个人投的票（只算一个来源），而专门用来发链接的站群正是 Google 垃圾政策描述的做法。这些账号会和之前查到的站群记在一起，以后 vet 别的站也会对上；共享名单里已经有一半成员时，报告会附上其余站的举报链接。读到的外链里来源域名少于 `--homes` 时（有个站最强的 1,000 条外链只来自 29 个来源域名），会再用来源域名列表（Glasser 或 AIsa）补足，300 个约 $0.035。
 
 > ⚠️ **Several sites linking to you report to one analytics or ads account: one owner's network, whose links count as one source.** 24 referring domains in 1 network: cloudflare:0a1b2c3d… on poker-casino.example, crime-news.example, mirror.example …, 26 links. Count each network as one source _(Google: Using automated programs or services to create links to your site)_
 
@@ -240,15 +242,15 @@ backlink-guard log
 backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 ```
 
-在克隆下来的仓库里，用 `python -m backlink_guard` 效果一样。提交记录、付费结果（保留 7 天）和查到过的站群，都存在 `~/.backlink-guard`；如果是在克隆目录里运行、且里面已经有 `./state`，就继续用它。设置 `BACKLINK_GUARD_STATE` 可以换位置。
+在克隆下来的仓库里，用 `python -m backlink_guard` 效果一样。提交记录、付费结果（保留 7 天）和查到过的站群，都存在 `~/.backlink-guard`；如果是在克隆目录里运行、且里面已经有 `./state`，就继续用它。设置 `BACKLINK_GUARD_STATE` 可以换位置。Glasser key 是 0.9.0 新加的：0.9.0 上 PyPI 之前，用 `pip install git+https://github.com/zhuyansen/backlink-guard` 从 GitHub 安装。
 
 - **find**：每个词 $0.005，另加 $0.012 查搜索量；`--vet` 再加上检查找到的站的费用。`--site` 排除自己的站，`--skip` 排除竞品。
-- **vet**：每个站约 $0.01，另加每批约 $0.16（垃圾分和搜索历史），一批查一个站和查三十个站这部分一样，所以想查的站一次一起查；`--topic` 多一列：每个站在你的关键词上排第几（每词 $0.005）；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。`--deep` 加查对方自己的外链画像（每站 $0.024），并找它内页上的收款链接（约 $0.05，每找到一条再加 $0.02）；`--recent` 查 Google 收不收它的新页面（每站 $0.008，较慢：GoAnyAPI 的搜索调用要 10 到 120 秒）。付费购买位置前两项都用上。`--referrals` 读你的统计导出（GA4「流量获取」按会话来源导出的 CSV），多一列：每个站给你带来过多少访问。检查中发现名单上没有的站群时，报告最后会附上一个已经填好的举报链接。
+- **vet**：每个站约 $0.01，另加每批约 $0.16（垃圾分和搜索历史），一批查一个站和查三十个站这部分一样，所以想查的站一次一起查；`--topic` 多一列：每个站在你的关键词上排第几（每词 $0.005）；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。`--deep` 每站约多花 $0.19：对方自己的外链画像（$0.024）、建站技术（$0.012）、ChatGPT 回答里提到它的次数（$0.10），以及它内页上的收款链接（约 $0.05，每找到一条再加 $0.02）；配了 AIsa 还会查 Ahrefs 评分（$0.08）和 Semrush 数据（$0.001）；`--recent` 查 Google 收不收它的新页面（每站 $0.008，较慢：GoAnyAPI 的搜索调用要 10 到 120 秒）。付费购买位置前两项都用上。`--referrals` 读你的统计导出（GA4「流量获取」按会话来源导出的 CSV），多一列：每个站给你带来过多少访问。检查中发现名单上没有的站群时，报告最后会附上一个已经填好的举报链接。
 - **competitors**：每次调用约 $0.025，N 个竞品 2N + 2 次（三个约 $0.20）。`--days` 设定多少天内算新（7），`--limit` 设定每份列表读多少个来源域名（100，最多 1,000），`--max-usd` 设定一次最多花多少（$0.30）；缓存过的免费，封顶没问的会写明。
-- **cited**：每个词 $0.002，概览晚加载的 $0.004；`--max-usd` 封顶（$0.10）。
+- **cited**：走 AIsa 每个词 $0.002，概览晚加载的 $0.004；走 Glasser 是 $0.004 和 $0.006；`--max-usd` 封顶（$0.10）。
 - **questions**：三家一共约 $0.01；`--count` 设定每家写几个（10），`--plain` 只输出问题，方便存成文件。
 - **asked**：ChatGPT 和 AI Mode 每个回答 $0.004，Perplexity 约 $0.006，Claude 和 Gemini 约 $0.045（2026-10-21）：ChatGPT 和 Perplexity 各问两次，每个问题约 $0.12。`--samples` 让每家都问这么多次，`--engines` 选问哪几家，`--name` 加上回答里可能用来称呼你的名字。`--rank` 每个搜索词在 Google 和 Bing 上各 $0.0035（2026-10-26）。`--max-usd` 给整轮封顶（$1.00）：出现次数最多的搜索词先查，封顶没查的会写明。
-- **audit**：约 $0.12，加 `--deep`（完整锚文本分布）约 $0.16。其中约 $0.06 是逐条读 1,000 条外链（`--rows` 可以少读：2026-10-18 读 100 条花了 $0.028）。没有 AIsa key 时，用 GoAnyAPI 给的前 20 个来源页面代替。另外免费读最多 300 个来源域名的首页找共用账号（`--homes` 可改，0 不读）；读到的外链里来源域名不够时，再补一次来源域名列表，约 $0.035。
+- **audit**：约 $0.12，加 `--deep`（完整锚文本分布）约 $0.16。其中约 $0.06 是逐条读 1,000 条外链（`--rows` 可以少读：2026-10-18 读 100 条花了 $0.028）。没有 Glasser 或 AIsa key 时，用 GoAnyAPI 给的前 20 个来源页面代替。另外免费读最多 300 个来源域名的首页找共用账号（`--homes` 可改，0 不读）；读到的外链里来源域名不够时，再补一次来源域名列表，约 $0.035。
 - **lost**：用同一批外链，同一个站 7 天内跑过 `audit` 就不再花钱，否则约 $0.06；询问你的页面（会跳转的逐跳跟下去）、读你的 sitemap 都免费。
 - **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。只有那三个 rel 值会拦住权重，`noopener`、`external` 不会。每条链接还会标出位置，从它外层的元素读出来：`body text`（正文）、`main area`（主区域）、`header`、`navigation`、`sidebar`、`footer`、`comments`、`author box`。传权重的链接如果只在页脚、侧边栏或导航里，会单独提示：Google 把大范围分发的页脚、模板和小部件链接列为链接垃圾的例子，编辑放在正文里的链接分量更重。
 - **log**：你的提交记录，存在 `ledger.jsonl`；一周超过五个、或同一个锚文本反复用时会提醒。
@@ -256,14 +258,15 @@ backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 
 ## Key
 
-两个都是可选的。不配也能跑页面检查，报告会写明哪些没查。
+都是可选的。不配也能跑页面检查，报告会写明哪些没查。
 
 - **`GOANYAPI_API_KEY`**（[goanyapi.com](https://goanyapi.com/r/ga-95708898fb)）：评分、访问量、收录情况、你自己的外链概况。
-- **`AISA_API_KEY`**（[aisa.one](https://go.aisa.one/yansen-zhu)），或 `aisa login`：垃圾分、每周新增和丢失的来源域名、锚文本、竞品的来源域名、Google 的 AI 概览、AI 助手的回答和它们搜索词的结果。
+- **`GLASSER_API_KEY`**（[glasser.ai](https://link.glasser.ai/JasonZhu)），首选：垃圾分、Google 搜索历史、每周新增和丢失的来源域名、锚文本、逐条读你的外链、竞品的来源域名、Google 的 AI 概览。
+- **`AISA_API_KEY`**（[aisa.one](https://go.aisa.one/yansen-zhu)），或 `aisa login`：同样这些，没有 Glasser key 时用它；另外这几样只有 AIsa 有：AI 助手的回答和它们搜索词的结果（`questions`、`asked`）、`--deep` 里的 Ahrefs 评分和 Semrush 数据、GoAnyAPI 失败时顶上的 `site:` 搜索。只配 Glasser 时，`--deep` 不查 Ahrefs 和 Semrush，报告会写明。
 
-> 这两个都是推荐链接：通过它们注册等于支持这个项目。直接去官网拿 key，工具用起来完全一样。
+> 这三个都是推荐链接：通过它们注册等于支持这个项目。直接去官网拿 key，工具用起来完全一样。
 
-两家是有意重叠的。测试当天 GoAnyAPI 的搜索接口全天返回 502，收录检查自动转到 AIsa，整轮照常跑完。
+几家是有意重叠的。测试当天 GoAnyAPI 的搜索接口全天返回 502，收录检查自动转到 AIsa，整轮照常跑完。
 
 ## 它默认你遵守的规则
 
@@ -302,7 +305,7 @@ skill 带着 agent 按同样的顺序走：先查、守规则、验收、审计�
 - 拦截陌生客户端的站读不到页面信号，报告里写「被拦」。
 - 由脚本后加的链接，`verify` 看不到。
 - `lost` 最多读最强的 1,000 条外链；页面不存在却返回 200（软 404）的，它会当成还在。建议只比路径、不比内容：跳转前先看一眼那个页面。soft-lost 也一样：改了名、路径差别大的页面，看过之前都会被判成 soft-lost。
-- `competitors` 只看得到 AIsa 爬虫发现过的：First seen 是发现链接的时间，可能晚于链接本身。链接页面按主域名和 www. 去查，只从别的子域名链过去的站会查不到页面。标题不同、垃圾分低于 50 的站群页面会留在列表里：花时间之前先 vet。
+- `competitors` 只看得到外链库爬虫发现过的：First seen 是发现链接的时间，可能晚于链接本身。链接页面按主域名和 www. 去查，只从别的子域名链过去的站会查不到页面。标题不同、垃圾分低于 50 的站群页面会留在列表里：花时间之前先 vet。
 - `cited` 只读一次美国英文结果：AI 概览随日期、地点和搜索的人而变。
 - `asked` 通过各家的 API 提问（ChatGPT 走它自己的界面）：美国英文、没有历史和记忆，不等于登录用户看到的回答。同一个问题每次答案都会变，要看反复出现的。Gemini 通过 Google 的跳转链接引用，所以只知道它引用了哪些站，不知道具体页面。
 - `--rank` 只读一次 Google 和 Bing 的美国英文结果。它们代表 AI 助手搜索用的索引，但每家 AI 都有自己的一套。2026-10-26 AIsa 的 Google 结果对 67 个搜索词里的 21 个返回了「Internal SE Server Error.」：失败的词会再问一次，两次都失败的算「失败」，绝不算成「你不在结果里」。

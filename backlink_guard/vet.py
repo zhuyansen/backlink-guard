@@ -2,11 +2,11 @@
 
 For each target the check reads the site itself (free), then, when the keys are set,
 asks GoAnyAPI for its rating, a year of visits and whether Google still lists it, and
-AIsa for the spam score of its own backlink profile. Each finding carries the text or
-the numbers it came from, so a person can check it.
+Glasser or AIsa for the spam score of its own backlink profile. Each finding carries the
+text or the numbers it came from, so a person can check it.
 
 Cost with both keys: about $0.01 a target (GoAnyAPI) plus about $0.025 for the whole
-batch (AIsa). Without keys the page checks still run.
+batch (Glasser or AIsa). Without keys the page checks still run.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from statistics import mean
 
-from . import UA, aisa, blocklist, cache, checkout, find, goanyapi, history, page, seen, signals, updates
+from . import UA, aisa, backend, blocklist, cache, checkout, find, glasser, goanyapi, history, page, seen, signals, updates
 from .policy import action, flag, grade, policy_risk, ranked, risk, value
 
 WORKERS = 4
@@ -274,7 +274,8 @@ def paid(source: str, question: str, ask, fresh: bool):
 def index_count(domain: str, fresh: bool) -> tuple[int, int]:
     """How many results Google has for site:domain, and the cost. GoAnyAPI first ($0.004);
     when it fails (its search endpoints answered 502 all day on 2026-10-13) the question goes
-    to AIsa ($0.01: a query with a search operator costs five times a plain one)."""
+    to AIsa ($0.01: a query with a search operator costs five times a plain one). Not to Glasser:
+    it does not sell searches with operators such as site: (refused as invalid input, 2026-10-26)."""
     try:
         data, cost = paid("goanyapi", f"site:{domain}", lambda: goanyapi.call("google-site-search", site=domain), fresh)
         return int(data.get("siteCount") or len(data.get("organic") or [])), cost
@@ -389,7 +390,7 @@ def recent_flags(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict
 
 
 def link_profile(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict], int]:
-    """AIsa's backlink summary for the site ($0.024) -> (metrics, flags, cost).
+    """The backlink summary for the site (Glasser or AIsa, $0.024) -> (metrics, flags, cost).
 
     Tested on 2026-10-14 against Ahrefs' own SPAM mark on 90 sites that link to one young site
     (33 marked). External data reproduces that mark only up to a cross-validated AUC of about 0.75,
@@ -400,7 +401,7 @@ def link_profile(domain: str, today: date, fresh: bool) -> tuple[dict, list[dict
       unproven       23 hits, 17 marked: under a year in the index, under 100 linking sites, under
                      1,000 visits a month. The unmarked hits look no better.
     """
-    result, cost = paid("aisa", f"summary:{domain}", lambda: aisa.call(SUMMARY_TOOL, {
+    result, cost = paid("aisa", f"summary:{domain}", lambda: backend.call(SUMMARY_TOOL, {
         "target": domain, "include_subdomains": True, "backlinks_status_type": "live"}), fresh)
     rd = result.get("referring_domains") or 0
     places = result.get("referring_links_semantic_locations") or {}
@@ -424,7 +425,7 @@ def profile_flags(m: dict, today: date) -> list[dict]:
                           f"{round(m['nofollow_domain_share'] * 100)}% of linking sites nofollow"))
     age = (today - date.fromisoformat(m["indexed_since"])).days if m["indexed_since"] else None
     if (age is None or age < UNPROVEN_DAYS) and m["referring_domains"] < UNPROVEN_DOMAINS:
-        flags.append(flag("unproven", f"in AIsa's backlink index for {age if age is not None else 'no'} days, "
+        flags.append(flag("unproven", f"in {backend.name()}'s backlink index for {age if age is not None else 'no'} days, "
                           f"{m['referring_domains']} linking sites"))
     return flags
 
@@ -483,7 +484,7 @@ def spam_scores(domains: list[str], fresh: bool) -> tuple[dict[str, int], int]:
     missing = [d for d in domains if d not in scores]
     if not missing:
         return scores, 0
-    result, cost = aisa.call(SPAM_TOOL, {"targets": missing})
+    result, cost = backend.call(SPAM_TOOL, {"targets": missing})
     for item in result.get("items") or []:
         scores[item["target"]] = item.get("spam_score")
         cache.put(f"aisa:spam:{item['target']}", item.get("spam_score"))
@@ -521,7 +522,7 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
     if paid_sources and settled:
         return {**t, "title": read["parsed"]["title"][:120], "flags": flags, "metrics": metrics, "cost": cost,
                 "errors": errors, "skipped": settled}
-    if paid_sources and aisa.key():
+    if paid_sources and backend.key():
         metrics["pages_listed"] = pages_listed(t["domain"])   # weighed against its rankings in history.check
     if paid_sources and goanyapi.key():
         more, found, spent, failed = market(t["domain"], known, fresh, traffic)
@@ -533,7 +534,7 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
             flags, cost = flags + ([note] if note else []), cost + spent
         except goanyapi.GoAnyError as exc:
             errors.append(f"guest posts: {exc}")
-    if paid_sources and aisa.key():
+    if paid_sources and backend.key():
         found, spent, failed = checkout.shared(read, page.site(t["url"]), lambda q, fn: paid("aisa", q, fn, fresh), SPAM_WORDS,
                                                deep=deep)
         flags, cost, errors = flags + found, cost + spent, errors + failed
@@ -543,7 +544,7 @@ def vet_one(raw: str, paid_sources: bool, today: date, known: list[dict], fresh:
             more, found, spent, failed = recent_flags(t["domain"], today, fresh)
             metrics.update(more)
             flags, cost, errors = flags + found, cost + spent, errors + failed
-    if deep and paid_sources and aisa.key():
+    if deep and paid_sources and backend.key():
         more, spent, failed = signals.deep(t["domain"], today, lambda q, fn: paid("aisa", q, fn, fresh))
         metrics.update(more)
         cost, errors = cost + spent, errors + failed
@@ -635,7 +636,7 @@ def finalize(r: dict, batch_failed: tuple[str, ...] = ()) -> dict:
     if visits >= REACH_HIGH:            # github.com and pypi.org have the badge profile: every project links them
         flags = [f for f in flags if f["flag"] != "badge_network"]
     if (m.get("spam_score") or 0) >= SPAM_SCORE_HIGH:
-        flags.append(flag("spam_score", f"{m['spam_score']} of 100 (AIsa)"))
+        flags.append(flag("spam_score", f"{m['spam_score']} of 100 ({m.get('spam_by') or 'AIsa'})"))
     r["flags"], r["reach"], r["missing"] = ranked(flags), reach(m), missing(r, batch_failed)
     r["grade"], r["risk"] = grade(r["flags"]), risk(r["flags"])
     r["policy"], r["value"] = policy_risk(r["flags"]), value(r["flags"], r["reach"])
@@ -650,7 +651,7 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given.
     `referrals` ({site: visits} from your own analytics) adds what each site has sent you: a reach no estimate gives."""
     today = today or date.today()
-    known = updates.ranking_updates() if paid_sources and (goanyapi.key() or aisa.key()) else []
+    known = updates.ranking_updates() if paid_sources and (goanyapi.key() or backend.key()) else []
     try:
         listed, unread = blocklist.load(fresh), []
     except (OSError, ValueError) as exc:
@@ -659,7 +660,7 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
         rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics, listed), targets))
     cost, errors = sum(r["cost"] for r in rows), unread + [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
     live, scores, failed = [r for r in rows if not r.get("skipped")], {}, []
-    if paid_sources and aisa.key() and live:
+    if paid_sources and backend.key() and live:
         try:
             scores, spent = spam_scores(sorted({r["domain"] for r in live}), fresh)
             cost += spent
@@ -680,13 +681,15 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
     groups = shared_templates(rows, store["templates"]) + shared_owners(rows, store["ids"])
     for r in rows:
         r["metrics"]["spam_score"] = scores.get(r["domain"])
+        if r["metrics"]["spam_score"] is not None:
+            r["metrics"]["spam_by"] = backend.name()      # named in its finding; a saved row keeps who said it
         if referrals is not None:
             r["metrics"]["sent_you"] = referrals.get(r["domain"], 0)
         finalize(r, () if r.get("skipped") else tuple(failed))
     errors += remember(rows, store, today)
     return {"rows": rows, "cost": cost, "errors": errors, "networks": blocklist.unlisted(groups, rows, None if unread else listed, today),
-            "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "aisa": bool(paid_sources and aisa.key()),
-                        "free": not paid_sources}}
+            "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "glasser": bool(paid_sources and glasser.key()),
+                        "aisa": bool(paid_sources and aisa.key()), "deep": bool(paid_sources and deep), "free": not paid_sources}}
 
 
 def remember(rows: list[dict], store: dict, today: date) -> list[str]:
