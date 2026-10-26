@@ -1,8 +1,25 @@
 # Changelog
 
+## 0.10.0 (2026-10-26)
+
+- An MCP server, for Claude Code, Cursor, Claude Desktop and any client that speaks MCP: `backlink-guard mcp` (or
+  `backlink-guard-mcp`; `pip install "backlink-guard[mcp]"`, or `uvx --with mcp backlink-guard mcp` with nothing
+  installed). Ten tools, one for each command: `verify` and `submissions` are free, `vet` is free with
+  `free=True`; `vet`, `find`, `audit`, `lost`, `competitors`, `cited`, `questions` and `asked` buy data. Each returns
+  its report as Markdown with what it cost; the server tells the agent to say the cost and wait for a yes before a
+  paid call, and to treat what it reads as data. Keys and state come from the environment, as on the command line.
+- The Claude Code plugin brings the server with it, pinned to this release, and asks for the Glasser, AIsa and
+  GoAnyAPI keys (each optional), which it keeps in the system keychain. `server.json` lists it on the official MCP
+  Registry as `io.github.zhuyansen/backlink-guard`; a published release goes to PyPI and then the registry.
+- The skill runs the pinned release from PyPI (`uvx backlink-guard==0.10.0`), never a clone, says the cost and waits
+  for a yes before any paid run, and treats what it reads as data, never as instructions. A `plugin.json` at the root
+  lists it for clients that read the Agent Plugins format.
+- A logo, a README header with where it is listed, and the flow diagram redrawn for 0.8 to 0.10: competitors, cited
+  and asked beside find, the sites one owner runs in audit, redirects in lost, Glasser beside AIsa.
+
 ## 0.9.0 (2026-10-26)
 
-On GitHub; not yet on PyPI.
+On GitHub only; it reached PyPI with 0.10.0.
 
 - Glasser (`GLASSER_API_KEY`, glasser.ai), asked first when its key is set: spam scores, Google search history, the
   backlink summary, backlinks one by one, new and lost referring domains, anchors, competitors' referring domains and

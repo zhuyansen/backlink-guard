@@ -1,13 +1,15 @@
 {
   "name": "backlink-guard",
   "description": "Marketplace for the backlink-guard plugin",
-  "owner": { "name": "zhuyansen" },
+  "owner": {
+    "name": "zhuyansen"
+  },
   "plugins": [
     {
       "name": "backlink-guard",
       "source": "./",
-      "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies.",
-      "version": "0.9.0"
+      "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies. Also verifies a listing once it is live and audits your own backlinks.",
+      "version": "0.10.0"
     }
   ]
 }

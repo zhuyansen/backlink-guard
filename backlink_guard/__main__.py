@@ -14,6 +14,7 @@
   python -m backlink_guard log                                  the record, with pace and anchor checks
   python -m backlink_guard log add <site> --kind directory [--anchor TEXT] [--paid USD] [--url URL] [--note TEXT]
   python -m backlink_guard log set <site> --status live [--url URL]
+  python -m backlink_guard mcp                                  the MCP server on stdio (needs the `mcp` package)
 
 find    the pages that rank for your keywords (directories, lists, articles, videos,
         threads), sorted by the visitors they get from those searches, with what can be done
@@ -250,7 +251,21 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def serve_mcp() -> int:
+    """`backlink-guard mcp`: the stdio MCP server under the package's own name, so a client that only knows the
+    PyPI name can start it (`uvx --with mcp backlink-guard mcp`)."""
+    try:
+        from . import mcp_server
+    except ImportError:
+        print('The MCP server needs the `mcp` package: pip install "backlink-guard[mcp]"', file=sys.stderr)
+        return 1
+    mcp_server.main()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
+    if (sys.argv[1:] if argv is None else argv)[:1] == ["mcp"]:
+        return serve_mcp()
     args = parser().parse_args(argv)
     if args.command == "vet":
         targets = targets_of(args)

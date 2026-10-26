@@ -2,7 +2,8 @@ name: Publish
 
 # A published GitHub release goes to PyPI by trusted publishing, so no token is stored anywhere.
 # On PyPI, once: a pending publisher for the project backlink-guard, owner zhuyansen,
-# repository backlink-guard, workflow publish.yml, environment pypi.
+# repository backlink-guard, workflow publish.yml, environment pypi. The MCP Registry trusts the
+# same run through GitHub OIDC, for names under io.github.zhuyansen/.
 
 on:
   release:
@@ -25,7 +26,7 @@ jobs:
         run: |
           v=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
           test "v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME, but pyproject.toml says $v"; exit 1; }
-      - run: pip install build pytest
+      - run: pip install build pytest mcp
       - run: python -m pytest -q tests
       - run: python -m build
       - uses: actions/upload-artifact@v4
@@ -45,3 +46,27 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  registry:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      # The registry checks the package on PyPI (its README must carry the mcp-name
+      # line), and a new version takes a moment to appear there.
+      - name: Wait for the version on PyPI
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('server.json'))['version'])")
+          for i in $(seq 1 30); do
+            curl -fsS "https://pypi.org/pypi/backlink-guard/$VERSION/json" > /dev/null && exit 0
+            sleep 10
+          done
+          echo "backlink-guard $VERSION is not on PyPI after 5 minutes" && exit 1
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish

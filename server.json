@@ -1,0 +1,62 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.zhuyansen/backlink-guard",
+  "title": "backlink-guard",
+  "description": "Vet link sources before you submit, verify listings, and audit your backlinks for link spam.",
+  "repository": {
+    "url": "https://github.com/zhuyansen/backlink-guard",
+    "source": "github"
+  },
+  "version": "0.10.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "backlink-guard",
+      "version": "0.10.0",
+      "runtimeHint": "uvx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--with",
+          "value": "mcp",
+          "description": "backlink-guard itself has no dependencies; the server needs the MCP SDK."
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "description": "Start the MCP server on stdio."
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GLASSER_API_KEY",
+          "description": "Optional, the first choice for the paid checks: spam scores, search history, backlinks, competitors' links, AI Overviews.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "AISA_API_KEY",
+          "description": "Optional. The same checks without a Glasser key; the only source of questions, asked and --deep's Ahrefs and Semrush numbers.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GOANYAPI_API_KEY",
+          "description": "Optional. A site's rating, a year of visits and whether Google still lists it.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "BACKLINK_GUARD_STATE",
+          "description": "Optional. Absolute path to the directory that holds the log, the cache and the networks seen before.",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

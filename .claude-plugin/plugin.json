@@ -1,10 +1,59 @@
 {
   "name": "backlink-guard",
-  "version": "0.9.0",
-  "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies.",
-  "author": { "name": "zhuyansen" },
+  "version": "0.10.0",
+  "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies. Also verifies a listing once it is live and audits your own backlinks.",
+  "author": {
+    "name": "zhuyansen"
+  },
   "homepage": "https://github.com/zhuyansen/backlink-guard",
   "repository": "https://github.com/zhuyansen/backlink-guard",
   "license": "MIT",
-  "keywords": ["seo", "backlinks", "link-spam", "google-spam-policies", "agent-skills"]
+  "keywords": [
+    "seo",
+    "backlinks",
+    "link-spam",
+    "google-spam-policies",
+    "agent-skills",
+    "mcp"
+  ],
+  "mcpServers": {
+    "backlink-guard": {
+      "command": "uvx",
+      "args": [
+        "--with",
+        "mcp==2.3.0",
+        "backlink-guard==0.10.0",
+        "mcp"
+      ],
+      "env": {
+        "GLASSER_API_KEY": "${user_config.glasser_api_key}",
+        "AISA_API_KEY": "${user_config.aisa_api_key}",
+        "GOANYAPI_API_KEY": "${user_config.goanyapi_api_key}",
+        "BACKLINK_GUARD_STATE": "${CLAUDE_PLUGIN_DATA}/state"
+      }
+    }
+  },
+  "userConfig": {
+    "glasser_api_key": {
+      "type": "string",
+      "title": "Glasser API key",
+      "description": "The first choice for the paid checks: spam scores, Google search history, backlinks, competitors' links, AI Overviews. verify, submissions and vet with free=True work without any key. A key: https://link.glasser.ai/JasonZhu (referral link)",
+      "sensitive": true,
+      "default": ""
+    },
+    "aisa_api_key": {
+      "type": "string",
+      "title": "AIsa API key (optional)",
+      "description": "The same checks when there is no Glasser key, and the only source of questions, asked and --deep's Ahrefs and Semrush numbers. A key: https://go.aisa.one/yansen-zhu (referral link)",
+      "sensitive": true,
+      "default": ""
+    },
+    "goanyapi_api_key": {
+      "type": "string",
+      "title": "GoAnyAPI API key (optional)",
+      "description": "A site's rating, a year of visits and whether Google still lists it. A key: https://goanyapi.com/r/ga-95708898fb (referral link)",
+      "sensitive": true,
+      "default": ""
+    }
+  }
 }

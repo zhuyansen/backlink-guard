@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "backlink-guard",
+  "version": "0.10.0",
+  "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies. Also verifies a listing once it is live and audits your own backlinks.",
+  "author": {
+    "name": "zhuyansen"
+  },
+  "homepage": "https://github.com/zhuyansen/backlink-guard",
+  "repository": "https://github.com/zhuyansen/backlink-guard",
+  "license": "MIT",
+  "keywords": [
+    "seo",
+    "backlinks",
+    "link-spam",
+    "google-spam-policies",
+    "agent-skills",
+    "mcp"
+  ],
+  "skills": [
+    "./skills/backlink-guard/"
+  ]
+}

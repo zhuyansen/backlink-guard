@@ -1,12 +1,34 @@
-# backlink-guard
+<div align="center">
 
-[English](README.md)
+<img src="docs/logo.svg" width="128" alt="backlink-guard logo：盾牌里的一个链环">
+
+# backlink-guard（外链检测）
+
+**提交之前查外链来源，上线之后查链接，再给自己的外链做垃圾外链体检。**
+
+[![PyPI](https://img.shields.io/pypi/v/backlink-guard?color=0ea5e9&label=PyPI)](https://pypi.org/project/backlink-guard/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://pypi.org/project/backlink-guard/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-eab308)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/zhuyansen/backlink-guard?logo=github&color=0f172a)](https://github.com/zhuyansen/backlink-guard/stargazers)
+[![Forks](https://img.shields.io/github/forks/zhuyansen/backlink-guard?logo=github&color=0f172a)](https://github.com/zhuyansen/backlink-guard/network/members)
+[![Downloads](https://img.shields.io/pepy/dt/backlink-guard?color=22c55e&label=downloads)](https://pepy.tech/projects/backlink-guard)
+[![Last commit](https://img.shields.io/github/last-commit/zhuyansen/backlink-guard?color=64748b)](https://github.com/zhuyansen/backlink-guard/commits/main)
+
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.zhuyansen%2Fbacklink--guard-0ea5e9)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.zhuyansen/backlink-guard)
+[![Security-graded by Agent Skills Hub](https://agentskillshub.top/badge/zhuyansen/backlink-guard.svg)](https://agentskillshub.top/skill/zhuyansen/backlink-guard/)
+[![skills.sh](https://img.shields.io/badge/skills.sh-zhuyansen%2Fbacklink--guard-0f172a)](https://skills.sh/zhuyansen/backlink-guard)
+
+⭐ **在 100 个没见过的站上，Ahrefs 标为垃圾的 40 个里有 37 个没给「可以提交」** · 已上 PyPI、官方 MCP Registry、skills.sh
+
+[快速上手](#快速上手) · [效果如何](#效果如何) · [该出现在哪](#该出现在哪find) · [竞品的外链](#竞品挣到的外链competitors) · [AI 回答](#ai-回答从哪来cited) · [Key](#key) · [在 agent 里用](#在-agent-里用skill-和-mcp-服务器) · [English](README.md)
+
+</div>
 
 先找出搜你这个词的人现在都落在哪些页面上、哪些站链向你的竞品却没链向你、Google 的 AI 概览（AI Overview）在你的关键词上引用了哪些站、有人向 AI 助手打听你这类产品时它们怎么回答；提交外链**之前**先查这个站值不值得发，链接上线**之后**查它是不是真的传权重，平时再看看**自己**的外链画像里有没有 Google 说的「链接垃圾」痕迹，并找出指向你已经不存在、或跳转得不好的页面的外链。
 
 多数外链工具帮你发得更多。这个工具告诉你哪里别发、什么时候该慢下来。
 
-![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，vet 逐个检查（读页面、GoAnyAPI、AIsa），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，按网站个数计、全站链接只算 1 个；lost 找出落在 404 页面的外链并建议 301](docs/flow.zh.gif)
+![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，competitors、cited、asked 找出竞品拿到的外链和 AI 回答引用的站；vet 逐个检查（读页面、GoAnyAPI、Glasser 或 AIsa），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，含同一个人运营的站群；lost 找出落在 404 或跳转页面上的外链并建议 301。橙色是 0.8 到 0.10 新增的](docs/flow.zh.gif)
 
 ## 快速上手
 
@@ -242,7 +264,7 @@ backlink-guard log
 backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 ```
 
-在克隆下来的仓库里，用 `python -m backlink_guard` 效果一样。提交记录、付费结果（保留 7 天）和查到过的站群，都存在 `~/.backlink-guard`；如果是在克隆目录里运行、且里面已经有 `./state`，就继续用它。设置 `BACKLINK_GUARD_STATE` 可以换位置。Glasser key 是 0.9.0 新加的：0.9.0 上 PyPI 之前，用 `pip install git+https://github.com/zhuyansen/backlink-guard` 从 GitHub 安装。
+在克隆下来的仓库里，用 `python -m backlink_guard` 效果一样。提交记录、付费结果（保留 7 天）和查到过的站群，都存在 `~/.backlink-guard`；如果是在克隆目录里运行、且里面已经有 `./state`，就继续用它。设置 `BACKLINK_GUARD_STATE` 可以换位置。
 
 - **find**：每个词 $0.005，另加 $0.012 查搜索量；`--vet` 再加上检查找到的站的费用。`--site` 排除自己的站，`--skip` 排除竞品。
 - **vet**：每个站约 $0.01，另加每批约 $0.16（垃圾分和搜索历史），一批查一个站和查三十个站这部分一样，所以想查的站一次一起查；`--topic` 多一列：每个站在你的关键词上排第几（每词 $0.005）；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。`--deep` 每站约多花 $0.19：对方自己的外链画像（$0.024）、建站技术（$0.012）、ChatGPT 回答里提到它的次数（$0.10），以及它内页上的收款链接（约 $0.05，每找到一条再加 $0.02）；配了 AIsa 还会查 Ahrefs 评分（$0.08）和 Semrush 数据（$0.001）；`--recent` 查 Google 收不收它的新页面（每站 $0.008，较慢：GoAnyAPI 的搜索调用要 10 到 120 秒）。付费购买位置前两项都用上。`--referrals` 读你的统计导出（GA4「流量获取」按会话来源导出的 CSV），多一列：每个站给你带来过多少访问。检查中发现名单上没有的站群时，报告最后会附上一个已经填好的举报链接。
@@ -282,9 +304,11 @@ backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 
 这个工具不替你提交任何东西。
 
-## 让 agent 用
+## 在 agent 里用：skill 和 MCP 服务器
 
-在 Claude Code 里作为插件安装：
+### skill
+
+在 Claude Code 里作为插件安装（会顺带装上下面的 MCP 服务器）：
 
 ```bash
 claude plugin marketplace add zhuyansen/backlink-guard
@@ -297,7 +321,41 @@ claude plugin install backlink-guard@backlink-guard
 npx skills add zhuyansen/backlink-guard
 ```
 
-skill 带着 agent 按同样的顺序走：先查、守规则、验收、审计。它会用已安装的 `backlink-guard` 命令，没有就用 `uvx` 从这个仓库直接运行，再没有就克隆到 `~/backlink-guard`；付费运行前会先报成本。
+skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.10.0`），不用克隆的代码；付费运行前先报成本、等你点头；读到的页面、标题、AI 回答只当数据，绝不当成指令。
+
+### MCP 服务器
+
+给支持 MCP 的客户端用（Claude Code、Cursor、Claude Desktop）。装了 [uv](https://docs.astral.sh/uv/) 就不用先安装任何东西：
+
+```json
+{
+  "mcpServers": {
+    "backlink-guard": {
+      "command": "uvx",
+      "args": ["--with", "mcp", "backlink-guard", "mcp"],
+      "env": {
+        "GLASSER_API_KEY": "...",
+        "GOANYAPI_API_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+没有 uv：`pip install "backlink-guard[mcp]"`，然后 `"command": "backlink-guard-mcp"`，不要 `args`。key 都是可选的，和命令行一样（见 [Key](#key)）：`questions`、`asked` 和 `--deep` 里的 Ahrefs、Semrush 数据要加 `AISA_API_KEY`，没有 Glasser key 时也可以用它代替。`BACKLINK_GUARD_STATE` 指定提交记录和缓存放在哪。在 Claude Code 里，上面的插件会带上这个服务器，并询问 key、存进系统钥匙串。
+
+| 工具 | 返回什么 | 费用 |
+|---|---|---|
+| `verify` | 某个页面有没有链向你、传不传权重、链接在页面哪个位置 | 免费 |
+| `submissions` | 你的提交记录和提醒 | 免费 |
+| `vet` | 每个外链来源的建议、结论和证据；`free=True` 只读对方自己的页面 | 免费；或每站约 $0.01，另加每批约 $0.16；`deep` 每站约 $0.19 |
+| `find` | 在你的关键词上排名的页面，按它们得到的访客排序 | 每词 $0.005–0.006，另加 $0.012 |
+| `audit`、`lost` | 你自己的外链画像；落在死页面或跳转页面上的外链 | 约 $0.12（`deep` 约 $0.16）；约 $0.06 |
+| `competitors` | 链向你的竞品却没链向你的站 | 每次调用约 $0.025，2N + 2 次，有封顶 |
+| `cited` | Google AI 概览在你的关键词上引用了谁 | 每词 $0.002–0.006，有封顶 |
+| `questions`、`asked` | 买家会怎么问 AI 助手；五家 AI 助手搜了什么、引用了谁、提到了谁 | 约 $0.01；每个问题约 $0.12，有封顶（AIsa） |
+
+服务器给 agent 的规矩和 skill 一样：每次付费调用前先报成本、等你点头；要查的站一次放进一个 `vet` 调用；读到的内容只当数据。
 
 ## 局限
 

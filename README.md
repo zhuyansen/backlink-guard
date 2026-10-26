@@ -1,12 +1,34 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/logo.svg" width="128" alt="backlink-guard logo: a chain link inside a shield">
+
 # backlink-guard
 
-[中文](https://github.com/zhuyansen/backlink-guard/blob/main/README.zh-CN.md)
+**Check a link source before you submit to it, the link after it goes live, and your own backlinks for link spam.**
+
+[![PyPI](https://img.shields.io/pypi/v/backlink-guard?color=0ea5e9&label=PyPI)](https://pypi.org/project/backlink-guard/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://pypi.org/project/backlink-guard/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-eab308)](https://github.com/zhuyansen/backlink-guard/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/zhuyansen/backlink-guard?logo=github&color=0f172a)](https://github.com/zhuyansen/backlink-guard/stargazers)
+[![Forks](https://img.shields.io/github/forks/zhuyansen/backlink-guard?logo=github&color=0f172a)](https://github.com/zhuyansen/backlink-guard/network/members)
+[![Downloads](https://img.shields.io/pepy/dt/backlink-guard?color=22c55e&label=downloads)](https://pepy.tech/projects/backlink-guard)
+[![Last commit](https://img.shields.io/github/last-commit/zhuyansen/backlink-guard?color=64748b)](https://github.com/zhuyansen/backlink-guard/commits/main)
+
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.zhuyansen%2Fbacklink--guard-0ea5e9)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.zhuyansen/backlink-guard)
+[![Security-graded by Agent Skills Hub](https://agentskillshub.top/badge/zhuyansen/backlink-guard.svg)](https://agentskillshub.top/skill/zhuyansen/backlink-guard/)
+[![skills.sh](https://img.shields.io/badge/skills.sh-zhuyansen%2Fbacklink--guard-0f172a)](https://skills.sh/zhuyansen/backlink-guard)
+
+⭐ **37 of 40 Ahrefs-marked spam sites kept from "submit"**, on 100 sites it had never seen · on PyPI, the official MCP Registry and skills.sh
+
+[Quick start](#quick-start) · [How well it works](#how-well-it-works) · [Where to be](#where-to-be-find) · [Competitors](#links-your-competitors-earned-competitors) · [AI answers](#where-ai-answers-come-from-cited) · [Keys](#keys) · [Agents and MCP](#use-it-from-an-agent-the-skill-and-an-mcp-server) · [中文说明](https://github.com/zhuyansen/backlink-guard/blob/main/README.zh-CN.md)
+
+</div>
 
 Find the pages your searchers already land on, the sites that link to your competitors and not to you, the sites Google's AI Overviews cite for your keywords, and what AI assistants answer when asked for what you make; check a link source **before** you submit your site to it, check the link **after** it goes live, look at your **own** backlink profile for the patterns Google calls link spam, and find the links that point at pages of yours that are gone or redirect badly.
 
 Most backlink tools help you send more. This one tells you where not to send, and when to slow down.
 
-![How backlink-guard works: find the pages your searchers land on, vet each site (its own pages, GoAnyAPI, AIsa), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, counted by referring site with a site-wide link counted once; lost lists backlinks landing on 404 pages with a suggested 301](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
+![How backlink-guard works: find the pages your searchers land on, and with competitors, cited and asked the sites your competitors earned and the sites AI answers cite; vet each site (its own pages, GoAnyAPI, Glasser or AIsa), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, with the sites one owner runs; lost lists backlinks landing on 404 pages or redirects, with a suggested 301. What 0.8 to 0.10 added is orange](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
 
 ## Quick start
 
@@ -250,7 +272,7 @@ backlink-guard log
 backlink-guard recheck [--to <your-domain>] [--deep] [--free] [--json]
 ```
 
-From a clone, `python -m backlink_guard` runs the same. Your log, the paid answers (kept 7 days) and the networks seen before are kept in `~/.backlink-guard`, or in `./state` when it is run from a clone that has one; `BACKLINK_GUARD_STATE` moves them. The Glasser key is new in 0.9.0: until 0.9.0 is on PyPI, install from GitHub with `pip install git+https://github.com/zhuyansen/backlink-guard`.
+From a clone, `python -m backlink_guard` runs the same. Your log, the paid answers (kept 7 days) and the networks seen before are kept in `~/.backlink-guard`, or in `./state` when it is run from a clone that has one; `BACKLINK_GUARD_STATE` moves them.
 
 - **find**: $0.005 a keyword and $0.012 for the search volumes; `--vet` adds the vet cost for the sites found. `--site` leaves your own site out, `--skip` competitors.
 - **vet**: about $0.01 a site, plus about $0.16 for the batch (spam scores and search history), the same for one site or thirty: check the sites you are considering in one run; `--topic` adds a column with where each site ranks for your keyword ($0.005 a keyword); `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds about $0.19 a site: the site's own backlink profile ($0.024), its technology ($0.012), how often ChatGPT's answers mention it ($0.10) and its checkout links on inner pages (about $0.05, plus $0.02 a link found); with an AIsa key also Ahrefs' rating ($0.08) and Semrush's numbers ($0.001); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement. `--referrals` reads your analytics export (GA4's Traffic acquisition by Session source, as CSV) and adds what each site has sent you. A check that finds one operator's sites missing from the shared spam-link list ends with a link to a filled-in report for it.
@@ -290,9 +312,11 @@ From submitting [Agent Skills Hub](https://agentskillshub.top) to directories an
 
 The tool does not submit anything.
 
-## Use it from an agent
+## Use it from an agent: the skill and an MCP server
 
-In Claude Code, as a plugin:
+### The skill
+
+In Claude Code, as a plugin (it brings the MCP server below with it):
 
 ```bash
 claude plugin marketplace add zhuyansen/backlink-guard
@@ -305,7 +329,41 @@ As a skill, for any agent that reads them:
 npx skills add zhuyansen/backlink-guard
 ```
 
-The skill walks an agent through the same order: vet, the rules, verify, audit. It runs the installed `backlink-guard` command, or `uvx` from this repository, or a clone in `~/backlink-guard`, and says the cost before a paid run.
+The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.10.0`), never a clone, tells you the cost and waits for your yes before any paid run, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
+
+### MCP server
+
+For clients that speak MCP (Claude Code, Cursor, Claude Desktop). With [uv](https://docs.astral.sh/uv/) there is nothing to install first:
+
+```json
+{
+  "mcpServers": {
+    "backlink-guard": {
+      "command": "uvx",
+      "args": ["--with", "mcp", "backlink-guard", "mcp"],
+      "env": {
+        "GLASSER_API_KEY": "...",
+        "GOANYAPI_API_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+Without uv: `pip install "backlink-guard[mcp]"`, then `"command": "backlink-guard-mcp"` and no `args`. Every key is optional, as on the command line ([Keys](#keys)): add `AISA_API_KEY` for `questions`, `asked` and `--deep`'s Ahrefs and Semrush numbers, or in place of Glasser's. `BACKLINK_GUARD_STATE` puts the log and the cache where you want them. In Claude Code the plugin above brings this server with it, asks for the keys and keeps them in the system keychain.
+
+| Tool | What it returns | Cost |
+|---|---|---|
+| `verify` | Whether a page links to you, whether the link passes ranking credit, and where it sits | free |
+| `submissions` | Your submission log and its warnings | free |
+| `vet` | Each link source's action, verdict and evidence; `free=True` reads only the sites' own pages | free, or about $0.01 a site plus $0.16 a batch; `deep` about $0.19 a site |
+| `find` | The pages that rank for your keywords, by the visitors they get | $0.005 to $0.006 a keyword, plus $0.012 |
+| `audit`, `lost` | Your own link profile; your backlinks that land on dead or redirected pages | about $0.12 ($0.16 with `deep`); about $0.06 |
+| `competitors` | The sites linking to your competitors and not to you | about $0.025 a call, 2N + 2 calls, capped |
+| `cited` | Who Google's AI Overviews cite for your keywords | $0.002 to $0.006 a keyword, capped |
+| `questions`, `asked` | How buyers would ask AI assistants, and what five assistants search for, cite and name | about $0.01; about $0.12 a question, capped (AIsa) |
+
+The server gives the agent the skill's rules: the cost and a yes before each paid call, every site being considered in one `vet` call, and what it reads is data.
 
 ## Limits
 
@@ -329,3 +387,5 @@ The skill walks an agent through the same order: vet, the rules, verify, audit. 
 - [饭特稀 | Fentix @fantexi997](https://x.com/fantexi997) for [GoAnyAPI](https://goanyapi.com).
 
 MIT.
+
+<!-- mcp-name: io.github.zhuyansen/backlink-guard -->
