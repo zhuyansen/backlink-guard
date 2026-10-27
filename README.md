@@ -366,7 +366,7 @@ Without uv: `pip install "backlink-guard[mcp]"`, then `"command": "backlink-guar
 
 The server gives the agent the skill's rules: the cost and a yes before each paid call, every site being considered in one `vet` call, and what it reads is data.
 
-### Codex, TRAE and WorkBuddy
+### Codex, TRAE, WorkBuddy and DeepSeek Harness
 
 The same skill and server work in these agents too. Each starts the server with uvx, so [uv](https://docs.astral.sh/uv/) has to be installed.
 
@@ -395,6 +395,26 @@ trae-cn://trae.ai-ide/mcp-import?type=stdio&name=backlink-guard&config=eyJjb21tY
 A key left empty counts as no key.
 
 **WorkBuddy.** Put the JSON above in `~/.workbuddy/mcp.json`, or paste it under Plugins → MCP servers → Configure MCP.
+
+**DeepSeek Harness.** The skill: `npx skills add zhuyansen/backlink-guard -a codex` installs it in `.agents/skills` (with `-g`, in `~/.agents/skills`), where DeepSeek Harness looks too. The server goes in `~/.dsh/cordis.patch.yml` for every profile, or `~/.dsh/profiles/<name>/cordis.patch.yml` for one:
+
+```yaml
+- insert:
+    - id: backlink-guard
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: backlink-guard
+        transport: stdio
+        command: uvx
+        args: ['--with', 'mcp', 'backlink-guard', 'mcp']
+        env:
+          GLASSER_API_KEY: !!js process.env.GLASSER_API_KEY ?? ''
+          AISA_API_KEY: !!js process.env.AISA_API_KEY ?? ''
+          GOANYAPI_API_KEY: !!js process.env.GOANYAPI_API_KEY ?? ''
+        toolCallTimeoutMs: 600000
+```
+
+DeepSeek Harness does not pass the variables that look like keys on to a server, so the keys are named under `env`, read here from your environment. Keep the `?? ''`: without it a variable that is not set fails the entry's check and the server does not start; an empty key counts as no key. A tool gets 60 seconds unless `toolCallTimeoutMs` gives more. `dsh web --dump-config` prints the composed entry without starting anything. Tried with DeepSeek Harness 0.2.1-rc.2.
 
 ## Limits
 

@@ -358,7 +358,7 @@ skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守�
 
 服务器给 agent 的规矩和 skill 一样：每次付费调用前先报成本、等你点头；要查的站一次放进一个 `vet` 调用；读到的内容只当数据。
 
-### Codex、TRAE 和 WorkBuddy
+### Codex、TRAE、WorkBuddy 和 DeepSeek Harness
 
 同一个 skill 和服务器在这几个 agent 里也能用。它们都用 uvx 启动服务器，所以本机要先装 [uv](https://docs.astral.sh/uv/)。
 
@@ -387,6 +387,26 @@ trae-cn://trae.ai-ide/mcp-import?type=stdio&name=backlink-guard&config=eyJjb21tY
 没填的 key 当作没有。
 
 **WorkBuddy。** 把上面的 JSON 写进 `~/.workbuddy/mcp.json`，或者在侧边栏「插件」→ 右上角「MCP 服务器」→「配置 MCP」里粘贴。
+
+**DeepSeek Harness。** skill：`npx skills add zhuyansen/backlink-guard -a codex` 会装进 `.agents/skills`（加 `-g` 装进 `~/.agents/skills`），DeepSeek Harness 也读这两个目录。服务器写进 `~/.dsh/cordis.patch.yml`（所有 profile 都生效），或者 `~/.dsh/profiles/<名字>/cordis.patch.yml`（只对这一个 profile）：
+
+```yaml
+- insert:
+    - id: backlink-guard
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: backlink-guard
+        transport: stdio
+        command: uvx
+        args: ['--with', 'mcp', 'backlink-guard', 'mcp']
+        env:
+          GLASSER_API_KEY: !!js process.env.GLASSER_API_KEY ?? ''
+          AISA_API_KEY: !!js process.env.AISA_API_KEY ?? ''
+          GOANYAPI_API_KEY: !!js process.env.GOANYAPI_API_KEY ?? ''
+        toolCallTimeoutMs: 600000
+```
+
+DeepSeek Harness 不会把环境里像密钥的变量传给服务器，所以 key 要在 `env` 下面点名，这里从你的环境变量里读。`?? ''` 别删：不加的话，哪个变量没设，这一项就过不了检查，服务器根本不启动；空着的 key 当作没有。工具调用默认只给 60 秒，用 `toolCallTimeoutMs` 调大。`dsh web --dump-config` 会打印合成后的配置，不启动任何东西。用 DeepSeek Harness 0.2.1-rc.2 实测过。
 
 ## 局限
 
