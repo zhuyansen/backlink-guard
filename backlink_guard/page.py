@@ -7,6 +7,7 @@ is reported apart from `dead`.
 """
 from __future__ import annotations
 
+import http.client
 import re
 import socket
 import urllib.error
@@ -155,12 +156,17 @@ def _get(url: str) -> dict:
     out = {"url": url, "final": url, "status": 0, "html": "", "error": "", "blocked": False, "dead": False}
     try:
         with urllib.request.urlopen(_request(url), timeout=TIMEOUT) as res:
-            raw = res.read(MAX_BYTES)
-            out.update(status=res.status, final=res.geturl(), html=_decode(raw, res.headers.get_content_charset()))
+            out.update(status=res.status, final=res.geturl())
+            try:
+                raw = res.read(MAX_BYTES)
+            except http.client.IncompleteRead as exc:       # the answer broke off: what came is still the page
+                raw, out["error"] = exc.partial, "the answer broke off"
+            out.update(html=_decode(raw, res.headers.get_content_charset()))
     except urllib.error.HTTPError as exc:
         out.update(status=exc.code, final=exc.geturl() or url, error=f"HTTP {exc.code}", blocked=exc.code not in GONE,
                    dead=exc.code in GONE)
-    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError) as exc:
+    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError,
+            http.client.HTTPException) as exc:
         out.update(error=_reason(exc), dead=True)
     return out
 

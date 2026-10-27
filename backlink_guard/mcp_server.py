@@ -8,7 +8,8 @@ The command line's checks as tools, each returning its report as Markdown with w
   vet                   a link source before you submit; free=True reads the sites' own pages only, free.
   find                  the pages that rank for your keywords: where to be.
   audit, lost           your own link profile; your backlinks that land on dead or redirected pages.
-  competitors, cited    links your competitors earned and you lack; who Google's AI Overviews cite.
+  competitors, cited    links your competitors earned and you lack (early=True: their launch channels); who
+                        Google's AI Overviews cite.
   questions, asked      how buyers would ask AI assistants, and what the assistants search, cite and name.
 Everything else calls paid APIs, so the instructions tell the agent to say the cost and wait for a yes.
 
@@ -29,6 +30,7 @@ import io
 from . import asked as asking
 from . import cited as citing
 from . import competitors as rivals_of
+from . import early as earliest
 from . import find as finding
 from . import ledger, lost as losing, profile, report
 from . import verify as verification
@@ -89,24 +91,28 @@ def submissions() -> dict:
     return {"report_markdown": report.ledger(rows, flags), "entries": len(rows), "warnings": flags}
 
 
-def _vet(sites: list[str], deep: bool, free: bool, topics: list[str]) -> dict:
+def _vet(sites: list[str], deep: bool, free: bool, topics: list[str], newcomers: bool = False) -> dict:
     sites = list(dict.fromkeys(sites))
-    result = _quiet(vetting.vet, sites[:LIMIT], paid_sources=not free, deep=deep and not free, topics=tuple(topics))
+    result = _quiet(vetting.vet, sites[:LIMIT], paid_sources=not free, deep=deep and not free, topics=tuple(topics),
+                    newcomers=newcomers)
     rows = [{"site": r["domain"], "action": r.get("action"), "verdict": r.get("grade"), "reach": r.get("reach"),
              "risk": r.get("risk")} for r in result["rows"]]
     return _answer(result, report.vet(result), sites=rows, checked=len(rows), left_out=sites[LIMIT:])
 
 
 @server.tool()
-async def vet(sites: list[str], deep: bool = False, free: bool = False, topics: list[str] | None = None) -> dict:
+async def vet(sites: list[str], deep: bool = False, free: bool = False, topics: list[str] | None = None,
+              newcomers: bool = False) -> dict:
     """Check link sources (directories, lists, guest-post sites) before submitting to them: each gets an action (skip,
     look first, free only, low value, submit), a verdict (avoid, caution, ok) and the evidence for each finding.
 
     sites: domains or URLs, 30 at most a call; put every site being considered in one call. free=True reads the
     sites' own pages only: free. Otherwise paid: about 0.01 USD a site plus about 0.16 USD for the batch (spam
     scores and search history), the same for one site or thirty. deep adds about 0.19 USD a site (0.27 with an
-    AIsa key). topics: keywords to see where each site ranks for them (about 0.005 USD a keyword)."""
-    return await asyncio.to_thread(_vet, sites, deep, free, topics or [])
+    AIsa key). topics: keywords to see where each site ranks for them (about 0.005 USD a keyword). newcomers: also
+    read each site's newest sitemap pages and date the sites they link to, to answer whether it still takes new
+    sites; free, but 20 to 60 seconds a site."""
+    return await asyncio.to_thread(_vet, sites, deep, free, topics or [], newcomers)
 
 
 def _find(keywords: list[str], site: str) -> dict:
@@ -151,18 +157,31 @@ async def lost(domain: str) -> dict:
     return await asyncio.to_thread(_lost, domain)
 
 
-def _competitors(domain: str, rivals: list[str], days: int, limit: int, max_usd: float) -> dict:
-    result = _quiet(rivals_of.competitors, domain, rivals, days=days, limit=limit, max_usd=max_usd)
+def _competitors(domain: str, rivals: list[str], days: int, limit: int, max_usd: float | None, early: bool = False,
+                 vetted: int = 10) -> dict:
+    if early:
+        result = _quiet(earliest.early, domain, rivals, vetted=vetted,
+                        max_usd=earliest.MAX_USD if max_usd is None else max_usd)
+        return _answer(result, report.early(result), checklist=len(result["checklist"]))
+    result = _quiet(rivals_of.competitors, domain, rivals, days=days, limit=limit,
+                    max_usd=rivals_of.MAX_USD if max_usd is None else max_usd)
     return _answer(result, report.competitors(result))
 
 
 @server.tool()
-async def competitors(domain: str, rivals: list[str], days: int = 7, limit: int = 100, max_usd: float = 0.30) -> dict:
+async def competitors(domain: str, rivals: list[str], days: int = 7, limit: int = 100, max_usd: float | None = None,
+                      early: bool = False, vetted: int = 10) -> dict:
     """Links the user's competitors earned and the user lacks: each rival's referring domains first seen in the
     last `days` days, and the sites linking to two or more rivals but not to the user, each with a linking page and
     what to do there. Paid: about 0.025 USD a call, 2N + 2 calls for N rivals (three: about 0.20 USD), never more
-    than max_usd."""
-    return await asyncio.to_thread(_competitors, domain, rivals, days, limit, max_usd)
+    than max_usd (default 0.30).
+
+    early=True reads their earliest links instead, the channels each used at launch, which take a new site: each
+    rival's first 90 days against the user's site at the same age, the weeks that brought a burst, and the sites
+    two or more rivals got early that do not link to the user (a launch checklist), the first `vetted` of them
+    vetted free. Paid: about 0.06 USD a site, the user's included, plus a linking page call a rival: three rivals
+    about 0.35 USD, never more than max_usd (default 0.50). The free vets take a few minutes."""
+    return await asyncio.to_thread(_competitors, domain, rivals, days, limit, max_usd, early, vetted)
 
 
 def _cited(domain: str, keywords: list[str], max_usd: float) -> dict:

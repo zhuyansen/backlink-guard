@@ -9,7 +9,7 @@
       "name": "backlink-guard",
       "source": "./",
       "description": "Check a link source before you submit your site to it: skip, look first, free only or submit, with the evidence, against Google's link spam policies. Also verifies a listing once it is live and audits your own backlinks.",
-      "version": "0.10.1"
+      "version": "0.11.0"
     }
   ]
 }

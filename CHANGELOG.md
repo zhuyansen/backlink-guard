@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.11.0 (2026-10-27)
+
+- `competitors --early`: your competitors' earliest links, the channels they used at launch, which take a new site.
+  Each site's earliest 1,000 referring domains, lost ones too (one call, about $0.06; yours included): its launch
+  (the first archived copy, or the first referring domain when that came first or more than half a year later), how
+  many it had 30, 60 and 90 days on against you at the same age, the weeks that brought a burst with their sites,
+  and its first-90-day domains still live, followed and not site-wide (one site linking from its footer or
+  navigation, or from 100 pages or more: mostly the owner's other sites or partners, named apart). Then the launch
+  checklist: what two or more competitors got early and you lack, each with a linking page, the youngest
+  competitor it took and when, and a free vet of the first 10 (`--vet`). The cap is $0.50 unless `--max-usd` says
+  otherwise. On 2026-10-27, a site launched in February had 14, 21 and 26 referring domains at 30, 60 and 90 days;
+  of its first 26, 15 were still live, followed and not site-wide, 6 lost and 4 site-wide.
+- `vet --newcomers`: whether a link source still takes new sites, read off its 8 newest sitemap pages: the sites
+  they link to from their body, dated by registration (RDAP, one request every half second, a failure asked once
+  more) or, where the registry keeps no RDAP record, the first archived copy. Unknown, with the reason, when the
+  sitemaps carry no dates or the pages link through redirects or scripts. Free, 20 to 60 seconds a site; it informs
+  and does not change the verdict. In the MCP server: `vet(newcomers=True)`, `competitors(early=True)`.
+- A page whose answer breaks off is read up to the break (`http.client.IncompleteRead` got past `page.fetch`, which
+  says it never raises, and stopped a whole run); the Wayback and RDAP reads catch it too.
+
 ## 0.10.1 (2026-10-26)
 
 - The MCP server's failures reach the agent with their reason. mcp 2.x shows an agent only "Error executing tool

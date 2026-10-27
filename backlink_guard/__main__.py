@@ -1,11 +1,12 @@
 """backlink-guard: check a link source before you submit to it, and watch your own links.
 
   python -m backlink_guard find "<keyword>" [more ...] [--site yoursite.com] [--skip site|file] [--vet] [--limit 30] [--fresh] [--json]
-  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
+  python -m backlink_guard vet <site> [more ...] [--from list.xlsx|.csv|.md|.json] [--skip site|file] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--newcomers] [--free] [--fresh] [--json]
   python -m backlink_guard recheck [--to your-domain] [--deep] [--free] [--fresh] [--json]
   python -m backlink_guard audit <your-domain> [--deep] [--sitewide 20] [--rows 1000] [--homes 300] [--fresh] [--json]
   python -m backlink_guard lost <your-domain> [--sitewide 20] [--rows 1000] [--fresh] [--json]
   python -m backlink_guard competitors <your-domain> --vs <competitor> [more ...] [--days 7] [--limit 100] [--max-usd 0.30] [--fresh] [--json]
+  python -m backlink_guard competitors <your-domain> --vs <competitor> [more ...] --early [--vet 10] [--max-usd 0.50] [--fresh] [--json]
   python -m backlink_guard cited <your-domain> "<keyword>" [more ...] [--max-usd 0.10] [--fresh] [--json]
   python -m backlink_guard questions "<what you make>" [--count 10] [--plain] [--fresh] [--json]
   python -m backlink_guard asked <your-domain> ["<question>" ...] [--file questions.txt] [--name "Your Brand"]
@@ -25,6 +26,8 @@ vet     reads each site, and with keys asks for its rating, a year of visits and
         --topic adds where each site ranks for your keyword ($0.005 a keyword).
         --referrals reads your analytics export (GA4 Session source and Sessions) and shows
         what each site has sent you. A site its own pages put at avoid gets no paid check.
+        --newcomers reads each site's newest sitemap pages for the sites they link to and dates
+        them: whether it still takes new sites. Free, 20 to 60 seconds a site.
 recheck the sites in your log checked again and compared with the last look: what got
         worse, and with --to, whether your links are still there. Monthly is enough.
 audit   your own profile: totals, new and lost referring domains by week, anchors with their
@@ -42,6 +45,10 @@ competitors
         first seen in the last --days days, and the sites linking to two or more of them but not
         to you, each with a linking page and what to do there. About $0.025 a call: 2 competitors
         about $0.15, 3 about $0.20; --max-usd caps it (default $0.30).
+        --early: their earliest links instead, the channels they used at launch: each one's
+        first 90 days against yours at the same age, the weeks that brought a burst, and the sites
+        two or more of them got early and you lack (a launch checklist), the first --vet of them
+        vetted free. About $0.06 a site, yours included: 3 competitors about $0.35 (cap $0.50).
 cited   which sites Google's AI Overview cites for your keywords, whether you are one of them,
         and the sites cited most across them: the places to be mentioned on. $0.002 a keyword
         (up to $0.004); a keyword with no AI Overview is said so.
@@ -73,7 +80,7 @@ from pathlib import Path
 
 from . import find as finding
 from . import asked as asking
-from . import cited, competitors, ledger, links, lists, lost, owners, page, profile, recheck, report
+from . import cited, competitors, early, ledger, links, lists, lost, owners, page, profile, recheck, report
 from . import verify as verification
 from . import vet as vetting
 
@@ -113,6 +120,16 @@ def targets_of(args) -> list[str]:
     if len(found) > args.limit:
         print(f"{len(found)} sites found; checking the first {args.limit} (raise --limit to check more)", file=sys.stderr)
     return found[:args.limit]
+
+
+def cmd_competitors(args) -> int:
+    if args.early:
+        result = early.early(args.domain, args.vs, max_usd=early.MAX_USD if args.max_usd is None else args.max_usd,
+                             vetted=args.vet, fresh=args.fresh)
+        return _print(args, result, report.early(result))
+    result = competitors.competitors(args.domain, args.vs, days=args.days, limit=args.limit, fresh=args.fresh,
+                                     max_usd=competitors.MAX_USD if args.max_usd is None else args.max_usd)
+    return _print(args, result, report.competitors(result))
 
 
 def cmd_log(args) -> int:
@@ -195,6 +212,8 @@ def parser() -> argparse.ArgumentParser:
                    help="your keyword: shows where each site ranks for it (+$0.005 a keyword); repeatable")
     v.add_argument("--recent", action="store_true",
                    help="also ask whether Google took in the site's pages from the last week and month (+$0.008 a site, slow)")
+    v.add_argument("--newcomers", action="store_true",
+                   help="also read each site's newest sitemap pages: do they link to sites registered in the last half year? (free, slow)")
     v.add_argument("--referrals", metavar="FILE",
                    help="your analytics export of visitor sources (GA4 CSV: Session source, Sessions): shows what each site sent you")
     r = sub.add_parser("recheck", parents=[common])
@@ -225,8 +244,13 @@ def parser() -> argparse.ArgumentParser:
     k.add_argument("--days", type=int, default=competitors.DAYS, help=f"new means first seen in this many days (default {competitors.DAYS})")
     k.add_argument("--limit", type=int, default=competitors.LIMIT,
                    help=f"referring domains read from each list (default {competitors.LIMIT}, most {competitors.ROWS_MAX})")
-    k.add_argument("--max-usd", type=float, default=competitors.MAX_USD,
-                   help=f"spend at most this much on the run; cached answers are free (default {competitors.MAX_USD:.2f})")
+    k.add_argument("--early", action="store_true",
+                   help="their earliest referring domains instead: the first 90 days after each one's launch, against yours")
+    k.add_argument("--vet", type=int, default=early.VETTED, metavar="SITES",
+                   help=f"with --early: vet this many checklist sites free, with --newcomers (default {early.VETTED}; 0 skips it)")
+    k.add_argument("--max-usd", type=float, metavar="USD",
+                   help=f"spend at most this much on the run; cached answers are free (default {competitors.MAX_USD:.2f}, "
+                        f"with --early {early.MAX_USD:.2f})")
     t = sub.add_parser("cited", parents=[common], description=(
         "Which sites Google's AI Overview cites for each keyword (US, English), whether your domain is one of them and "
         "where you rank, then the sites cited most across the keywords: the places to be mentioned on. A keyword with no "
@@ -270,7 +294,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "vet":
         targets = targets_of(args)
         result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh, recent=args.recent, deep=args.deep,
-                             topics=tuple(args.topic), referrals=lists.referrals(args.referrals) if args.referrals else None)
+                             topics=tuple(args.topic), referrals=lists.referrals(args.referrals) if args.referrals else None,
+                             newcomers=args.newcomers)
         return _print(args, result, report.vet(result))
     if args.command == "recheck":
         result = recheck.run(own=args.to, paid_sources=not args.free, deep=args.deep, fresh=args.fresh)
@@ -285,9 +310,7 @@ def main(argv: list[str] | None = None) -> int:
         result = lost.lost(args.domain, fresh=args.fresh, rows=args.rows, sitewide=args.sitewide)
         return _print(args, result, report.lost(result))
     if args.command == "competitors":
-        result = competitors.competitors(args.domain, args.vs, days=args.days, limit=args.limit, max_usd=args.max_usd,
-                                         fresh=args.fresh)
-        return _print(args, result, report.competitors(result))
+        return cmd_competitors(args)
     if args.command == "cited":
         result = cited.cited(args.domain, args.keywords, max_usd=args.max_usd, fresh=args.fresh)
         return _print(args, result, report.cited(result))

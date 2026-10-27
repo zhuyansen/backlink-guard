@@ -6,6 +6,7 @@ backlink-guard runs on your machine: the command line, the skill and the MCP ser
 
 - The pages you ask it to check: a site's home, submit and pricing pages, its sitemaps, a page you want verified, and the redirects they lead to.
 - Public sources about those sites: the Wayback Machine's first copy (archive.org), the suggestions Google Trends gives for a site's name, Google's Search Status feed of ranking updates, and the shared list of spam link sources on GitHub ([backlink-spam-list](https://github.com/zhuyansen/backlink-spam-list)).
+- With `vet --newcomers` (and the free vets of `competitors --early`): a source's newest sitemap pages, and the public registration date of each site they link to (RDAP: rdap.org and the registry it points to).
 
 ## What it sends, and where
 

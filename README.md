@@ -125,6 +125,33 @@ Left out, and named at the end: the sites on the [shared spam-link list](https:/
 
 The intersect is one call: the domain intersection in its partial mode returns the domains linking to at least two of the sites given (its page says all of them; tried live, it is two or more). About $0.025 a call, 2N + 2 calls for N competitors: three competitors cost $0.20 on 2026-10-20. `--max-usd` caps a run ($0.30 unless set): a call is made only while its estimate still fits, answers cached in the last 7 days are free, and the report names what the cap left out. Vet a site before you spend time on it; never pay for a followed link.
 
+### Their earliest links: competitors --early
+
+Sorted by when the backlink index first found them, a competitor's referring domains begin with what it got in its first weeks: the directories, launch sites, lists and communities that took it when it was new, and take a new site still. The strong sites that link to it today mostly do not. `--early` reads that end of the list, for each competitor and for your own site:
+
+```bash
+backlink-guard competitors yoursite.example --vs competitor-a.example competitor-b.example --early
+```
+
+> | Site | Launched | 30 days | 60 days | 90 days | Now, all |
+> |---|---|---|---|---|---|
+> | **yoursite.example** (you) | 2026-03-08 (first archived copy) | 4 | 13 | 19 | 165 |
+> | competitor-a.example | 2026-02-17 (first archived copy) | 14 | 21 | 26 | 75 |
+>
+> ## Launch checklist: in the first 90 days of two or more of them, not linking to you
+>
+> | Site | Of | First seen | Rank | Linking page | Kind | Took a new site | Free vet |
+> |---|---|---|---|---|---|---|---|
+> | launchdir.example | competitor-a.example, competitor-b.example | 2026-05-06 | 0 | [Competitor A \| LaunchDir](https://launchdir.example/p/competitor-a) | directory | ✅ competitor-b.example at 31 days (2026-05-06) | 🆓 free only; 2/7 new |
+
+- **Launched**: the Wayback Machine's first copy, or the first referring domain when that came first, or more than half a year later (the domain sat unused before).
+- **The same age**: each site's referring domains 30, 60 and 90 days after its launch, lost ones counted, so you see the pace a site of your kind gets, not the profile it has built since. A week that brought five or more and three times its usual is named with its sites: launch week, as a rule, and the sites in it are the channels it used.
+- **Kept**: still live, followed and not site-wide. One site linking from its footer or navigation, or from 100 pages or more, is mostly the owner's other sites or a partner, not a channel: those are named apart, and the lost and nofollow-only ones counted. The spam-list, spam-score and template rules above apply.
+- **The checklist**: what two or more of them got early and you lack (with one competitor, its own list), each with a linking page. Took a new site: the youngest competitor it linked to, at that age; ✅ when that was in the last half year, so it still takes new sites. The first 10 get a free `vet` with `--newcomers`, which takes a minute or two (`--vet 0` skips it).
+- **Cost**: one call a site, yours included, for its earliest 1,000 referring domains (at most $0.06; $0.03 for a site with 165), and one call a competitor for linking pages: one competitor and you cost about $0.08 on 2026-10-27, three about $0.35 at most. `--max-usd` is $0.50 here unless set.
+
+The backlink index begins on 2019-01-15: for a competitor older than that, its earliest links there are the index's first crawl, and the report says so. Compare against competitors that launched near your own launch.
+
 ## Where AI answers come from: cited
 
 An AI Overview cites the pages it was written from. For each keyword, `cited` reads Google's first page with its AI Overview (US, English), says whether the overview cites your site and where you rank, and then counts the sites cited across all your keywords: the places where a mention gets you into the answer.
@@ -198,6 +225,7 @@ A verdict here is a set of signals a person can check. It is not Google's judgme
 | `--deep`: a badge network (hundreds of links from each listed site, most in footers, nearly all followed; not read on a site with 100,000 visits a month or more), or an unproven site (under a year old, under 100 linking sites, under 1,000 visits) | backlink summary | Glasser or AIsa | $0.024 a site |
 | A checkout link it carries (Stripe, Gumroad, Lemon Squeezy, Polar, Creem, Dodo, Paddle) also sits on dozens of sites built like it: a network selling links through it, or a gambling or adult product injected into hacked sites. Its seller and the sites that merely cite it are not flagged. `--deep` also finds the checkout links on its inner pages, where networks put them | backlinks, plus the other sites' home pages for their titles | Glasser or AIsa | about $0.02 a checkout link; with `--deep` about $0.05 more a site |
 | `--recent`: whether Google takes in the pages it keeps adding | `site:` search for the last week and month, each zero asked twice, checked against the site's own sitemap | GoAnyAPI | $0.008 a site |
+| `--newcomers`: whether it still takes new sites: how many of the sites its newest pages link to were registered in the half year before (informs, and does not change the verdict) | its 8 newest sitemap pages, the sites they link to from their body (not its navigation, footer or sidebar, nor what nearly every page links to); each one's registration, one request every half second, or its first copy where the registry keeps no RDAP record. Unknown, with the reason, when the sitemaps carry no dates or the pages link through redirects or scripts | the site, RDAP (rdap.org), archive.org | free, 20 to 60 seconds a site |
 
 Glasser or AIsa means whichever key is set, Glasser when both are: they resell the same endpoints at the same prices, but for two searches, `find`'s ($0.006 a keyword through Glasser, $0.005 through AIsa) and `cited`'s (up to $0.006 against $0.004). What Glasser does not sell stays on AIsa: the `site:` search that stands in when GoAnyAPI's fails, `--deep`'s Ahrefs rating and Semrush numbers, and everything `questions` and `asked` ask. See [Keys](#keys).
 
@@ -260,8 +288,9 @@ A site its own pages already put at avoid (dead, parked, a URL shortener, a netw
 
 ```bash
 backlink-guard find "<keyword>" [more ...] [--site yoursite.com] [--skip competitors.txt] [--vet] [--json]
-backlink-guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
+backlink-guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--newcomers] [--free] [--fresh] [--json]
 backlink-guard competitors <your-domain> --vs <competitor> [more ...] [--days 7] [--limit 100] [--max-usd 0.30] [--json]
+backlink-guard competitors <your-domain> --vs <competitor> [more ...] --early [--vet 10] [--max-usd 0.50] [--json]
 backlink-guard cited <your-domain> "<keyword>" [more ...] [--max-usd 0.10] [--json]
 backlink-guard questions "<what you make>" [--count 10] [--plain] [--json]
 backlink-guard asked <your-domain> ["<question>" ...] [--file questions.txt] [--name "Your Brand"] [--engines chatgpt,ai_mode,perplexity,claude,gemini] [--samples N] [--rank] [--max-usd 1.00] [--json]
@@ -277,7 +306,7 @@ From a clone, `python -m backlink_guard` runs the same. Your log, the paid answe
 
 - **find**: $0.005 a keyword and $0.012 for the search volumes; `--vet` adds the vet cost for the sites found. `--site` leaves your own site out, `--skip` competitors.
 - **vet**: about $0.01 a site, plus about $0.16 for the batch (spam scores and search history), the same for one site or thirty: check the sites you are considering in one run; `--topic` adds a column with where each site ranks for your keyword ($0.005 a keyword); `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds about $0.19 a site: the site's own backlink profile ($0.024), its technology ($0.012), how often ChatGPT's answers mention it ($0.10) and its checkout links on inner pages (about $0.05, plus $0.02 a link found); with an AIsa key also Ahrefs' rating ($0.08) and Semrush's numbers ($0.001); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement. `--referrals` reads your analytics export (GA4's Traffic acquisition by Session source, as CSV) and adds what each site has sent you. A check that finds one operator's sites missing from the shared spam-link list ends with a link to a filled-in report for it.
-- **competitors**: about $0.025 a call, 2N + 2 calls for N competitors (three: about $0.20). `--days` sets what new means (7), `--limit` the referring domains read from each list (100, at most 1,000), `--max-usd` the most a run may spend ($0.30); cached answers are free and what the cap left out is named.
+- **competitors**: about $0.025 a call, 2N + 2 calls for N competitors (three: about $0.20). `--days` sets what new means (7), `--limit` the referring domains read from each list (100, at most 1,000), `--max-usd` the most a run may spend ($0.30); cached answers are free and what the cap left out is named. `--early`: about $0.06 a site, yours included, plus a call a competitor for linking pages (one competitor and you: about $0.08); `--vet` vets that many checklist sites free (10, 0 skips it); `--max-usd` is $0.50 unless set.
 - **cited**: $0.002 a keyword through AIsa, $0.004 when the overview loads late; through Glasser $0.004 and $0.006; `--max-usd` caps it ($0.10).
 - **questions**: about $0.01 for the three writers; `--count` sets how many each writes (10), `--plain` prints the list for a file.
 - **asked**: ChatGPT and AI Mode $0.004 an answer, Perplexity about $0.006, Claude and Gemini about $0.045 (2026-10-21): about $0.12 a question, with ChatGPT and Perplexity asked twice. `--samples` asks every assistant that many times, `--engines` picks them, `--name` adds a name the answers may call you by. `--rank` adds $0.0035 a search on Google and on Bing (2026-10-26). `--max-usd` caps the run ($1.00): the most-run searches are looked up first, and the report names what the cap left out.
@@ -330,7 +359,7 @@ As a skill, for any agent that reads them:
 npx skills add zhuyansen/backlink-guard
 ```
 
-The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.10.1`), never a clone, tells you the cost and waits for your yes before any paid run, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
+The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.11.0`), never a clone, tells you the cost and waits for your yes before any paid run, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
 
 ### MCP server
 
@@ -360,7 +389,7 @@ Without uv: `pip install "backlink-guard[mcp]"`, then `"command": "backlink-guar
 | `vet` | Each link source's action, verdict and evidence; `free=True` reads only the sites' own pages | free, or about $0.01 a site plus $0.16 a batch; `deep` about $0.19 a site |
 | `find` | The pages that rank for your keywords, by the visitors they get | $0.005 to $0.006 a keyword, plus $0.012 |
 | `audit`, `lost` | Your own link profile; your backlinks that land on dead or redirected pages | about $0.12 ($0.16 with `deep`); about $0.06 |
-| `competitors` | The sites linking to your competitors and not to you | about $0.025 a call, 2N + 2 calls, capped |
+| `competitors` | The sites linking to your competitors and not to you; `early` their launch channels, against your own first 90 days | about $0.025 a call, 2N + 2 calls, capped; `early` about $0.06 a site, capped |
 | `cited` | Who Google's AI Overviews cite for your keywords | $0.002 to $0.006 a keyword, capped |
 | `questions`, `asked` | How buyers would ask AI assistants, and what five assistants search for, cite and name | about $0.01; about $0.12 a question, capped (AIsa) |
 
@@ -423,6 +452,7 @@ DeepSeek Harness does not pass the variables that look like keys on to a server,
 - Links added by script are not seen by `verify`.
 - `lost` reads the strongest 1,000 backlinks at most, and a page that answers 200 for a missing page (a soft 404) looks alive to it. A suggestion matches paths, not content: read the page before you redirect to it. The same goes for a soft-lost redirect: a renamed page whose path shares little with the old one is called soft-lost until you read it.
 - `competitors` sees what the backlink index's crawler has found: first seen is when it found a link, which can be later than the link. A linking page is looked up under a site's main domain and its www. form, so a site that links only from another subdomain shows none. A network page with a title of its own and a spam score under 50 stays in the list: vet a site before you spend time on it.
+- `--early` counts by the day the index found each link, not the day it was placed; a link lost since counts at the age it was found. `--newcomers` reads 8 pages and dates 20 sites at most: its share is a sample.
 - `cited` reads Google's US English results once: an AI Overview changes with the day, the place and the searcher.
 - `asked` reaches the assistants through their APIs (ChatGPT through its own interface): US English, no history and no memory, not what a signed-in person sees. An answer differs from one ask to the next, so count what recurs. Gemini cites through Google's redirect, so only its sites are known, not its pages.
 - `--rank` reads Google's and Bing's US English results once. They stand in for the indexes the assistants search, each of which has its own. On 2026-10-26 AIsa's Google results answered "Internal SE Server Error." to 21 of 67 searches: each failed search is asked once more, and one that fails twice is counted as failed, never as a search you are missing from.

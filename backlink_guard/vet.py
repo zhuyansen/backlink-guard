@@ -10,6 +10,7 @@ batch (Glasser or AIsa). Without keys the page checks still run.
 """
 from __future__ import annotations
 
+import http.client
 import json
 import re
 import time
@@ -217,7 +218,7 @@ def first_seen(domain: str) -> str:
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=WAYBACK_TIMEOUT) as res:
             rows = json.load(res)       # [["timestamp"], ["20240828075927"]]; an error page is not JSON
-    except (OSError, ValueError):
+    except (OSError, ValueError, http.client.HTTPException):
         return ""
     stamp = rows[1][0] if len(rows) > 1 and rows[1] else ""
     return f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}" if len(stamp) >= 8 else ""
@@ -647,9 +648,12 @@ def finalize(r: dict, batch_failed: tuple[str, ...] = ()) -> dict:
 
 
 def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False,
-        recent: bool = False, deep: bool = False, topics: tuple[str, ...] = (), referrals: dict[str, int] | None = None) -> dict:
+        recent: bool = False, deep: bool = False, topics: tuple[str, ...] = (), referrals: dict[str, int] | None = None,
+        newcomers: bool = False) -> dict:
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given.
-    `referrals` ({site: visits} from your own analytics) adds what each site has sent you: a reach no estimate gives."""
+    `referrals` ({site: visits} from your own analytics) adds what each site has sent you: a reach no estimate gives.
+    `newcomers` adds each row's "newcomers" (newcomers.takes_new): whether its newest pages link to new sites. Free,
+    20 to 60 seconds a site; it informs and does not change the grade."""
     today = today or date.today()
     known = updates.ranking_updates() if paid_sources and (goanyapi.key() or backend.key()) else []
     try:
@@ -658,6 +662,8 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
         listed, unread = {}, [f"spam list: {exc}"]
     with ThreadPoolExecutor(WORKERS) as pool:
         rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics, listed), targets))
+    if newcomers:
+        add_newcomers(rows, today)
     cost, errors = sum(r["cost"] for r in rows), unread + [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
     live, scores, failed = [r for r in rows if not r.get("skipped")], {}, []
     if paid_sources and backend.key() and live:
@@ -690,6 +696,17 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
     return {"rows": rows, "cost": cost, "errors": errors, "networks": blocklist.unlisted(groups, rows, None if unread else listed, today),
             "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "glasser": bool(paid_sources and glasser.key()),
                         "aisa": bool(paid_sources and aisa.key()), "deep": bool(paid_sources and deep), "free": not paid_sources}}
+
+
+def add_newcomers(rows: list[dict], today: date) -> None:
+    """Each row's "newcomers": newcomers.takes_new, or None for a site that does not answer."""
+    from . import newcomers as takes       # newcomers reads this module's sitemap and archive helpers
+
+    def one(r: dict) -> dict | None:
+        return None if any(f["flag"] == "dead" for f in r["flags"]) else takes.takes_new(r["domain"], today)
+    with ThreadPoolExecutor(WORKERS) as pool:
+        for r, got in zip(rows, list(pool.map(one, rows))):
+            r["newcomers"] = got
 
 
 def remember(rows: list[dict], store: dict, today: date) -> list[str]:

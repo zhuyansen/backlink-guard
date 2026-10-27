@@ -1313,3 +1313,25 @@ def test_lost_lists_dead_pages_by_referring_domains_with_a_301_suggestion(monkey
     text = report.lost(r)
     assert "| /blog/old-post-name | 404 | 5 | 6 | r4.example (AIsa rank 104) | 301 to /blog/new-post-name |" in text
     assert "no good match" in text and policy.REDIRECTS_URL in text and "301 or 308" in text
+
+
+def test_a_page_whose_answer_breaks_off_keeps_what_came(monkeypatch):
+    import http.client
+
+    class Broken:
+        status, headers = 200, type("H", (), {"get_content_charset": staticmethod(lambda: "utf-8")})()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def geturl(self):
+            return "https://cut.example/"
+
+        def read(self, n):
+            raise http.client.IncompleteRead(b"<html><title>Cut</title>")
+    monkeypatch.setattr(page.urllib.request, "urlopen", lambda req, timeout: Broken())
+    got = page.fetch("https://cut.example/")
+    assert (got["status"], got["dead"], got["html"], got["error"]) == (200, False, "<html><title>Cut</title>", "the answer broke off")

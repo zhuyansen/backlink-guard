@@ -7,6 +7,7 @@ from collections import Counter
 from .competitors import SHOWN
 from .find import ACTIONS
 from .links import clean
+from .newcomers import NEWEST, YOUNG_DAYS as NEW_SITE_DAYS
 from .policy import POLICY, POLICY_URL, REDIRECTS_URL, SITE_MOVE_URL
 
 MARK = {"avoid": "⛔ avoid", "caution": "⚠️ caution", "ok": "✅ ok", "incomplete": "❔ incomplete", "note": "ℹ️"}
@@ -130,6 +131,7 @@ def vet(result: dict) -> str:
             todo = f" — {ACTION_MARK[r['action']]}: {r['action_reason']}" if r.get("action_reason") else ""
             lines += ["", f"**{r['domain']}**{todo}"] + flag_lines(r["flags"])
     lines += network_lines(result.get("networks") or [])
+    lines += newcomer_lines(result["rows"])
     skipped = [r["domain"] for r in result["rows"] if r.get("skipped")]
     notes = missing_sources(result["sources"]) + [f"- Failed: {e}" for e in result["errors"]]
     if skipped:
@@ -140,6 +142,30 @@ def vet(result: dict) -> str:
     lines += ["", f"A verdict is a set of signals with their evidence, not Google's judgment. Policy: {POLICY_URL}",
               f"Cost of this run: {usd(result['cost'])}."]
     return "\n".join(lines)
+
+
+def takes_new_text(n: dict | None) -> str:
+    """newcomers.takes_new in a few words."""
+    if n is None:
+        return "not read: the site does not answer"
+    if n["unknown"]:
+        return f"unknown: {n['unknown']}"
+    seen = ", ".join(f"{e['site']} ({e['age_days']} days)" for e in n["examples"][:3])
+    return (f"{n['young']} of {n['dated']} sites its newest pages link to were registered under {NEW_SITE_DAYS // 30} "
+            f"months before" + (f": {seen}" if seen else "") + f" (newest page {n['newest']})")
+
+
+def newcomer_lines(rows: list[dict]) -> list[str]:
+    """Whether each source still takes new sites, when the run asked (vet --newcomers)."""
+    asked = [r for r in rows if "newcomers" in r]
+    if not asked:
+        return []
+    return (["", "## Does it still take new sites?", "",
+             f"Read off its {NEWEST} newest sitemap pages: the sites they link to from their body, dated by registration "
+             "(RDAP) or, when the registry keeps no RDAP record, by their first archived copy. None of them new: if those "
+             "pages are its listings, it lists established sites, and a new site may not get in; open one to see. "
+             "Informs, and does not change the verdict."]
+            + [f"- **{r['domain']}**: {takes_new_text(r['newcomers'])}" for r in asked])
 
 
 def recheck(result: dict) -> str:
@@ -408,6 +434,111 @@ def competitors(r: dict) -> str:
                   "what the page lacks; vet a site before you spend time on it (`backlink-guard vet <site>`), since a site "
                   "that links to everyone in a field can be a directory that sells its listings or a network. Never pay "
                   "for a followed link."]
+    lines += left_lines(r)
+    lines += capped_lines(r)
+    return "\n".join(lines + ["", f"Cost of this run: {usd(r['cost'])} (cap ${r['max_usd']:.2f})."])
+
+
+def age_cell(c: dict | None) -> str:
+    return MISSING if not c else ("" if c["exact"] else "≥") + f"{c['n']:,}"
+
+
+def launch_text(w: dict) -> str:
+    how = {"archive": "first archived copy", "first link": "first referring domain"}.get(w["from"], "")
+    return f"{w['day']} ({how})" if w["day"] else MISSING
+
+
+def age_lines(r: dict) -> list[str]:
+    """Each site's referring domains at the same ages after launch, yours first."""
+    lines = ["", "## The same age: referring domains 30, 60 and 90 days after launch", "",
+             "| Site | Launched | 30 days | 60 days | 90 days | Now, all |", "|---|---|---|---|---|---|"]
+    for site, b in r["sites"].items():
+        name = f"**{site}** (you)" if site == r["domain"] else site
+        c = b["counts"]
+        lines.append(f"| {name} | {launch_text(b['launch'])} | {age_cell(c.get(30))} | {age_cell(c.get(60))} | "
+                     f"{age_cell(c.get(90))} | {b['total']:,} |")
+    lines += ["", "Lost ones count: what it had then. ≥: the list read stops before that day, so it had at least this many."]
+    for site, b in r["sites"].items():
+        w = b["launch"]
+        if w["before_index"]:
+            lines.append(f"- {site} is older than the backlink index (it begins 2019-01-15): its earliest links there are "
+                         "the index's first crawl, not what it got at launch. Compare against younger competitors.")
+        elif w["dormant"]:
+            lines.append(f"- {site}: first archived {w['archived']}, first referring domain {w['first_link']}: the domain sat "
+                         "unused first, so it is counted from its first referring domain.")
+        for x in b["bursts"]:
+            lines.append(f"- {site}, week {x['week']} (from {x['from']}): {x['n']} new referring domains, several times its "
+                         f"usual week: {some(x['sites'])}. Launch week, as a rule: the sites in it are the channels it used.")
+    return lines
+
+
+def young_cell(row: dict) -> str:
+    y = row.get("young")
+    return f"{'✅ ' if y['recent'] else ''}{y['rival']} at {y['age_days']} days ({y['on']})" if y else MISSING
+
+
+def vet_cell(row: dict) -> str:
+    v = row.get("vet")
+    if not v:
+        return MISSING
+    takes = v.get("takes_new")
+    new = "" if not takes or takes["unknown"] or takes["dated"] == 0 else f"; {takes['young']}/{takes['dated']} new"
+    return f"{ACTION_MARK.get(v.get('action'), MISSING)}{new}"
+
+
+def checklist_lines(r: dict) -> list[str]:
+    rows = r["checklist"]
+    head = ("## Launch checklist: in the first 90 days of two or more of them, not linking to you" if len(r["rivals"]) > 1
+            else f"## {r['rivals'][0] if r['rivals'] else ''}'s launch channels, not linking to you")
+    lines = ["", head, ""]
+    if not rows:
+        return lines + ["None."]
+    lines += ["| Site | Of | First seen | Rank | Linking page | Kind | Took a new site | Free vet |",
+              "|---|---|---|---|---|---|---|---|"]
+    lines += [f"| {x['site']} | {', '.join(x['rivals'])} | {x['first_seen'] or MISSING} | {num(x['rank'])} | {example_cell(x)} | "
+              f"{x['kind'] or MISSING} | {young_cell(x)} | {vet_cell(x)} |" for x in rows[:SHOWN]]
+    lines += ["", f"And {len(rows) - SHOWN} more (--json)."] if len(rows) > SHOWN else []
+    return lines + ["", "Took a new site: it linked to one of them under 90 days old, at that age; ✅ in the last half "
+                        "year, so it still takes new sites. Free vet: what its own pages say (`vet --free`), and how many "
+                        "of the sites its newest pages link to are new; run a full `vet` before you spend time on one."]
+
+
+def early_rival_lines(site: str, b: dict, table: bool = True) -> list[str]:
+    rest, n = b["rest"], len(b["rows"])
+    first = b["counts"].get(90)
+    lines = ["", f"### {site}: launched {launch_text(b['launch'])}; {age_cell(first)} referring domains in its first 90 days", ""]
+    shown = "below" if table else "above"
+    parts = [f"{n} live, followed and not site-wide are {shown}" if n else "none live, followed and not site-wide",
+             f"{rest.get('lost', 0)} lost since", f"{rest.get('nofollow', 0)} nofollow only"]
+    if rest.get("sitewide"):
+        parts.append(f"site-wide, mostly its owner's other sites or partners and not channels: {some(rest['sitewide'])}")
+    if b.get("yours"):
+        parts.append(f"already linking to you: {some(b['yours'])}")
+    lines.append("; ".join(parts) + ".")
+    if b["rows"] and table:
+        lines += ["", "| Site | First seen | Rank | Linking page | Kind | Took a new site |", "|---|---|---|---|---|---|"]
+        lines += [f"| {x['site']} | {x['first_seen']} | {num(x['rank'])} | {example_cell(x)} | {x['kind'] or MISSING} | "
+                  f"{young_cell(x)} |" for x in b["rows"][:SHOWN]]
+        lines += ["", f"And {len(b['rows']) - SHOWN} more (--json)."] if len(b["rows"]) > SHOWN else []
+    return lines
+
+
+def early(r: dict) -> str:
+    """The same-age comparison, the launch checklist, then each competitor's first 90 days."""
+    lines = [f"# Your competitors' earliest links: {r['domain']} against {', '.join(r['rivals'])}", "",
+             "What each one got in its first 90 days, oldest first: the channels it used at launch, which take a new site, "
+             "unlike the strong sites that link to it today."]
+    lines += age_lines(r)
+    lines += checklist_lines(r)
+    lines += ["", "## Each competitor's first 90 days"]
+    for site, b in r["sites"].items():
+        if site != r["domain"]:
+            lines += early_rival_lines(site, b, table=len(r["rivals"]) > 1)    # one: its table is the checklist
+    rows = r["checklist"][:SHOWN] + [x for s, b in r["sites"].items() if s != r["domain"] for x in b["rows"][:SHOWN]]
+    lines += kinds_lines(rows)
+    lines += ["", "First seen is when the backlink index's crawler first found the site's link: it can be later than the "
+                  "link itself. Launched is the Wayback Machine's first copy, or the first referring domain when that is "
+                  "earlier. Never pay for a followed link."]
     lines += left_lines(r)
     lines += capped_lines(r)
     return "\n".join(lines + ["", f"Cost of this run: {usd(r['cost'])} (cap ${r['max_usd']:.2f})."])

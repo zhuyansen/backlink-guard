@@ -206,7 +206,7 @@ def competitors(own: str, rivals: list[str], days: int = DAYS, limit: int = LIMI
     out = {"domain": own, "rivals": rivals, "days": days, "since": (today - timedelta(days=days)).isoformat(), "new": {},
            "shared": None, "dropped": [], "networks": [], "cost": 0, "max_usd": max_usd, "left_out": [], "errors": []}
     budget, limit, skip = Budget(max_usd), max(1, min(limit, ROWS_MAX)), {own, *rivals}
-    listed = _listed(out, fresh)
+    listed = listed_or_none(out, fresh)
     _new(out, since(today, days), limit, budget, fresh, skip, listed or {})
     _drop_yours(out, budget, fresh)
     if len(rivals) >= 2:
@@ -217,7 +217,7 @@ def competitors(own: str, rivals: list[str], days: int = DAYS, limit: int = LIMI
     return out
 
 
-def _listed(out: dict, fresh: bool) -> dict | None:
+def listed_or_none(out: dict, fresh: bool) -> dict | None:
     """The shared spam-link list; None, and an error, when it cannot be read: never read as empty."""
     try:
         return blocklist.load(fresh)
@@ -226,7 +226,7 @@ def _listed(out: dict, fresh: bool) -> dict | None:
         return None
 
 
-def _dropped(out: dict, gone: list[dict]) -> None:
+def add_dropped(out: dict, gone: list[dict]) -> None:
     named = {d["site"] for d in out["dropped"]}
     out["dropped"] += [g for g in gone if g["site"] not in named]
 
@@ -241,7 +241,7 @@ def _new(out: dict, start: str, limit: int, budget: Budget, fresh: bool, skip: s
             out["errors"].append(f"new referring domains of {rival}: {exc}")
             continue
         kept, gone = cleaned(merged(rows), skip, listed)
-        _dropped(out, gone)
+        add_dropped(out, gone)
         out["new"][rival] = {"rows": strongest(kept), "total": total, "linking_you": []}
 
 
@@ -269,7 +269,7 @@ def _shared(out: dict, limit: int, budget: Budget, fresh: bool, skip: set[str], 
         out["errors"].append(f"link intersect: {exc}")
         return
     kept, gone = cleaned(merged(rows), skip, listed)
-    _dropped(out, gone)
+    add_dropped(out, gone)
     out["shared"] = {"rows": strongest(kept, by_rivals=True), "total": total}
 
 
@@ -293,16 +293,22 @@ def _examples(out: dict, budget: Budget, fresh: bool) -> None:
         annotate(rows, pages)
 
 
-def _networks(out: dict, listed: dict | None, today: date) -> None:
-    """Takes one network's sites out of the tables, with a filled-in report for the shared list when it lacks
-    REPORT_MIN or more of them (none when the list could not be read)."""
-    found = networks([r for rows in tables(out) for r in rows])
-    members = {site for n in found for site in n["sites"]}
-    for got in out["new"].values():
-        got["rows"] = [r for r in got["rows"] if r["site"] not in members]
-    if out["shared"]:
-        out["shared"]["rows"] = [r for r in out["shared"]["rows"] if r["site"] not in members]
+def drop_networks(out: dict, tables: list[list[dict]], listed: dict | None, today: date) -> set[str]:
+    """Sets out["networks"] to the networks among the rows of `tables`, each with a filled-in report for the shared
+    list when it lacks REPORT_MIN or more of them (none when the list could not be read), and returns their sites
+    for the caller to take out of its tables."""
+    found = networks([r for rows in tables for r in rows])
     for n in found:
         unlisted = [site for site in n["sites"] if site not in (listed or {})]
         n["report"] = blocklist.report_url(n, unlisted, today) if listed is not None and len(unlisted) >= blocklist.REPORT_MIN else ""
     out["networks"] = found
+    return {site for n in found for site in n["sites"]}
+
+
+def _networks(out: dict, listed: dict | None, today: date) -> None:
+    """Takes one network's sites out of the tables (drop_networks)."""
+    members = drop_networks(out, tables(out), listed, today)
+    for got in out["new"].values():
+        got["rows"] = [r for r in got["rows"] if r["site"] not in members]
+    if out["shared"]:
+        out["shared"]["rows"] = [r for r in out["shared"]["rows"] if r["site"] not in members]

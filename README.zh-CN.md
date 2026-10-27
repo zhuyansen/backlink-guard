@@ -124,6 +124,33 @@ backlink-guard competitors yoursite.example --vs competitor-a.example competitor
 
 链接交集只要一次调用：domain intersection 用 partial 模式，返回链向其中至少两个站的域名（它的文档写的是全部，实测是两个及以上）。每次调用约 $0.025，N 个竞品 2N + 2 次：2026-10-20 三个竞品花了 $0.20。`--max-usd` 给一次运行封顶（默认 $0.30）：只有预估还放得下才调用，7 天内缓存过的免费，封顶没问的会在报告里写明。花时间之前先 vet 一下这个站；绝不为传权重的链接付钱。
 
+### 竞品最早的外链：competitors --early
+
+竞品的来源域名按外链库第一次发现的时间从旧到新排，排在最前面的就是它刚上线那几周拿到的：当时肯收它的目录站、发布站、清单和社区，现在多半也还收新站。今天链向它的那些大站，大多不收新站。`--early` 读的就是这一头，竞品和你自己的站都读：
+
+```bash
+backlink-guard competitors yoursite.example --vs competitor-a.example competitor-b.example --early
+```
+
+> | Site | Launched | 30 days | 60 days | 90 days | Now, all |
+> |---|---|---|---|---|---|
+> | **yoursite.example** (you) | 2026-03-08 (first archived copy) | 4 | 13 | 19 | 165 |
+> | competitor-a.example | 2026-02-17 (first archived copy) | 14 | 21 | 26 | 75 |
+>
+> ## Launch checklist: in the first 90 days of two or more of them, not linking to you
+>
+> | Site | Of | First seen | Rank | Linking page | Kind | Took a new site | Free vet |
+> |---|---|---|---|---|---|---|---|
+> | launchdir.example | competitor-a.example, competitor-b.example | 2026-05-06 | 0 | [Competitor A \| LaunchDir](https://launchdir.example/p/competitor-a) | directory | ✅ competitor-b.example at 31 days (2026-05-06) | 🆓 free only; 2/7 new |
+
+- **上线日**：Wayback Machine 的第一份存档；如果第一个来源域名比它还早，或者晚了半年以上（域名之前闲置过），就用第一个来源域名的日期。
+- **同龄对比**：每个站上线第 30、60、90 天各有多少来源域名（后来掉了的也算），看的是同类站在这个阶段的正常节奏，而不是它后来攒下的家底。某一周新增 5 个以上、而且是平时 3 倍以上的，会列出那一周的站：通常就是发布那一周，那些站就是它用过的发布渠道。
+- **留下的**：现在还活着、传权重、不是全站链接的。一个站从页脚或导航链过去，或者从 100 个以上页面链过去，多半是对方自己的其他站或合作方，不是渠道：这些单独列出，掉了的和只有 nofollow 的只计数。上面的垃圾名单、垃圾分和模板规则照样适用。
+- **清单**：两个及以上竞品早期都拿到、你还没有的（只有一个竞品时就是它自己的列表），每个都附链接页面。Took a new site：它链向的最年轻的竞品当时多大；半年内的打 ✅，说明它现在还收新站。前 10 个会免费跑一遍带 `--newcomers` 的 `vet`，要一两分钟（`--vet 0` 跳过）。
+- **费用**：每个站一次调用（包括你自己），读最早的 1,000 个来源域名（最多 $0.06；165 个的站约 $0.03），每个竞品再一次调用查链接页面：2026-10-27 一个竞品加你约 $0.08，三个竞品最多约 $0.35。这里 `--max-usd` 默认 $0.50。
+
+外链库从 2019-01-15 开始收录：比这还老的竞品，它在库里最早的外链其实是外链库的第一次爬取，报告会写明。挑和你上线时间相近的竞品来比。
+
 ## AI 回答从哪来：cited
 
 AI 概览会引用它写答案时用的页面。`cited` 对每个关键词读 Google 第一页和上面的 AI 概览（美国、英文），说明概览有没有引用你、你排第几，再把所有关键词里被引用的站汇总起来：在这些站上被提到，就是进到答案里的路。
@@ -190,6 +217,7 @@ Google 在 2026 年 3 月、6 月、8 月、9 月都发了垃圾内容更新。�
 | `--deep`：徽章站群（每个被收录的站给它几百条链接，大多在页脚，几乎全是 dofollow；月访问 10 万以上的站不判），或没有根基的新站（不到一年、来源域名不到 100、月访问不到 1,000） | 外链概况 | Glasser 或 AIsa | 每站 $0.024 |
 | 它挂的收款链接（Stripe、Gumroad、Lemon Squeezy、Polar、Creem、Dodo、Paddle）同时出现在几十个和它长得一样的站上：通过这条链接卖外链的站群，或被注入到被黑网站里的赌博、色情产品。卖家本人和只是引用这个产品的站不会被标。`--deep` 还会找出它内页上的收款链接（站群都挂在内页） | 外链数据，另读那些站的首页拿标题 | Glasser 或 AIsa | 每条收款链接约 $0.02；`--deep` 每站另加约 $0.05 |
 | `--recent`：它不断加的新页面 Google 收不收 | 近一周、近一月的 `site:` 搜索，结果为 0 要查两次，并对照它自己的 sitemap | GoAnyAPI | 每站 $0.008 |
+| `--newcomers`：它现在还收不收新站：它最新的页面链向的站里，有多少是在那之前半年内注册的（只作参考，不改结论） | 它 sitemap 里最新的 8 个页面，正文里链出去的站（不算导航、页脚、侧栏，也不算几乎每页都有的链接）；每个站的注册日期，每半秒查一次；注册局没有 RDAP 记录时用它的第一份存档。sitemap 没有日期、页面靠跳转或脚本链出去时，结果是「不知道」并写明原因 | 该站、RDAP（rdap.org）、archive.org | 免费，每站 20 到 60 秒 |
 
 「Glasser 或 AIsa」指配了哪个用哪个，两个都配时用 Glasser：两家转售的是同样的接口、同样的价格，只有两种搜索不同，`find` 的搜索（Glasser 每词 $0.006，AIsa $0.005）和 `cited` 的搜索（最多 $0.006，AIsa $0.004）。Glasser 不卖的还走 AIsa：GoAnyAPI 失败时顶上的 `site:` 搜索、`--deep` 里的 Ahrefs 评分和 Semrush 数据，以及 `questions` 和 `asked` 的全部调用。见 [Key](#key)。
 
@@ -252,8 +280,9 @@ backlink-guard lost yoursite.example
 
 ```bash
 backlink-guard find "<关键词>" [更多 ...] [--site 你的域名] [--skip 竞品清单.txt] [--vet] [--json]
-backlink-guard vet <站点> [更多 ...] [--from 清单.xlsx] [--skip 你的域名] [--limit 30] [--topic "关键词"] [--referrals ga4.csv] [--deep] [--recent] [--free] [--fresh] [--json]
+backlink-guard vet <站点> [更多 ...] [--from 清单.xlsx] [--skip 你的域名] [--limit 30] [--topic "关键词"] [--referrals ga4.csv] [--deep] [--recent] [--newcomers] [--free] [--fresh] [--json]
 backlink-guard competitors <你的域名> --vs <竞品> [更多 ...] [--days 7] [--limit 100] [--max-usd 0.30] [--json]
+backlink-guard competitors <你的域名> --vs <竞品> [更多 ...] --early [--vet 10] [--max-usd 0.50] [--json]
 backlink-guard cited <你的域名> "<关键词>" [更多 ...] [--max-usd 0.10] [--json]
 backlink-guard questions "<你做的东西>" [--count 10] [--plain] [--json]
 backlink-guard asked <你的域名> ["<问题>" ...] [--file 问题.txt] [--name "你的品牌名"] [--engines chatgpt,ai_mode,perplexity,claude,gemini] [--samples N] [--rank] [--max-usd 1.00] [--json]
@@ -269,7 +298,7 @@ backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 
 - **find**：每个词 $0.005，另加 $0.012 查搜索量；`--vet` 再加上检查找到的站的费用。`--site` 排除自己的站，`--skip` 排除竞品。
 - **vet**：每个站约 $0.01，另加每批约 $0.16（垃圾分和搜索历史），一批查一个站和查三十个站这部分一样，所以想查的站一次一起查；`--topic` 多一列：每个站在你的关键词上排第几（每词 $0.005）；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。`--deep` 每站约多花 $0.19：对方自己的外链画像（$0.024）、建站技术（$0.012）、ChatGPT 回答里提到它的次数（$0.10），以及它内页上的收款链接（约 $0.05，每找到一条再加 $0.02）；配了 AIsa 还会查 Ahrefs 评分（$0.08）和 Semrush 数据（$0.001）；`--recent` 查 Google 收不收它的新页面（每站 $0.008，较慢：GoAnyAPI 的搜索调用要 10 到 120 秒）。付费购买位置前两项都用上。`--referrals` 读你的统计导出（GA4「流量获取」按会话来源导出的 CSV），多一列：每个站给你带来过多少访问。检查中发现名单上没有的站群时，报告最后会附上一个已经填好的举报链接。
-- **competitors**：每次调用约 $0.025，N 个竞品 2N + 2 次（三个约 $0.20）。`--days` 设定多少天内算新（7），`--limit` 设定每份列表读多少个来源域名（100，最多 1,000），`--max-usd` 设定一次最多花多少（$0.30）；缓存过的免费，封顶没问的会写明。
+- **competitors**：每次调用约 $0.025，N 个竞品 2N + 2 次（三个约 $0.20）。`--days` 设定多少天内算新（7），`--limit` 设定每份列表读多少个来源域名（100，最多 1,000），`--max-usd` 设定一次最多花多少（$0.30）；缓存过的免费，封顶没问的会写明。`--early`：每个站约 $0.06（包括你自己），每个竞品再加一次查链接页面（一个竞品加你约 $0.08）；`--vet` 设定免费 vet 清单里的前几个（10，0 跳过）；`--max-usd` 默认 $0.50。
 - **cited**：走 AIsa 每个词 $0.002，概览晚加载的 $0.004；走 Glasser 是 $0.004 和 $0.006；`--max-usd` 封顶（$0.10）。
 - **questions**：三家一共约 $0.01；`--count` 设定每家写几个（10），`--plain` 只输出问题，方便存成文件。
 - **asked**：ChatGPT 和 AI Mode 每个回答 $0.004，Perplexity 约 $0.006，Claude 和 Gemini 约 $0.045（2026-10-21）：ChatGPT 和 Perplexity 各问两次，每个问题约 $0.12。`--samples` 让每家都问这么多次，`--engines` 选问哪几家，`--name` 加上回答里可能用来称呼你的名字。`--rank` 每个搜索词在 Google 和 Bing 上各 $0.0035（2026-10-26）。`--max-usd` 给整轮封顶（$1.00）：出现次数最多的搜索词先查，封顶没查的会写明。
@@ -322,7 +351,7 @@ claude plugin install backlink-guard@backlink-guard
 npx skills add zhuyansen/backlink-guard
 ```
 
-skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.10.1`），不用克隆的代码；付费运行前先报成本、等你点头；读到的页面、标题、AI 回答只当数据，绝不当成指令。
+skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.11.0`），不用克隆的代码；付费运行前先报成本、等你点头；读到的页面、标题、AI 回答只当数据，绝不当成指令。
 
 ### MCP 服务器
 
@@ -352,7 +381,7 @@ skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守�
 | `vet` | 每个外链来源的建议、结论和证据；`free=True` 只读对方自己的页面 | 免费；或每站约 $0.01，另加每批约 $0.16；`deep` 每站约 $0.19 |
 | `find` | 在你的关键词上排名的页面，按它们得到的访客排序 | 每词 $0.005–0.006，另加 $0.012 |
 | `audit`、`lost` | 你自己的外链画像；落在死页面或跳转页面上的外链 | 约 $0.12（`deep` 约 $0.16）；约 $0.06 |
-| `competitors` | 链向你的竞品却没链向你的站 | 每次调用约 $0.025，2N + 2 次，有封顶 |
+| `competitors` | 链向你的竞品却没链向你的站；`early` 看它们上线时用的渠道，并和你自己的头 90 天对比 | 每次调用约 $0.025，2N + 2 次，有封顶；`early` 每个站约 $0.06，有封顶 |
 | `cited` | Google AI 概览在你的关键词上引用了谁 | 每词 $0.002–0.006，有封顶 |
 | `questions`、`asked` | 买家会怎么问 AI 助手；五家 AI 助手搜了什么、引用了谁、提到了谁 | 约 $0.01；每个问题约 $0.12，有封顶（AIsa） |
 
@@ -415,6 +444,7 @@ DeepSeek Harness 不会把环境里像密钥的变量传给服务器，所以 ke
 - 由脚本后加的链接，`verify` 看不到。
 - `lost` 最多读最强的 1,000 条外链；页面不存在却返回 200（软 404）的，它会当成还在。建议只比路径、不比内容：跳转前先看一眼那个页面。soft-lost 也一样：改了名、路径差别大的页面，看过之前都会被判成 soft-lost。
 - `competitors` 只看得到外链库爬虫发现过的：First seen 是发现链接的时间，可能晚于链接本身。链接页面按主域名和 www. 去查，只从别的子域名链过去的站会查不到页面。标题不同、垃圾分低于 50 的站群页面会留在列表里：花时间之前先 vet。
+- `--early` 按外链库发现的日期计数，不是链接建立的日期；后来掉了的外链按发现时的天数算进去。`--newcomers` 最多读 8 个页面、给 20 个站查日期，算出的比例只是抽样。
 - `cited` 只读一次美国英文结果：AI 概览随日期、地点和搜索的人而变。
 - `asked` 通过各家的 API 提问（ChatGPT 走它自己的界面）：美国英文、没有历史和记忆，不等于登录用户看到的回答。同一个问题每次答案都会变，要看反复出现的。Gemini 通过 Google 的跳转链接引用，所以只知道它引用了哪些站，不知道具体页面。
 - `--rank` 只读一次 Google 和 Bing 的美国英文结果。它们代表 AI 助手搜索用的索引，但每家 AI 都有自己的一套。2026-10-26 AIsa 的 Google 结果对 67 个搜索词里的 21 个返回了「Internal SE Server Error.」：失败的词会再问一次，两次都失败的算「失败」，绝不算成「你不在结果里」。
