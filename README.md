@@ -28,7 +28,7 @@ Find the pages your searchers already land on, the sites that link to your compe
 
 Most backlink tools help you send more. This one tells you where not to send, and when to slow down.
 
-![How backlink-guard works: find the pages your searchers land on, and with competitors, cited and asked the sites your competitors earned and the sites AI answers cite; vet each site (its own pages, GoAnyAPI, Glasser or AIsa), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, with the sites one owner runs; lost lists backlinks landing on 404 pages or redirects, with a suggested 301. What 0.8 to 0.10 added is orange](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
+![How backlink-guard works: find the pages your searchers land on, and with competitors, cited and asked the sites your competitors earned and the sites AI answers cite, with --early the links they got at launch; vet each site (its own pages, GoAnyAPI, Glasser or AIsa, and with --newcomers whether it still takes new sites), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, with the sites one owner runs; lost lists backlinks landing on 404 pages or redirects, with a suggested 301. What 0.11 added is orange](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
 
 ## Quick start
 

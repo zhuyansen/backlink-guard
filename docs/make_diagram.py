@@ -2,9 +2,9 @@
 
   python docs/make_diagram.py <zh|en> <out-basename> [--mark-new]
 
-What 0.8 to 0.10 added: competitors, cited, questions and asked (where else to be: the sites your competitors
-earned and the sites AI answers cite), audit's networks of one owner, lost following redirects, Glasser beside
-AIsa for the data, and an MCP server.
+What 0.11 added: competitors --early (the links competitors got in their first 90 days, set against yours at the
+same age, and a launch checklist of what they got and you lack) and vet --newcomers (whether a site still links to
+sites registered in the last half year).
 
 --mark-new highlights them: a line marked ★ is drawn in the highlight colour, a box whose title is marked ★ gets
 the highlight border and a "NEW" tag, and a note under the commands says so; without it the marks are dropped and
@@ -15,9 +15,10 @@ rsvg-convert renders each frame (it does not run SVG animation) and ffmpeg joins
 import math, subprocess, sys, tempfile
 from pathlib import Path
 
-D = 136                                  # how far the lost row pushes everything from vet down
+D = 170                                  # how far the lost row and the --early lines push everything from vet down
+N = 16                                   # vet's fourth optional line, --newcomers, pushes everything under it down
 U = 17                                   # the third line of commands pushes the note and the legend down
-W, H = 760, 1180 + D + U
+W, H = 760, 1180 + D + N + U
 FONT = "Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif"
 AMB = dict(fill="#FAECE7", stroke="#993C1D", title="#712B13", sub="#993C1D")
 GRY = dict(fill="#F1EFE8", stroke="#5F5E5A", title="#444441", sub="#5F5E5A")
@@ -26,23 +27,24 @@ BLU = dict(fill="#E6F1FB", stroke="#185FA5", title="#0C447C", sub="#185FA5")
 RED = dict(fill="#FCEBEB", stroke="#A32D2D", title="#791F1F", sub="#A32D2D")
 YEL = dict(fill="#FAEEDA", stroke="#854F0B", title="#633806", sub="#854F0B")
 CHIPS = (RED, YEL, BLU, GRY, GRN)        # skip, look first, free only, low value, submit
-NEW = "#993C1D"                          # highlight for what 0.8 to 0.10 added
+NEW = "#993C1D"                          # highlight for what 0.11 added
 
 ZH = {
     "kw": ("你的关键词", "claude skills · ai seo tools"), "list": ("一份外链清单", "竞品缺口 · 付费榜 · Excel / CSV"),
     "me": ("你的域名", "看自己的外链画像"),
     "find": ("find：搜这个词的人落在哪", "Google 前 30 · 按访客排序", "榜单 · 导航站 · 文章 · 视频 · 社区 · 仓库"),
     "audit": ("audit：你自己的外链画像", "评分 · 每周新增和丢失 · 锚文本", "链你的站里谁的垃圾分高 · 全站链接只算 1 个",
-              "★ 同一个人运营的站群（读首页，免费）"),
+              "同一个人运营的站群（读首页，免费）"),
     "lost": ("lost：外链落在 404 或跳转 → 建议 301", "沿用 audit 的外链（最多 1,000 条，缓存 7 天）",
-             "只认 404 / 410 为死链 · 按引荐网站数排序", "★ 跳转逐跳跟到底：断链、跳回首页、302、多跳", "301 目标取自你的 sitemap · 低于 0.50 不建议"),
-    "rivals": ("★ competitors · cited · asked", "竞品新拿到的外链 · 链接交集", "Google AI 概览引用了谁，有没有你",
+             "只认 404 / 410 为死链 · 按引荐网站数排序", "跳转逐跳跟到底：断链、跳回首页、302、多跳", "301 目标取自你的 sitemap · 低于 0.50 不建议"),
+    "rivals": ("★ competitors · cited · asked", "竞品新拿到的外链 · 链接交集", "★ --early：竞品上线头 90 天拿到的外链",
+               "★ 和你同龄时比 · 发布清单：它们有、你没有", "Google AI 概览引用了谁，有没有你",
                "五家 AI 助手搜了什么、引用了谁", "questions：买家会怎么问 AI"),
     "vet": ("vet：这个站值不值得发", "读页面就判 avoid 的，不再付费查"),
     "c1": ("读页面（免费）", "死站 · 停放 · 卖链接 · 要回链", "短链 · 站群模板 · 链向博彩", "收款链接（站群 / 被黑）· 共用统计账号"),
     "c2": ("GoAnyAPI", "评分 · 一年访问量 · 断崖", "还在不在收录里 · 注册日期", "访客来源（含 AI）· 自己的 write for us 页"),
-    "c3": ("★ Glasser 或 AIsa", "垃圾分 · 被 Google 打过没有", "页面成千上万、几乎没排名", "收款链接被多少个同类站共用"),
-    "c4": ("可选", "--deep 徽章网络 · 未经证实 · Ahrefs 评分", "技术栈 · ChatGPT 提及 · 内页收款链接", "--recent 新页收录 · --topic 排名"),
+    "c3": ("Glasser 或 AIsa", "垃圾分 · 被 Google 打过没有", "页面成千上万、几乎没排名", "收款链接被多少个同类站共用"),
+    "c4": ("★ 可选", "--deep 徽章网络 · 未经证实 · Ahrefs 评分", "技术栈 · ChatGPT 提及 · 内页收款链接", "--recent 新页收录 · --topic 排名", "★ --newcomers：现在还收不收新站"),
     "c5": ("免费旁证", "Wayback 最早存档 · 过期域名被重新注册", "Google 知识图谱认不认识它"),
     "c6": ("本机记得的站群", "以往查过的页面模板、统计账号，记一年", "单独查一个站，也能认出同一个人的站群"),
     "c7": ("共享 spam 外链名单（GitHub）：名单上的站直接 avoid，不再付费查",),
@@ -51,14 +53,14 @@ ZH = {
     "ok": ("ok：再看价值", "价值 高 / 中 / 低 / 无", "可附你的 GA 引荐访问数"),
     "action": ("建议：结论、政策风险、价值一起看", ("跳过", "先看看", "只免费提交", "价值低", "可以提交")),
     "report": ("举报站群", "名单上还没有的同一运营者站点", "附预填好的表单，你点提交才发出"),
-    "new": "橙色字和「新增」标签 = 0.8 到 0.10 新增", "tag": "新增",
+    "new": "橙色字和「新增」标签 = 0.11 新增", "tag": "新增",
     "why": ("每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款",
             "每行另附「政策风险」「价值」两栏 · 本可能查出问题的检查失败了：标「待定」，重跑"),
     "rules": ("提交规则", "只提交自己的 · 一周几个 · 锚文本换着用", "绝不买传权重的链接（付费要 sponsored / nofollow）"),
     "submit": ("你去提交", "工具不代你提交"), "verify": ("verify：上线后查链接", "在不在 · 传不传权重", "正文 / 页脚 / 侧栏 / 评论"),
     "log": ("log：提交账本", "一周超过 5 个提醒", "同一锚文本反复用提醒", "recheck：每月重查已上的站"),
     "use": ("命令行：backlink-guard  find · vet · verify · audit · lost · log · recheck",
-            "★ competitors · cited · questions · asked · MCP 服务器：backlink-guard mcp",
+            "competitors · cited · questions · asked · MCP 服务器：backlink-guard mcp",
             "Claude Code 插件 · Agent Skill：npx skills add zhuyansen/backlink-guard"),
     "legend": ("你给的输入", "检查", "数据来源", "结论：别发 / 小心 / 可以", "定期回看 · 举报回流"),
 }
@@ -67,17 +69,18 @@ EN = {
     "me": ("Your domain", "your own link profile"),
     "find": ("find: where your searchers land", "Google's top 30 · by visitors", "lists · directories · articles · videos · threads"),
     "audit": ("audit: your own link profile", "rating · new and lost per week · anchors", "spammy sites linking to you",
-              "a site-wide link counted once", "★ one owner's sites among them (free)"),
+              "a site-wide link counted once", "one owner's sites among them (free)"),
     "lost": ("lost: backlinks landing on 404 → a 301", "audit's backlinks (up to 1,000, cached 7 days)",
-             "only 404 / 410 are dead · most referring sites first", "★ redirects followed hop by hop, and judged",
+             "only 404 / 410 are dead · most referring sites first", "redirects followed hop by hop, and judged",
              "301 target from your sitemaps · none under 0.50"),
-    "rivals": ("★ competitors · cited · asked", "rivals' new sites · the link gap", "who Google's AI Overviews cite",
+    "rivals": ("★ competitors · cited · asked", "rivals' new sites · the link gap", "★ --early: their links at launch",
+               "★ same age as you · launch checklist", "who Google's AI Overviews cite",
                "what 5 assistants search and cite", "questions: what buyers would ask"),
     "vet": ("vet: is this site worth it?", "settled by its own pages: no paid check"),
     "c1": ("Reading the pages (free)", "dead · parked · sells links · link back", "shortener · link network · gambling", "checkout links · shared analytics account"),
     "c2": ("GoAnyAPI", "rating · a year of visits · cliffs", "still indexed? · registration date", "visitor sources (AI too) · write-for-us"),
-    "c3": ("★ Glasser or AIsa", "spam score · hit by Google before?", "thousands of pages, no rankings", "how many look-alikes share its checkout"),
-    "c4": ("Optional", "--deep badge network · unproven · Ahrefs", "tech · ChatGPT mentions · inner checkouts", "--recent new pages · --topic rank"),
+    "c3": ("Glasser or AIsa", "spam score · hit by Google before?", "thousands of pages, no rankings", "how many look-alikes share its checkout"),
+    "c4": ("★ Optional", "--deep badge network · unproven · Ahrefs", "tech · ChatGPT mentions · inner checkouts", "--recent new pages · --topic rank", "★ --newcomers: still taking new sites?"),
     "c5": ("Free context", "Wayback first copy · re-registered domain", "known to Google's Knowledge Graph?"),
     "c6": ("Networks seen before", "templates and accounts from past checks", "one site alone still matches its network"),
     "c7": ("The shared spam-link list (GitHub): a listed site is avoid, no paid check",),
@@ -86,14 +89,14 @@ EN = {
     "ok": ("ok: then look at value", "value: high to none", "and what it sent you (GA)"),
     "action": ("Action: verdict, link policy and value read together", ("skip", "look first", "free only", "low value", "submit")),
     "report": ("Report a network", "sites the shared list lacks", "a filled-in form you submit"),
-    "new": "orange text and the NEW tag: new in 0.8 to 0.10", "tag": "NEW",
+    "new": "orange text and the NEW tag: new in 0.11", "tag": "NEW",
     "why": ("Each finding carries its evidence and the Google spam policy line it stands next to",
             "plus link policy and value columns · a check that failed: incomplete, run it again"),
     "rules": ("The rules", "your own project only · a few a week · vary the anchor", "never pay for a followed link (paid: sponsored or nofollow)"),
     "submit": ("You submit", "the tool never does"), "verify": ("verify: after it is live", "there? passing credit?", "in the text, or the footer?"),
     "log": ("log: your submissions", "over 5 a week: warned", "same anchor again: warned", "recheck them monthly"),
     "use": ("Command line: backlink-guard  find · vet · verify · audit · lost · log · recheck",
-            "★ competitors · cited · questions · asked · an MCP server: backlink-guard mcp",
+            "competitors · cited · questions · asked · an MCP server: backlink-guard mcp",
             "Claude Code plugin · Agent Skill: npx skills add zhuyansen/backlink-guard"),
     "legend": ("input", "checks", "data", "avoid / caution / ok", "look back · report back"),
 }
@@ -162,38 +165,38 @@ PATHS_06 = [
     ("loop2", [(730, 1022), (748, 1022), (748, 420), (730, 420)], "#888780", True, 4.0, 2.0),
     ("rep", [(30, 915), (14, 915), (14, 588), (46, 588)], "#A32D2D", True, 4.0, 1.0),
 ]
-# the 0.6 layout from vet down moves by D; audit's backlink data feeds lost
-PATHS = [(i, [(x, y + D if y >= 236 else y) for x, y in p], *rest) for i, p, *rest in PATHS_06]
+# the 0.6 layout from vet down moves by D, and from vet's free-context row down by N as well; audit's backlink data feeds lost
+PATHS = [(i, [(x, y + D + N if y >= 488 else y + D if y >= 236 else y) for x, y in p], *rest) for i, p, *rest in PATHS_06]
 PATHS.append(("lo", [(565, 236), (565, 248)], "#378ADD", False, 1.0, 0.3))
-PATHS.append(("rv", [(220, 352), (220, 376)], NEW, False, 1.0, 0.4))   # competitors, cited and asked also feed vet
+PATHS.append(("rv", [(220, 386), (220, 410)], NEW, False, 1.0, 0.4))   # competitors, cited and asked also feed vet
 DASH = ' stroke-dasharray="4 3"'
 
 
 def scene(T):
-    tag, Y = T.get("tag", ""), D
+    tag, Y, Z = T.get("tag", ""), D, D + N    # Z: from vet's free-context row down
     boxes = "\n".join([
         box(30, 36, 220, 60, GRY, T["kw"]), box(270, 36, 220, 60, GRY, T["list"]), box(510, 36, 220, 60, GRY, T["me"]),
         box(30, 130, 330, 74, BLU, T["find"]), box(400, 130, 330, 106, BLU, T["audit"]),
-        box(80, 232, 280, 120, BLU, T["rivals"], size=13, tag=tag),
-        box(400, 248, 330, 104, BLU, T["lost"], title_dy=4, size=13),
-        box(30, 240 + Y, 700, 382, BLU, T["vet"], title_dy=-169, size=15),
+        box(80, 232, 280, 154, BLU, T["rivals"], title_dy=3, size=13, tag=tag),
+        box(400, 248, 330, 138, BLU, T["lost"], title_dy=2, size=13),
+        box(30, 240 + Y, 700, 382 + N, BLU, T["vet"], title_dy=-169 - N / 2, size=15),
         box(46, 296 + Y, 326, 88, AMB, T["c1"]), box(388, 296 + Y, 326, 88, AMB, T["c2"]),
-        box(46, 392 + Y, 326, 88, AMB, T["c3"], tag=tag), box(388, 392 + Y, 326, 88, AMB, T["c4"], dashed=True),
-        box(46, 488 + Y, 326, 72, AMB, T["c5"]), box(388, 488 + Y, 326, 72, AMB, T["c6"]),
-        box(46, 568 + Y, 668, 40, AMB, T["c7"]),
-        box(30, 652 + Y, 220, 72, RED, T["avoid"]), box(270, 652 + Y, 220, 72, YEL, T["caution"]), box(510, 652 + Y, 220, 72, GRN, T["ok"]),
-        action_bar(30, 776 + Y, 700, 74, T["action"]),
-        box(30, 882 + Y, 220, 66, RED, T["report"]), box(270, 882 + Y, 460, 66, GRY, T["rules"]),
-        box(30, 982 + Y, 220, 80, GRY, T["submit"]), box(280, 982 + Y, 230, 80, BLU, T["verify"]), box(540, 982 + Y, 190, 80, BLU, T["log"]),
+        box(46, 392 + Y, 326, 88 + N, AMB, T["c3"]), box(388, 392 + Y, 326, 88 + N, AMB, T["c4"], dashed=True, tag=tag),
+        box(46, 488 + Z, 326, 72, AMB, T["c5"]), box(388, 488 + Z, 326, 72, AMB, T["c6"]),
+        box(46, 568 + Z, 668, 40, AMB, T["c7"]),
+        box(30, 652 + Z, 220, 72, RED, T["avoid"]), box(270, 652 + Z, 220, 72, YEL, T["caution"]), box(510, 652 + Z, 220, 72, GRN, T["ok"]),
+        action_bar(30, 776 + Z, 700, 74, T["action"]),
+        box(30, 882 + Z, 220, 66, RED, T["report"]), box(270, 882 + Z, 460, 66, GRY, T["rules"]),
+        box(30, 982 + Z, 220, 80, GRY, T["submit"]), box(280, 982 + Z, 230, 80, BLU, T["verify"]), box(540, 982 + Z, 190, 80, BLU, T["log"]),
     ])
     lines = "\n".join(f'<path id="{i}" d="M{" L".join(f"{x} {y}" for x, y in p)}" fill="none" stroke="{c}" stroke-width="1"'
                       f'{DASH if dash else ""} marker-end="url(#arrow)"/>' for i, p, c, dash, *_ in PATHS)
-    notes = ("".join(f'<text x="30" y="{744 + Y + 16 * i}" font-size="11" fill="#5F5E5A">{w}</text>' for i, w in enumerate(T["why"]) if w)
-             + f'<path d="M30 {1080 + Y} H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>'
-             + "".join(f'<text x="380" y="{1100 + Y + 17 * i}" text-anchor="middle" font-size="11.5" '
+    notes = ("".join(f'<text x="30" y="{744 + Z + 16 * i}" font-size="11" fill="#5F5E5A">{w}</text>' for i, w in enumerate(T["why"]) if w)
+             + f'<path d="M30 {1080 + Z} H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/>'
+             + "".join(f'<text x="380" y="{1100 + Z + 17 * i}" text-anchor="middle" font-size="11.5" '
                        f'fill="{NEW if u.startswith("★ ") else "#5F5E5A"}">{u.removeprefix("★ ")}</text>' for i, u in enumerate(T["use"]))
-             + (f'<text x="380" y="{1134 + Y + U}" text-anchor="middle" font-size="11.5" fill="{NEW}">{T["new"]}</text>' if T.get("new") else ""))
-    legend_y = 1150 + Y + U
+             + (f'<text x="380" y="{1134 + Z + U}" text-anchor="middle" font-size="11.5" fill="{NEW}">{T["new"]}</text>' if T.get("new") else ""))
+    legend_y = 1150 + Z + U
     swatches = [f'fill="{GRY["fill"]}" stroke="{GRY["stroke"]}" stroke-width="0.5"', f'fill="{BLU["fill"]}" stroke="{BLU["stroke"]}" stroke-width="0.5"',
                 f'fill="{AMB["fill"]}" stroke="{AMB["stroke"]}" stroke-width="0.5"']
     labels = list(T["legend"])

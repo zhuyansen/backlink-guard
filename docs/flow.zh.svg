@@ -1,24 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="2666" viewBox="0 0 760 1333" font-family="Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="2766" viewBox="0 0 760 1383" font-family="Hiragino Sans GB, PingFang SC, Noto Sans CJK SC, sans-serif">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-<rect width="760" height="1333" fill="#FFFFFF"/>
+<rect width="760" height="1383" fill="#FFFFFF"/>
 <path id="k" d="M140 96 L140 130" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="l" d="M380 96 L380 376" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="l" d="M380 96 L380 410" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
 <path id="d" d="M620 96 L620 130" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="f" d="M50 204 L50 376" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="v1" d="M140 758 L140 788" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="v2" d="M380 758 L380 788" fill="none" stroke="#854F0B" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="v3" d="M620 758 L620 788" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="a" d="M690 860 L690 912" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="x" d="M108 986 L108 1018" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="r" d="M652 986 L652 1018" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="s" d="M300 1084 L300 1101 L140 1101 L140 1118" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="t" d="M250 1158 L280 1158" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="u" d="M510 1158 L540 1158" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="loop" d="M730 1158 L748 1158 L748 167 L730 167" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
-<path id="loop2" d="M730 1158 L748 1158 L748 556 L730 556" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
-<path id="rep" d="M30 1051 L14 1051 L14 724 L46 724" fill="none" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="f" d="M50 204 L50 410" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="v1" d="M140 808 L140 838" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="v2" d="M380 808 L380 838" fill="none" stroke="#854F0B" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="v3" d="M620 808 L620 838" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="a" d="M690 910 L690 962" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="x" d="M108 1036 L108 1068" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="r" d="M652 1036 L652 1068" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="s" d="M300 1134 L300 1151 L140 1151 L140 1168" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="t" d="M250 1208 L280 1208" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="u" d="M510 1208 L540 1208" fill="none" stroke="#888780" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="loop" d="M730 1208 L748 1208 L748 167 L730 167" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="loop2" d="M730 1208 L748 1208 L748 590 L730 590" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path id="rep" d="M30 1101 L14 1101 L14 774 L46 774" fill="none" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 <path id="lo" d="M565 236 L565 248" fill="none" stroke="#378ADD" stroke-width="1" marker-end="url(#arrow)"/>
-<path id="rv" d="M220 352 L220 376" fill="none" stroke="#993C1D" stroke-width="1" marker-end="url(#arrow)"/>
+<path id="rv" d="M220 386 L220 410" fill="none" stroke="#993C1D" stroke-width="1" marker-end="url(#arrow)"/>
 <g font-size="14" text-anchor="middle">
 <rect x="30" y="36" width="220" height="60" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
 <text x="140.0" y="62.0" fill="#444441" font-weight="500" font-size="14">你的关键词</text>
@@ -37,101 +37,104 @@
 <text x="565.0" y="161.0" fill="#0C447C" font-weight="500" font-size="14">audit：你自己的外链画像</text>
 <text x="565.0" y="180.0" fill="#185FA5" font-size="12">评分 · 每周新增和丢失 · 锚文本</text>
 <text x="565.0" y="196.5" fill="#185FA5" font-size="12">链你的站里谁的垃圾分高 · 全站链接只算 1 个</text>
-<text x="565.0" y="213.0" fill="#993C1D" font-weight="500" font-size="12">同一个人运营的站群（读首页，免费）</text>
-<rect x="80" y="232" width="280" height="120" rx="4" fill="#E6F1FB" stroke="#993C1D" stroke-width="1.5"/>
-<text x="220.0" y="261.0" fill="#0C447C" font-weight="500" font-size="13">competitors · cited · asked</text>
-<text x="220.0" y="280.0" fill="#185FA5" font-size="12">竞品新拿到的外链 · 链接交集</text>
-<text x="220.0" y="296.5" fill="#185FA5" font-size="12">Google AI 概览引用了谁，有没有你</text>
-<text x="220.0" y="313.0" fill="#185FA5" font-size="12">五家 AI 助手搜了什么、引用了谁</text>
-<text x="220.0" y="329.5" fill="#185FA5" font-size="12">questions：买家会怎么问 AI</text>
+<text x="565.0" y="213.0" fill="#185FA5" font-size="12">同一个人运营的站群（读首页，免费）</text>
+<rect x="80" y="232" width="280" height="154" rx="4" fill="#E6F1FB" stroke="#993C1D" stroke-width="1.5"/>
+<text x="220.0" y="263.0" fill="#0C447C" font-weight="500" font-size="13">competitors · cited · asked</text>
+<text x="220.0" y="282.0" fill="#185FA5" font-size="12">竞品新拿到的外链 · 链接交集</text>
+<text x="220.0" y="298.5" fill="#993C1D" font-weight="500" font-size="12">--early：竞品上线头 90 天拿到的外链</text>
+<text x="220.0" y="315.0" fill="#993C1D" font-weight="500" font-size="12">和你同龄时比 · 发布清单：它们有、你没有</text>
+<text x="220.0" y="331.5" fill="#185FA5" font-size="12">Google AI 概览引用了谁，有没有你</text>
+<text x="220.0" y="348.0" fill="#185FA5" font-size="12">五家 AI 助手搜了什么、引用了谁</text>
+<text x="220.0" y="364.5" fill="#185FA5" font-size="12">questions：买家会怎么问 AI</text>
 <rect x="313" y="223" width="35" height="18" rx="9" fill="#993C1D"/><text x="330" y="236" fill="#FFFFFF" font-weight="500" font-size="10.5">新增</text>
-<rect x="400" y="248" width="330" height="104" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="565.0" y="273.0" fill="#0C447C" font-weight="500" font-size="13">lost：外链落在 404 或跳转 → 建议 301</text>
-<text x="565.0" y="292.0" fill="#185FA5" font-size="12">沿用 audit 的外链（最多 1,000 条，缓存 7 天）</text>
-<text x="565.0" y="308.5" fill="#185FA5" font-size="12">只认 404 / 410 为死链 · 按引荐网站数排序</text>
-<text x="565.0" y="325.0" fill="#993C1D" font-weight="500" font-size="12">跳转逐跳跟到底：断链、跳回首页、302、多跳</text>
-<text x="565.0" y="341.5" fill="#185FA5" font-size="12">301 目标取自你的 sitemap · 低于 0.50 不建议</text>
-<rect x="30" y="376" width="700" height="382" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="380.0" y="394.0" fill="#0C447C" font-weight="500" font-size="15">vet：这个站值不值得发</text>
-<text x="380.0" y="413.0" fill="#185FA5" font-size="12">读页面就判 avoid 的，不再付费查</text>
-<rect x="46" y="432" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="209.0" y="454.0" fill="#712B13" font-weight="500" font-size="14">读页面（免费）</text>
-<text x="209.0" y="473.0" fill="#993C1D" font-size="12">死站 · 停放 · 卖链接 · 要回链</text>
-<text x="209.0" y="489.5" fill="#993C1D" font-size="12">短链 · 站群模板 · 链向博彩</text>
-<text x="209.0" y="506.0" fill="#993C1D" font-size="12">收款链接（站群 / 被黑）· 共用统计账号</text>
-<rect x="388" y="432" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="551.0" y="454.0" fill="#712B13" font-weight="500" font-size="14">GoAnyAPI</text>
-<text x="551.0" y="473.0" fill="#993C1D" font-size="12">评分 · 一年访问量 · 断崖</text>
-<text x="551.0" y="489.5" fill="#993C1D" font-size="12">还在不在收录里 · 注册日期</text>
-<text x="551.0" y="506.0" fill="#993C1D" font-size="12">访客来源（含 AI）· 自己的 write for us 页</text>
-<rect x="46" y="528" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
-<text x="209.0" y="550.0" fill="#712B13" font-weight="500" font-size="14">Glasser 或 AIsa</text>
-<text x="209.0" y="569.0" fill="#993C1D" font-size="12">垃圾分 · 被 Google 打过没有</text>
-<text x="209.0" y="585.5" fill="#993C1D" font-size="12">页面成千上万、几乎没排名</text>
-<text x="209.0" y="602.0" fill="#993C1D" font-size="12">收款链接被多少个同类站共用</text>
-<rect x="325" y="519" width="35" height="18" rx="9" fill="#993C1D"/><text x="342" y="532" fill="#FFFFFF" font-weight="500" font-size="10.5">新增</text>
-<rect x="388" y="528" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="1" stroke-dasharray="5 3"/>
-<text x="551.0" y="550.0" fill="#712B13" font-weight="500" font-size="14">可选</text>
-<text x="551.0" y="569.0" fill="#993C1D" font-size="12">--deep 徽章网络 · 未经证实 · Ahrefs 评分</text>
-<text x="551.0" y="585.5" fill="#993C1D" font-size="12">技术栈 · ChatGPT 提及 · 内页收款链接</text>
-<text x="551.0" y="602.0" fill="#993C1D" font-size="12">--recent 新页收录 · --topic 排名</text>
-<rect x="46" y="624" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="209.0" y="647.0" fill="#712B13" font-weight="500" font-size="14">免费旁证</text>
-<text x="209.0" y="666.0" fill="#993C1D" font-size="12">Wayback 最早存档 · 过期域名被重新注册</text>
-<text x="209.0" y="682.5" fill="#993C1D" font-size="12">Google 知识图谱认不认识它</text>
-<rect x="388" y="624" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="551.0" y="647.0" fill="#712B13" font-weight="500" font-size="14">本机记得的站群</text>
-<text x="551.0" y="666.0" fill="#993C1D" font-size="12">以往查过的页面模板、统计账号，记一年</text>
-<text x="551.0" y="682.5" fill="#993C1D" font-size="12">单独查一个站，也能认出同一个人的站群</text>
-<rect x="46" y="704" width="668" height="40" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-<text x="380.0" y="729.0" fill="#712B13" font-weight="500" font-size="14">共享 spam 外链名单（GitHub）：名单上的站直接 avoid，不再付费查</text>
-<rect x="30" y="788" width="220" height="72" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
-<text x="140.0" y="811.0" fill="#791F1F" font-weight="500" font-size="14">avoid：别提交</text>
-<text x="140.0" y="830.0" fill="#A32D2D" font-size="12">死站 · 停放 · 卖链接为业 · 短链</text>
-<text x="140.0" y="846.5" fill="#A32D2D" font-size="12">收款链接站群 · 被黑注入</text>
-<rect x="270" y="788" width="220" height="72" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
-<text x="380.0" y="811.0" fill="#633806" font-weight="500" font-size="14">caution：读证据再定</text>
-<text x="380.0" y="830.0" fill="#854F0B" font-size="12">两条以上问题才算</text>
-<text x="380.0" y="846.5" fill="#854F0B" font-size="12">卖链接 · 被 Google 打过 · 重注册</text>
-<rect x="510" y="788" width="220" height="72" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
-<text x="620.0" y="811.0" fill="#085041" font-weight="500" font-size="14">ok：再看价值</text>
-<text x="620.0" y="830.0" fill="#0F6E56" font-size="12">价值 高 / 中 / 低 / 无</text>
-<text x="620.0" y="846.5" fill="#0F6E56" font-size="12">可附你的 GA 引荐访问数</text>
-<rect x="30" y="912" width="700" height="74" rx="4" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="380.0" y="932" fill="#444441" font-weight="500" font-size="14">建议：结论、政策风险、价值一起看</text>
-<rect x="46" y="944" width="124" height="30" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
-<text x="108" y="964" fill="#791F1F" font-weight="500" font-size="13">跳过</text>
-<rect x="182" y="944" width="124" height="30" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
-<text x="244" y="964" fill="#633806" font-weight="500" font-size="13">先看看</text>
-<rect x="318" y="944" width="124" height="30" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="380" y="964" fill="#0C447C" font-weight="500" font-size="13">只免费提交</text>
-<rect x="454" y="944" width="124" height="30" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="516" y="964" fill="#444441" font-weight="500" font-size="13">价值低</text>
-<rect x="590" y="944" width="124" height="30" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
-<text x="652" y="964" fill="#085041" font-weight="500" font-size="13">可以提交</text>
-<rect x="30" y="1018" width="220" height="66" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
-<text x="140.0" y="1038.0" fill="#791F1F" font-weight="500" font-size="14">举报站群</text>
-<text x="140.0" y="1057.0" fill="#A32D2D" font-size="12">名单上还没有的同一运营者站点</text>
-<text x="140.0" y="1073.5" fill="#A32D2D" font-size="12">附预填好的表单，你点提交才发出</text>
-<rect x="270" y="1018" width="460" height="66" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="500.0" y="1038.0" fill="#444441" font-weight="500" font-size="14">提交规则</text>
-<text x="500.0" y="1057.0" fill="#5F5E5A" font-size="12">只提交自己的 · 一周几个 · 锚文本换着用</text>
-<text x="500.0" y="1073.5" fill="#5F5E5A" font-size="12">绝不买传权重的链接（付费要 sponsored / nofollow）</text>
-<rect x="30" y="1118" width="220" height="80" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
-<text x="140.0" y="1154.0" fill="#444441" font-weight="500" font-size="14">你去提交</text>
-<text x="140.0" y="1173.0" fill="#5F5E5A" font-size="12">工具不代你提交</text>
-<rect x="280" y="1118" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="395.0" y="1145.0" fill="#0C447C" font-weight="500" font-size="14">verify：上线后查链接</text>
-<text x="395.0" y="1164.0" fill="#185FA5" font-size="12">在不在 · 传不传权重</text>
-<text x="395.0" y="1180.5" fill="#185FA5" font-size="12">正文 / 页脚 / 侧栏 / 评论</text>
-<rect x="540" y="1118" width="190" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="635.0" y="1136.0" fill="#0C447C" font-weight="500" font-size="14">log：提交账本</text>
-<text x="635.0" y="1155.0" fill="#185FA5" font-size="12">一周超过 5 个提醒</text>
-<text x="635.0" y="1171.5" fill="#185FA5" font-size="12">同一锚文本反复用提醒</text>
-<text x="635.0" y="1188.0" fill="#185FA5" font-size="12">recheck：每月重查已上的站</text>
+<rect x="400" y="248" width="330" height="138" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="565.0" y="288.0" fill="#0C447C" font-weight="500" font-size="13">lost：外链落在 404 或跳转 → 建议 301</text>
+<text x="565.0" y="307.0" fill="#185FA5" font-size="12">沿用 audit 的外链（最多 1,000 条，缓存 7 天）</text>
+<text x="565.0" y="323.5" fill="#185FA5" font-size="12">只认 404 / 410 为死链 · 按引荐网站数排序</text>
+<text x="565.0" y="340.0" fill="#185FA5" font-size="12">跳转逐跳跟到底：断链、跳回首页、302、多跳</text>
+<text x="565.0" y="356.5" fill="#185FA5" font-size="12">301 目标取自你的 sitemap · 低于 0.50 不建议</text>
+<rect x="30" y="410" width="700" height="398" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="380.0" y="428.0" fill="#0C447C" font-weight="500" font-size="15">vet：这个站值不值得发</text>
+<text x="380.0" y="447.0" fill="#185FA5" font-size="12">读页面就判 avoid 的，不再付费查</text>
+<rect x="46" y="466" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="209.0" y="488.0" fill="#712B13" font-weight="500" font-size="14">读页面（免费）</text>
+<text x="209.0" y="507.0" fill="#993C1D" font-size="12">死站 · 停放 · 卖链接 · 要回链</text>
+<text x="209.0" y="523.5" fill="#993C1D" font-size="12">短链 · 站群模板 · 链向博彩</text>
+<text x="209.0" y="540.0" fill="#993C1D" font-size="12">收款链接（站群 / 被黑）· 共用统计账号</text>
+<rect x="388" y="466" width="326" height="88" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="551.0" y="488.0" fill="#712B13" font-weight="500" font-size="14">GoAnyAPI</text>
+<text x="551.0" y="507.0" fill="#993C1D" font-size="12">评分 · 一年访问量 · 断崖</text>
+<text x="551.0" y="523.5" fill="#993C1D" font-size="12">还在不在收录里 · 注册日期</text>
+<text x="551.0" y="540.0" fill="#993C1D" font-size="12">访客来源（含 AI）· 自己的 write for us 页</text>
+<rect x="46" y="562" width="326" height="104" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="209.0" y="592.0" fill="#712B13" font-weight="500" font-size="14">Glasser 或 AIsa</text>
+<text x="209.0" y="611.0" fill="#993C1D" font-size="12">垃圾分 · 被 Google 打过没有</text>
+<text x="209.0" y="627.5" fill="#993C1D" font-size="12">页面成千上万、几乎没排名</text>
+<text x="209.0" y="644.0" fill="#993C1D" font-size="12">收款链接被多少个同类站共用</text>
+<rect x="388" y="562" width="326" height="104" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5" stroke-dasharray="5 3"/>
+<text x="551.0" y="583.0" fill="#712B13" font-weight="500" font-size="14">可选</text>
+<text x="551.0" y="602.0" fill="#993C1D" font-size="12">--deep 徽章网络 · 未经证实 · Ahrefs 评分</text>
+<text x="551.0" y="618.5" fill="#993C1D" font-size="12">技术栈 · ChatGPT 提及 · 内页收款链接</text>
+<text x="551.0" y="635.0" fill="#993C1D" font-size="12">--recent 新页收录 · --topic 排名</text>
+<text x="551.0" y="651.5" fill="#993C1D" font-weight="500" font-size="12">--newcomers：现在还收不收新站</text>
+<rect x="667" y="553" width="35" height="18" rx="9" fill="#993C1D"/><text x="684" y="566" fill="#FFFFFF" font-weight="500" font-size="10.5">新增</text>
+<rect x="46" y="674" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="209.0" y="697.0" fill="#712B13" font-weight="500" font-size="14">免费旁证</text>
+<text x="209.0" y="716.0" fill="#993C1D" font-size="12">Wayback 最早存档 · 过期域名被重新注册</text>
+<text x="209.0" y="732.5" fill="#993C1D" font-size="12">Google 知识图谱认不认识它</text>
+<rect x="388" y="674" width="326" height="72" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="551.0" y="697.0" fill="#712B13" font-weight="500" font-size="14">本机记得的站群</text>
+<text x="551.0" y="716.0" fill="#993C1D" font-size="12">以往查过的页面模板、统计账号，记一年</text>
+<text x="551.0" y="732.5" fill="#993C1D" font-size="12">单独查一个站，也能认出同一个人的站群</text>
+<rect x="46" y="754" width="668" height="40" rx="4" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text x="380.0" y="779.0" fill="#712B13" font-weight="500" font-size="14">共享 spam 外链名单（GitHub）：名单上的站直接 avoid，不再付费查</text>
+<rect x="30" y="838" width="220" height="72" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="140.0" y="861.0" fill="#791F1F" font-weight="500" font-size="14">avoid：别提交</text>
+<text x="140.0" y="880.0" fill="#A32D2D" font-size="12">死站 · 停放 · 卖链接为业 · 短链</text>
+<text x="140.0" y="896.5" fill="#A32D2D" font-size="12">收款链接站群 · 被黑注入</text>
+<rect x="270" y="838" width="220" height="72" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="380.0" y="861.0" fill="#633806" font-weight="500" font-size="14">caution：读证据再定</text>
+<text x="380.0" y="880.0" fill="#854F0B" font-size="12">两条以上问题才算</text>
+<text x="380.0" y="896.5" fill="#854F0B" font-size="12">卖链接 · 被 Google 打过 · 重注册</text>
+<rect x="510" y="838" width="220" height="72" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="620.0" y="861.0" fill="#085041" font-weight="500" font-size="14">ok：再看价值</text>
+<text x="620.0" y="880.0" fill="#0F6E56" font-size="12">价值 高 / 中 / 低 / 无</text>
+<text x="620.0" y="896.5" fill="#0F6E56" font-size="12">可附你的 GA 引荐访问数</text>
+<rect x="30" y="962" width="700" height="74" rx="4" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="380.0" y="982" fill="#444441" font-weight="500" font-size="14">建议：结论、政策风险、价值一起看</text>
+<rect x="46" y="994" width="124" height="30" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="108" y="1014" fill="#791F1F" font-weight="500" font-size="13">跳过</text>
+<rect x="182" y="994" width="124" height="30" rx="4" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="244" y="1014" fill="#633806" font-weight="500" font-size="13">先看看</text>
+<rect x="318" y="994" width="124" height="30" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="380" y="1014" fill="#0C447C" font-weight="500" font-size="13">只免费提交</text>
+<rect x="454" y="994" width="124" height="30" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="516" y="1014" fill="#444441" font-weight="500" font-size="13">价值低</text>
+<rect x="590" y="994" width="124" height="30" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="652" y="1014" fill="#085041" font-weight="500" font-size="13">可以提交</text>
+<rect x="30" y="1068" width="220" height="66" rx="4" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text x="140.0" y="1088.0" fill="#791F1F" font-weight="500" font-size="14">举报站群</text>
+<text x="140.0" y="1107.0" fill="#A32D2D" font-size="12">名单上还没有的同一运营者站点</text>
+<text x="140.0" y="1123.5" fill="#A32D2D" font-size="12">附预填好的表单，你点提交才发出</text>
+<rect x="270" y="1068" width="460" height="66" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="500.0" y="1088.0" fill="#444441" font-weight="500" font-size="14">提交规则</text>
+<text x="500.0" y="1107.0" fill="#5F5E5A" font-size="12">只提交自己的 · 一周几个 · 锚文本换着用</text>
+<text x="500.0" y="1123.5" fill="#5F5E5A" font-size="12">绝不买传权重的链接（付费要 sponsored / nofollow）</text>
+<rect x="30" y="1168" width="220" height="80" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="140.0" y="1204.0" fill="#444441" font-weight="500" font-size="14">你去提交</text>
+<text x="140.0" y="1223.0" fill="#5F5E5A" font-size="12">工具不代你提交</text>
+<rect x="280" y="1168" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="395.0" y="1195.0" fill="#0C447C" font-weight="500" font-size="14">verify：上线后查链接</text>
+<text x="395.0" y="1214.0" fill="#185FA5" font-size="12">在不在 · 传不传权重</text>
+<text x="395.0" y="1230.5" fill="#185FA5" font-size="12">正文 / 页脚 / 侧栏 / 评论</text>
+<rect x="540" y="1168" width="190" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="635.0" y="1186.0" fill="#0C447C" font-weight="500" font-size="14">log：提交账本</text>
+<text x="635.0" y="1205.0" fill="#185FA5" font-size="12">一周超过 5 个提醒</text>
+<text x="635.0" y="1221.5" fill="#185FA5" font-size="12">同一锚文本反复用提醒</text>
+<text x="635.0" y="1238.0" fill="#185FA5" font-size="12">recheck：每月重查已上的站</text>
 </g>
-<text x="30" y="880" font-size="11" fill="#5F5E5A">每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款</text><text x="30" y="896" font-size="11" fill="#5F5E5A">每行另附「政策风险」「价值」两栏 · 本可能查出问题的检查失败了：标「待定」，重跑</text><path d="M30 1216 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1236" text-anchor="middle" font-size="11.5" fill="#5F5E5A">命令行：backlink-guard  find · vet · verify · audit · lost · log · recheck</text><text x="380" y="1253" text-anchor="middle" font-size="11.5" fill="#993C1D">competitors · cited · questions · asked · MCP 服务器：backlink-guard mcp</text><text x="380" y="1270" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code 插件 · Agent Skill：npx skills add zhuyansen/backlink-guard</text><text x="380" y="1287" text-anchor="middle" font-size="11.5" fill="#993C1D">橙色字和「新增」标签 = 0.8 到 0.10 新增</text>
-<rect x="30" y="1303" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text x="52" y="1315" font-size="12" fill="#444441">你给的输入</text><rect x="146" y="1303" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="168" y="1315" font-size="12" fill="#444441">检查</text><rect x="227" y="1303" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/><text x="249" y="1315" font-size="12" fill="#444441">数据来源</text><rect x="331" y="1303" width="10" height="14" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="343" y="1303" width="10" height="14" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="355" y="1303" width="10" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/><text x="373" y="1315" font-size="12" fill="#444441">结论：别发 / 小心 / 可以</text><path d="M574 1310 H604" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" fill="none"/><text x="612" y="1315" font-size="12" fill="#444441">定期回看 · 举报回流</text>
+<text x="30" y="930" font-size="11" fill="#5F5E5A">每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款</text><text x="30" y="946" font-size="11" fill="#5F5E5A">每行另附「政策风险」「价值」两栏 · 本可能查出问题的检查失败了：标「待定」，重跑</text><path d="M30 1266 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1286" text-anchor="middle" font-size="11.5" fill="#5F5E5A">命令行：backlink-guard  find · vet · verify · audit · lost · log · recheck</text><text x="380" y="1303" text-anchor="middle" font-size="11.5" fill="#5F5E5A">competitors · cited · questions · asked · MCP 服务器：backlink-guard mcp</text><text x="380" y="1320" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code 插件 · Agent Skill：npx skills add zhuyansen/backlink-guard</text><text x="380" y="1337" text-anchor="middle" font-size="11.5" fill="#993C1D">橙色字和「新增」标签 = 0.11 新增</text>
+<rect x="30" y="1353" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text x="52" y="1365" font-size="12" fill="#444441">你给的输入</text><rect x="146" y="1353" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="168" y="1365" font-size="12" fill="#444441">检查</text><rect x="227" y="1353" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/><text x="249" y="1365" font-size="12" fill="#444441">数据来源</text><rect x="331" y="1353" width="10" height="14" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="343" y="1353" width="10" height="14" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="355" y="1353" width="10" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/><text x="373" y="1365" font-size="12" fill="#444441">结论：别发 / 小心 / 可以</text><path d="M574 1360 H604" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" fill="none"/><text x="612" y="1365" font-size="12" fill="#444441">定期回看 · 举报回流</text>
 <circle r="4" fill="#888780"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.0s"><mpath href="#k"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="2.0s" repeatCount="indefinite" begin="0.4s"><mpath href="#l"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.2s"><mpath href="#d"/></animateMotion></circle>

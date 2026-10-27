@@ -28,7 +28,7 @@
 
 多数外链工具帮你发得更多。这个工具告诉你哪里别发、什么时候该慢下来。
 
-![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，competitors、cited、asked 找出竞品拿到的外链和 AI 回答引用的站；vet 逐个检查（读页面、GoAnyAPI、Glasser 或 AIsa），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，含同一个人运营的站群；lost 找出落在 404 或跳转页面上的外链并建议 301。橙色是 0.8 到 0.10 新增的](docs/flow.zh.gif)
+![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，competitors、cited、asked 找出竞品拿到的外链和 AI 回答引用的站，--early 看竞品刚上线时拿到的外链；vet 逐个检查（读页面、GoAnyAPI、Glasser 或 AIsa，--newcomers 看它还收不收新站），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，含同一个人运营的站群；lost 找出落在 404 或跳转页面上的外链并建议 301。橙色是 0.11 新增的](docs/flow.zh.gif)
 
 ## 快速上手
 
