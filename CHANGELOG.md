@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1 (2026-10-28)
+
+- Nothing goes out without the user's yes. The skill (section 3) and the MCP server's instructions now tell the
+  agent to show where each submission, pull request, issue, form or email goes and its exact text, and to wait for
+  the user's yes to that one before sending it. A vet result is not that yes (an `action` of `submit`, an `ok`
+  grade), and one yes covers one submission. A plugin directory's reviewer asked for it. Nothing else changed.
+
 ## 0.11.0 (2026-10-27)
 
 - `competitors --early`: your competitors' earliest links, the channels they used at launch, which take a new site.
