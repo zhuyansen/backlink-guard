@@ -176,14 +176,15 @@ async def competitors(domain: str, rivals: list[str], days: int = 7, limit: int 
                       early: bool = False, vetted: int = 10) -> dict:
     """Links the user's competitors earned and the user lacks: each rival's referring domains first seen in the
     last `days` days, and the sites linking to two or more rivals but not to the user, each with a linking page and
-    what to do there. Paid: about 0.025 USD a call, 2N + 2 calls for N rivals (three: about 0.20 USD), never more
-    than max_usd (default 0.30).
+    what to do there. Paid: about 0.025 USD a call, 2N + 2 calls for N rivals (three: about 0.20 USD); a call is
+    made only while its estimated price fits under max_usd (default 0.30).
 
     early=True reads their earliest links instead, the channels each used at launch, which take a new site: each
     rival's first 90 days against the user's site at the same age, the weeks that brought a burst, and the sites
     two or more rivals got early that do not link to the user (a launch checklist), the first `vetted` of them
     vetted free. Paid: about 0.06 USD a site, the user's included, plus a linking page call a rival: three rivals
-    about 0.35 USD, never more than max_usd (default 0.50). The free vets take a few minutes."""
+    about 0.35 USD; a call is made only while its estimated price fits under max_usd (default 0.50). The free vets
+    take a few minutes."""
     return await asyncio.to_thread(_competitors, domain, rivals, days, limit, max_usd, early, vetted)
 
 
@@ -196,7 +197,8 @@ def _cited(domain: str, keywords: list[str], max_usd: float) -> dict:
 async def cited(domain: str, keywords: list[str], max_usd: float = 0.10) -> dict:
     """Which sites Google's AI Overview cites for each keyword (US, English), whether the user's domain is among
     them and where it ranks, then the sites cited most: the places to be mentioned on. Paid: 0.002 USD a keyword
-    through AIsa (0.004 when the overview loads late), 0.004 through Glasser (0.006), never more than max_usd."""
+    through AIsa (0.004 when the overview loads late), 0.004 through Glasser (0.006); a call is made only while its
+    estimated price fits under max_usd."""
     return await asyncio.to_thread(_cited, domain, keywords, max_usd)
 
 
@@ -224,8 +226,8 @@ async def asked(domain: str, questions: list[str], names: list[str] | None = Non
     """The user's questions put to ChatGPT, Google's AI Mode, Perplexity, Claude and Gemini: what each searched for,
     the pages it cited, the tools it named and whether it named or cited the user; then the sites and pages cited
     most. names: other names the answers may call the user by. rank: also look up each search they ran on Google
-    and Bing. Paid (AIsa): about 0.12 USD a question, rank 0.0035 USD a search on each engine, never more than
-    max_usd."""
+    and Bing. Paid (AIsa): about 0.12 USD a question, rank 0.0035 USD a search on each engine; a call is made only
+    while its estimated price fits under max_usd."""
     return await asyncio.to_thread(_asked, domain, questions, names or [], rank, max_usd)
 
 

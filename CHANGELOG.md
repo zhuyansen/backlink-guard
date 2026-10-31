@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.2 (2026-10-31)
+
+- `--max-usd` holds when calls run side by side. A call that returned gave its estimate back, wrote its answer to
+  the cache and only then counted what it cost, so a call asked in that gap (`asked` runs four at once) saw room that
+  was already spent and could take the run past the cap even when every call cost no more than its estimate. The
+  estimate is now replaced by the cost in one step, before the cache is written, and a test holds a call in that
+  gap. A skills list's reviewer found it.
+- The cap is described as what it is, in the help, the skill, the MCP server's tools and the READMEs, which said
+  "never more than" and "at most": a call is made only while its estimated price still fits. The estimates are
+  prices seen before, at or above what the calls cost then, not prices the providers guarantee, so a call billed
+  above its estimate (a longer answer from a model, a price raised since) can take a run past the cap by the
+  difference.
+
 ## 0.11.1 (2026-10-28)
 
 - Nothing goes out without the user's yes. The skill (section 3) and the MCP server's instructions now tell the

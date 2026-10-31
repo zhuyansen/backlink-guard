@@ -153,7 +153,8 @@ def asked_parsers(sub, common) -> None:
     w.add_argument("--count", type=int, default=10, help="questions each assistant writes (default 10)")
     w.add_argument("--plain", action="store_true", help="print only the questions, one a line, for a file")
     w.add_argument("--max-usd", type=float, default=asking.WRITE_MAX_USD,
-                   help=f"spend at most this much (default {asking.WRITE_MAX_USD:.2f})")
+                   help="the run's cap, checked against each call's estimated price before the call "
+                        f"(default {asking.WRITE_MAX_USD:.2f})")
     q = sub.add_parser("asked", parents=[common], description=(
         "Your questions to ChatGPT (its own interface), Google's AI Mode, Perplexity, Claude and Gemini (with their web "
         "search): what each one searched for, the pages it cited with their titles, the tools it named, whether it named "
@@ -168,7 +169,8 @@ def asked_parsers(sub, common) -> None:
     q.add_argument("--rank", action="store_true", help="look up each search they ran on Google and Bing (top 20, US): "
                    "$0.0035 a search on each, under the same cap; answers asked in the last 7 days come from the cache")
     q.add_argument("--max-usd", type=float, default=asking.MAX_USD,
-                   help=f"spend at most this much on the run; cached answers are free (default {asking.MAX_USD:.2f})")
+                   help="the run's cap, checked against each call's estimated price before the call; cached answers are "
+                        f"free (default {asking.MAX_USD:.2f})")
 
 
 def cmd_asked(args) -> int:
@@ -249,8 +251,8 @@ def parser() -> argparse.ArgumentParser:
     k.add_argument("--vet", type=int, default=early.VETTED, metavar="SITES",
                    help=f"with --early: vet this many checklist sites free, with --newcomers (default {early.VETTED}; 0 skips it)")
     k.add_argument("--max-usd", type=float, metavar="USD",
-                   help=f"spend at most this much on the run; cached answers are free (default {competitors.MAX_USD:.2f}, "
-                        f"with --early {early.MAX_USD:.2f})")
+                   help="the run's cap, checked against each call's estimated price before the call; cached answers are "
+                        f"free (default {competitors.MAX_USD:.2f}, with --early {early.MAX_USD:.2f})")
     t = sub.add_parser("cited", parents=[common], description=(
         "Which sites Google's AI Overview cites for each keyword (US, English), whether your domain is one of them and "
         "where you rank, then the sites cited most across the keywords: the places to be mentioned on. A keyword with no "
@@ -259,7 +261,8 @@ def parser() -> argparse.ArgumentParser:
     t.add_argument("domain", help="your own domain")
     t.add_argument("keywords", nargs="+", metavar="KEYWORD")
     t.add_argument("--max-usd", type=float, default=cited.MAX_USD,
-                   help=f"spend at most this much on the run; cached answers are free (default {cited.MAX_USD:.2f})")
+                   help="the run's cap, checked against each call's estimated price before the call; cached answers are "
+                        f"free (default {cited.MAX_USD:.2f})")
     asked_parsers(sub, common)
     c = sub.add_parser("verify", parents=[common])
     c.add_argument("page")

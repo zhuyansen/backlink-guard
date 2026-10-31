@@ -2,12 +2,18 @@
 
 A paid question is asked only while its estimate still fits under the cap. An answer cached in the last 7 days is
 free and always given. A question the cap leaves out is named, so the report can say what is missing instead of
-passing a gap off as nothing found. An estimate is a price seen before, an upper bound for the call as it is asked:
-AIsa's own quote for these calls ($0.06 for any backlinks call, $0.04 for a results page, 2026-10-20) is so far above
-what they cost ($0.025 to $0.03) that it would stop a run long before its cap.
+passing a gap off as nothing found.
+
+The cap is kept on estimates, so it holds as far as they do. An estimate is a price seen before, at or above what the
+call cost when it was set, not a price the provider guarantees: a model's answer that runs long, or a price raised
+since, can bill a call above its estimate and the run above the cap by the difference. What a call cost is counted as
+soon as it returns, so every call after it is weighed against that. AIsa's own quote for these calls ($0.06 for any
+backlinks call, $0.04 for a results page, 2026-10-20) is so far above what they cost ($0.025 to $0.03) that it would
+stop a run long before its cap.
 
 Calls may run side by side (asked.py): while one runs, its estimate is held against the cap, so two calls that each
-fit cannot together pass it.
+fit cannot together pass it. When it returns, its estimate is replaced by what it cost in one step, before its answer
+is written to the cache, so no call is let in meanwhile against room that is already spent.
 """
 from __future__ import annotations
 
@@ -41,12 +47,14 @@ class Budget:
                 self.left_out.append(what or key)
                 raise OverBudget(what or key)
             self.held += estimate
+        cost = 0                        # what a failed call costs
         try:
             answer, cost = fetch()
         finally:
+            # the estimate becomes the cost in one step, before the cache is written, so no call is let in meanwhile
+            # against room this one has already spent
             with self._lock:
                 self.held -= estimate
+                self.spent += cost
         cache.put(key, answer)
-        with self._lock:
-            self.spent += cost
         return answer, cost

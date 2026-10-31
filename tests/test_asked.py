@@ -3,8 +3,10 @@ import threading
 import time
 from collections import Counter
 
+import pytest
+
 from backlink_guard import __main__ as cli
-from backlink_guard import asked, report
+from backlink_guard import asked, cache, report
 from backlink_guard.budget import Budget, OverBudget
 
 OWN = "mine.example"
@@ -120,6 +122,40 @@ def test_calls_side_by_side_hold_their_estimates_against_the_cap(monkeypatch):
     for t in threads:
         t.join()
     assert sorted(map(str, out)) == ["6000", "left out"] and budget.spent == 6000 and budget.held == 0
+
+
+def test_a_returned_call_counts_as_spent_ahead_of_caching_its_answer(monkeypatch):
+    """Up to 0.11.1 a call that returned gave its estimate back, wrote its answer to the cache and only then counted
+    what it cost: a call asked in that gap saw room that was already spent. Here the first call is held there."""
+    budget, writing, go_on, put = Budget(0.006), threading.Event(), threading.Event(), cache.put
+
+    def held_put(key, value):
+        if key == "first":
+            writing.set()
+            go_on.wait(5)
+        put(key, value)
+    monkeypatch.setattr(cache, "put", held_put)
+    first = threading.Thread(target=budget.ask, args=("first", 6000, lambda: ({"ok": 1}, 6000)))
+    first.start()
+    assert writing.wait(5)
+    try:
+        budget.ask("second", 6000, lambda: ({"ok": 2}, 6000))
+        second = "asked"
+    except OverBudget:
+        second = "left out"
+    go_on.set()
+    first.join()
+    assert second == "left out" and budget.spent == 6000 and budget.held == 0 and budget.left_out == ["second"]
+
+
+def test_a_failed_call_gives_its_estimate_back_and_costs_nothing():
+    budget = Budget(0.006)
+
+    def down():
+        raise asked.aisa.AisaError("call failed")
+    with pytest.raises(asked.aisa.AisaError):
+        budget.ask("first", 6000, down)
+    assert (budget.spent, budget.held) == (0, 0) and budget.ask("second", 6000, lambda: ({"ok": 2}, 6000))[1] == 6000
 
 
 def test_the_report(monkeypatch):
