@@ -33,11 +33,10 @@
 ## 快速上手
 
 ```bash
-pip install backlink-guard
-backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
+uvx backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-需要 Python 3.10 及以上，没有任何依赖；不想安装可以用 `uvx backlink-guard vet …` 直接跑。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上 [key](#key)（GoAnyAPI，加 Glasser 或 AIsa）会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
+用 [uv](https://docs.astral.sh/uv/) 的 `uvx` 直接从 PyPI 运行，什么都不用装；`uvx backlink-guard@latest …` 会拿到新版本。想一直装着用 `backlink-guard` 命令：`pip install backlink-guard`（或 `uv tool install backlink-guard`）。需要 Python 3.10 及以上，没有任何依赖。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上 [key](#key)（GoAnyAPI，加 Glasser 或 AIsa）会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
 
 2026-10-13、14 两天配齐两个 key 的检查结果：
 

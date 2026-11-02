@@ -33,11 +33,10 @@ Most backlink tools help you send more. This one tells you where not to send, an
 ## Quick start
 
 ```bash
-pip install backlink-guard
-backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
+uvx backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
 
-Python 3.10 or newer, no dependencies; `uvx backlink-guard vet …` runs it without installing. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [keys](#keys) (GoAnyAPI, and Glasser or AIsa) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
+[uv](https://docs.astral.sh/uv/)'s `uvx` runs it straight from PyPI, with nothing to install; `uvx backlink-guard@latest …` picks up a new release. To keep a `backlink-guard` command installed: `pip install backlink-guard` (or `uv tool install backlink-guard`). Python 3.10 or newer, no dependencies. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [keys](#keys) (GoAnyAPI, and Glasser or AIsa) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
 
 Checked with both keys on 2026-10-13 and 14:
 
