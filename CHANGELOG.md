@@ -6,7 +6,12 @@
   pages several of the assistants' searches return (`ranks.pages`), with the answers that cited each; the report
   adds a table of the pages on the first page of two searches or more. One answer's citations are a sample; the
   pages its searches return are the pool it draws from (Michał Rochwerger, CMSEO 2026). Lookups cached before this
-  change carry the addresses already, so a report from the cache shows the table too.
+  change carry the addresses already, so a report from the cache shows the table too. Pages that answers cite come
+  first: a page that every search returns but no answer cites is often the engine's own (a login page).
+- A search engine's redirect link (google.com/goto?url=…) no longer counts as a result on google.com. On 2026-11-09
+  every Google result AIsa passed on came as one (1,495 of them, across 80 searches), so the Google column said
+  google.com was on the first page of every search and nothing else was. A link whose address it carries in plain
+  text is read through; one that does not is left out and counted, and the report says how many.
 
 ## 0.11.2 (2026-10-31)
 

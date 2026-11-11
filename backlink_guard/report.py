@@ -683,6 +683,11 @@ def asked_rank_lines(r: dict | None, domain: str, max_usd: float) -> list[str]:
         lines += ["", "Cited without being on the first page of any search read, so read from another search or known to "
                       "the model already: " + "; ".join(f"{s['site']} ({s['answers']})" for s in r["cited_elsewhere"][:8])
                   + "."]
+    for e in r["by_engine"]:
+        if e.get("redirects"):
+            lines += ["", f"**{e['engine']} returned {e['redirects']} results as its own redirect links, without the "
+                          "page's address:** they are left out of the counts above, so its column is short of what it "
+                          "ranked. Ask the provider, or read that engine's counts as a floor."]
     failed = Counter(x[e]["error"] for x in r["searches"] for e in ("google", "bing") if "error" in x[e])
     if failed:
         lines += ["", "**Failed twice, not read as missing:** " + "; ".join(f"“{m}” ×{n}" for m, n in failed.items())]

@@ -240,6 +240,19 @@ def test_the_pages_several_searches_return_are_counted_once_each(monkeypatch):
     assert "docs.tool-a.example" not in text.split("### The pages on the first page")[1]   # one search only
 
 
+def test_a_redirect_link_without_its_address_counts_as_no_site():
+    rows = asked.organic({"items": [
+        {"type": "organic", "url": "https://www.google.com/goto?url=CAESfQHEIkXX", "rank_group": 1},
+        {"type": "organic", "url": "https://www.google.com/url?q=https://list.example/a&sa=U", "rank_group": 2},
+        {"type": "organic", "url": "https://mine.example/x", "rank_group": 3}]})
+    assert rows[0]["redirect"] and rows[1]["url"] == "https://list.example/a" and rows[2]["site"] == "mine.example"
+    p = asked.placed(rows, "mine.example")
+    assert p["first_page"] == ["list.example", "mine.example"] and p["redirects"] == 1 and p["you"] == 3
+    # a lookup cached before the change still carries the redirect as its url
+    old = asked.placed([{"url": "https://www.google.com/goto?url=X", "site": "google.com", "position": 1}], "mine.example")
+    assert old["first_page"] == [] and old["redirects"] == 1
+
+
 def test_a_site_under_your_name_is_told_apart_in_the_results():
     rows = asked.organic({"items": [{"type": "paid", "url": "https://ad.example/"},
                                     {"type": "organic", "url": "https://skillshelf.dev/", "rank_group": 1},

@@ -258,11 +258,37 @@ def name_tally(rows: list[dict], own: str, names: list[str]) -> list[dict]:
 
 # ---------- where you rank for their searches ----------
 
+REDIRECT_PATHS = {"google.com": ("/goto", "/url"), "bing.com": ("/ck/",)}
+
+
+def is_redirect(url: str) -> bool:
+    """A search engine's click-through link (google.com/goto?url=…) instead of the result's own address: on 2026-11-09
+    every Google result AIsa passed on came as one, so a site counted from it would be google.com."""
+    parts = urllib.parse.urlsplit(url)
+    paths = REDIRECT_PATHS.get(page.registrable(url), ())
+    return any(parts.path.startswith(p) for p in paths)
+
+
+def unwrapped(item: dict) -> str:
+    """The result's own address: the url, or the one a redirect carries in plain text, or "" when it carries none."""
+    url = item["url"]
+    if not is_redirect(url):
+        return url
+    q = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    plain = next((v[0] for k in ("url", "q", "u") for v in [q.get(k)] if v and v[0].startswith("http")), "")
+    return plain
+
+
 def organic(data: dict) -> list[dict]:
-    """[{"url", "site", "position"}]: the organic results of a results page, in order."""
+    """[{"url", "site", "position"}]: the organic results of a results page, in order. A redirect whose address cannot
+    be read keeps its place and is marked, so positions stay true and nothing counts it as the search engine's site."""
     found = [i for i in data.get("items") or [] if i.get("type") == "organic" and i.get("url")]
-    return [{"url": i["url"], "site": page.registrable(i["url"]), "position": i.get("rank_group") or n}
-            for n, i in enumerate(found, 1)]
+    out = []
+    for n, i in enumerate(found, 1):
+        url = unwrapped(i)
+        out.append({"url": url or i["url"], "site": page.registrable(url) if url else "",
+                    "position": i.get("rank_group") or n} | ({} if url else {"redirect": True}))
+    return out
 
 
 def results_for(engine: str, query: str, budget: Budget, fresh: bool) -> list[dict]:
@@ -283,13 +309,16 @@ def results_for(engine: str, query: str, budget: Budget, fresh: bool) -> list[di
 
 def placed(rows: list[dict], own: str) -> dict:
     """Where you and a site under your name stand in one search's results, and the sites on its first page."""
+    hidden = sum(r.get("redirect", False) or is_redirect(r["url"]) for r in rows)
+    rows = [r for r in rows if not (r.get("redirect") or is_redirect(r["url"]))]
     mine = next((r for r in rows if r["site"] == own), None)
     alike = lookalikes(own, {r["site"] for r in rows})
     other = next((r for r in rows if r["site"] in alike), None)
     return {"you": mine["position"] if mine else None, "your_page": mine["url"] if mine else "",
             "lookalike": other["position"] if other else None, "lookalike_site": other["site"] if other else "",
             "first_page": list(dict.fromkeys(r["site"] for r in rows if r["position"] <= FIRST_PAGE)),
-            "first_page_urls": list(dict.fromkeys(r["url"] for r in rows if r["position"] <= FIRST_PAGE))}
+            "first_page_urls": list(dict.fromkeys(r["url"] for r in rows if r["position"] <= FIRST_PAGE)),
+            "redirects": hidden}
 
 
 def rank_one(job: tuple[str, str], own: str, budget: Budget, fresh: bool) -> dict:
@@ -310,6 +339,7 @@ def rank_by_engine(rows: list[dict]) -> list[dict]:
         out.append({"engine": engine, "searches": len(read), "you": sum(g["you"] is not None for g in read),
                     "you_first_page": sum(g["you"] is not None and g["you"] <= FIRST_PAGE for g in read),
                     "lookalike": sum(g["lookalike"] is not None for g in read),
+                    "redirects": sum(g.get("redirects", 0) for g in read),
                     "failed": sum("error" in g for g in got), "left_out": sum("left_out" in g for g in got)})
     return out
 
@@ -351,7 +381,8 @@ def ranked_pages(rows: list[dict], own: str, cited_pages: list[dict]) -> list[di
     out = [{"url": first_url[k], "site": page.registrable(first_url[k]), **{e: n[e] for e in RANK_PATHS},
             "searches": sum(n.values()), "cited": cited_in.get(k, 0), "you": page.registrable(first_url[k]) == own}
            for k, n in by.items()]
-    return sorted(out, key=lambda x: (-x["searches"], -x["cited"], x["url"]))
+    # cited pages first: a page every search returns but no answer cites is often the engine's own (a login page)
+    return sorted(out, key=lambda x: (x["cited"] == 0, -x["searches"], -x["cited"], x["url"]))
 
 
 def ranks(searches: list[dict], own: str, cited_sites: list[dict], budget: Budget, fresh: bool,
