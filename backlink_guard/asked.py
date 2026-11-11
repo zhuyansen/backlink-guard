@@ -24,6 +24,7 @@ the answers themselves come from the cache when they were asked in the last 7 da
 from __future__ import annotations
 
 import re
+import urllib.parse
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -48,6 +49,7 @@ WORKERS = 4                     # answers asked at once; each takes 3 to 60 seco
 MAX_TOKENS = 1500               # an answer's length; with web search the models may run past it
 SHOWN = 15
 SEARCHES_SHOWN = 20
+PAGES_KEPT = 50          # pages ranks keeps, the most searches first
 REDIRECT = "vertexaisearch.cloud.google.com"   # Gemini cites through Google's redirect: the title names the site
 LABEL_MIN = 8                   # your domain's name without its ending counts as a mention from this length: "skills"
                                 # (skills.sh) is in every answer about skills, "agentskillshub" only in one about you
@@ -286,7 +288,8 @@ def placed(rows: list[dict], own: str) -> dict:
     other = next((r for r in rows if r["site"] in alike), None)
     return {"you": mine["position"] if mine else None, "your_page": mine["url"] if mine else "",
             "lookalike": other["position"] if other else None, "lookalike_site": other["site"] if other else "",
-            "first_page": list(dict.fromkeys(r["site"] for r in rows if r["position"] <= FIRST_PAGE))}
+            "first_page": list(dict.fromkeys(r["site"] for r in rows if r["position"] <= FIRST_PAGE)),
+            "first_page_urls": list(dict.fromkeys(r["url"] for r in rows if r["position"] <= FIRST_PAGE))}
 
 
 def rank_one(job: tuple[str, str], own: str, budget: Budget, fresh: bool) -> dict:
@@ -325,7 +328,34 @@ def ranked_sites(rows: list[dict], own: str, cited_sites: list[dict]) -> list[di
     return sorted(out, key=lambda x: (-sum(x[e] for e in RANK_PATHS), -x["cited"], x["site"]))
 
 
-def ranks(searches: list[dict], own: str, cited_sites: list[dict], budget: Budget, fresh: bool) -> dict:
+def page_key(url: str) -> str:
+    """One page however a search or an answer writes its address: no scheme, www, query, fragment or end slash."""
+    parts = urllib.parse.urlsplit(url.strip())
+    host = parts.netloc.lower().removeprefix("www.")
+    return f"{host}{parts.path.rstrip('/')}"
+
+
+def ranked_pages(rows: list[dict], own: str, cited_pages: list[dict]) -> list[dict]:
+    """The pages on the first page of the most searches, with how many answers cited each: a page that several of
+    the assistants' searches return is where to be listed (Michał Rochwerger, CMSEO 2026: one answer's citations are
+    a sample, the searches behind it are the pool)."""
+    cited_in = {page_key(p["url"]): p["answers"] for p in cited_pages}
+    by: dict[str, Counter] = defaultdict(Counter)
+    first_url: dict[str, str] = {}
+    for r in rows:
+        for engine in RANK_PATHS:
+            for url in r[engine].get("first_page_urls") or []:
+                key = page_key(url)
+                first_url.setdefault(key, url)
+                by[key][engine] += 1
+    out = [{"url": first_url[k], "site": page.registrable(first_url[k]), **{e: n[e] for e in RANK_PATHS},
+            "searches": sum(n.values()), "cited": cited_in.get(k, 0), "you": page.registrable(first_url[k]) == own}
+           for k, n in by.items()]
+    return sorted(out, key=lambda x: (-x["searches"], -x["cited"], x["url"]))
+
+
+def ranks(searches: list[dict], own: str, cited_sites: list[dict], budget: Budget, fresh: bool,
+          cited_pages: list[dict] = ()) -> dict:
     """Where you rank on Google and Bing for the searches the assistants ran, the most-run first so that a cap leaves
     out the rarest: {"depth", "searches": [{"query", "times", "assistants", "google", "bing"}], "by_engine", "sites",
     "left_out"}."""
@@ -338,6 +368,7 @@ def ranks(searches: list[dict], own: str, cited_sites: list[dict], budget: Budge
     sites = ranked_sites(rows, own, cited_sites)
     ranking = {s["site"] for s in sites}
     return {"depth": RANK_DEPTH, "searches": rows, "by_engine": rank_by_engine(rows), "sites": sites,
+            "pages": ranked_pages(rows, own, cited_pages)[:PAGES_KEPT],
             "cited_elsewhere": [{"site": s["site"], "answers": s["answers"]} for s in cited_sites if s["site"] not in ranking],
             "left_out": budget.left_out[before:]}
 
@@ -358,7 +389,7 @@ def asked(domain: str, questions: list[str], names: list[str] = (), engines: lis
            "max_usd": max_usd, "left_out": list(budget.left_out),
            "errors": [f"{r['engine']} “{r['question']}”: {r['error']}" for r in rows if r.get("error")]}
     if rank:
-        out["ranks"] = ranks(out["searches"], own, out["sites"], budget, fresh) | {"cost": budget.spent - out["cost"]}
+        out["ranks"] = ranks(out["searches"], own, out["sites"], budget, fresh, out["pages"]) | {"cost": budget.spent - out["cost"]}
         out["cost"] = budget.spent
     return out
 

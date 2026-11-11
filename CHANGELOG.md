@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (local-0.8)
+
+- `asked --rank` keeps the address of every page on each search's first page (`first_page_urls`) and ranks the
+  pages several of the assistants' searches return (`ranks.pages`), with the answers that cited each; the report
+  adds a table of the pages on the first page of two searches or more. One answer's citations are a sample; the
+  pages its searches return are the pool it draws from (Michał Rochwerger, CMSEO 2026). Lookups cached before this
+  change carry the addresses already, so a report from the cache shows the table too.
+
 ## 0.11.2 (2026-10-31)
 
 - `--max-usd` holds when calls run side by side. A call that returned gave its estimate back, wrote its answer to

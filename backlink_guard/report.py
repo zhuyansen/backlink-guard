@@ -19,6 +19,9 @@ VERDICT_MARK = {"broken": "⛔ broken", "soft_lost": "🔻 soft-lost", "temporar
                 "fine": "✅ fine"}
 
 
+SHOWN_PAGES = 15         # pages the rank section lists
+
+
 def usd(micros: int) -> str:
     return f"${micros / 1e6:.3f}"
 
@@ -675,7 +678,7 @@ def asked_rank_lines(r: dict | None, domain: str, max_usd: float) -> list[str]:
               "| Failed twice | Over the cap |", "|---|---|---|---|---|---|---|"]
     lines += [f"| {e['engine']} | {e['searches']} | {e['you_first_page']} | {e['you']} | {e['lookalike']} | {e['failed']} | "
               f"{e['left_out']} |" for e in r["by_engine"]]
-    lines += ranked_you_lines(r, domain) + ranked_site_lines(r["sites"])
+    lines += ranked_you_lines(r, domain) + ranked_site_lines(r["sites"]) + ranked_page_lines(r.get("pages") or [])
     if r["cited_elsewhere"] and not r["left_out"]:
         lines += ["", "Cited without being on the first page of any search read, so read from another search or known to "
                       "the model already: " + "; ".join(f"{s['site']} ({s['answers']})" for s in r["cited_elsewhere"][:8])
@@ -711,6 +714,19 @@ def ranked_site_lines(sites: list[dict]) -> list[str]:
              "| Site | Google: searches | Bing: searches | Answers citing it |", "|---|---|---|---|"]
     return lines + [f"| {s['site']}{' (you)' if s['you'] else ' (same name as you)' if s['lookalike'] else ''} | "
                     f"{s['google']} | {s['bing']} | {s['cited']} |" for s in shown]
+
+
+def ranked_page_lines(pages: list[dict]) -> list[str]:
+    """The pages several of their searches return: where a listing or a mention would be read most often."""
+    shown = [p for p in pages if p["searches"] >= 2][:SHOWN_PAGES]
+    if not shown:
+        return []
+    lines = ["", "### The pages on the first page of several of their searches", "",
+             "One answer's citations are a sample; the pages its searches return are the pool it draws from. A page "
+             "that several searches return, and that answers cite, is where to be listed or mentioned.", "",
+             "| Page | Google: searches | Bing: searches | Answers citing it |", "|---|---|---|---|"]
+    return lines + [f"| {cell(p['url'])}{' (you)' if p['you'] else ''} | {p['google']} | {p['bing']} | {p['cited']} |"
+                    for p in shown]
 
 
 def owner_lines(o: dict) -> list[str]:

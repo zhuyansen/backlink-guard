@@ -222,6 +222,24 @@ def test_each_search_they_ran_is_looked_up_on_google_and_bing(monkeypatch):
     assert r["cost"] == 6 * 3500 and a["cost"] == 115600 + 6 * 3500
 
 
+def test_the_pages_several_searches_return_are_counted_once_each(monkeypatch):
+    ranking(monkeypatch)
+    a = asked.asked(OWN, [Q1], rank=True)
+    pages = a["ranks"]["pages"]
+    top = pages[0]
+    # on Google's first page for all three searches and on Bing's for one; cited as the same page
+    assert (top["url"], top["google"], top["bing"], top["searches"]) == ("https://list.example/best-skills", 3, 1, 4)
+    assert top["cited"] == a["pages"][0]["answers"] > 0
+    # www and a closing slash are one page; your own page says so
+    assert asked.page_key("https://www.Mine.example/skills/?a=1#b") == "mine.example/skills"
+    assert next(p for p in pages if p["site"] == OWN)["you"]
+    assert a["ranks"]["searches"][0]["google"]["first_page_urls"][0] == "https://list.example/best-skills"
+    text = report.asked(a)
+    assert "### The pages on the first page of several of their searches" in text
+    assert "| https://list.example/best-skills | 3 | 1 |" in text
+    assert "docs.tool-a.example" not in text.split("### The pages on the first page")[1]   # one search only
+
+
 def test_a_site_under_your_name_is_told_apart_in_the_results():
     rows = asked.organic({"items": [{"type": "paid", "url": "https://ad.example/"},
                                     {"type": "organic", "url": "https://skillshelf.dev/", "rank_group": 1},
