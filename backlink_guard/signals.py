@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import csv
+import http.client
 import io
 import json
 import re
@@ -118,7 +119,7 @@ def entity(domain: str) -> str:
             url = TRENDS.format(urllib.parse.quote(query))
             with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=TRENDS_TIMEOUT) as res:
                 found = entity_of(res.read().decode("utf-8", "replace"), domain)
-        except OSError:
+        except (OSError, http.client.HTTPException):
             return ""
         if found:
             return found

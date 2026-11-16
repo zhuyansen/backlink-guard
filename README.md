@@ -171,7 +171,7 @@ backlink-guard cited yoursite.example "claude skills" "agent skills" "claude cod
 | youtube.com | 3 | 8 | [Claude Skills, explained](https://www.youtube.com/) | video |
 | skillslist.example | 1 | 1 | [The 68 best Claude skills](https://skillslist.example/en/skills/) | list |
 
-$0.002 a keyword on 2026-10-20, $0.004 when the overview loads after the page; `--max-usd` caps it ($0.10 unless set). A keyword with no AI Overview is said so, which is not the same as not being cited: Google shows an overview when it judges one helpful, and another day, place or searcher can differ.
+$0.002 a keyword on 2026-10-20, $0.004 when the overview loads after the page; `--max-usd` caps it ($0.10 unless set). `--samples N` runs each keyword `N` times and reports `overview_runs`, `you_runs` and `citation_rate` (`cited_runs / runs`) for every site. A keyword with no AI Overview is said so, which is not the same as not being cited: Google shows an overview when it judges one helpful, and another day, place or searcher can differ.
 
 ## What AI assistants answer: questions and asked
 
@@ -183,8 +183,8 @@ backlink-guard asked yoursite.example --file questions.txt --name "Your Brand" -
 ```
 
 - **questions**: ChatGPT, Claude and Gemini each write the questions they expect to be asked (no web search), merged once: about $0.01.
-- **asked**: each question to ChatGPT (its own interface), Google's AI Mode, Perplexity, Claude and Gemini (with their web search). For each assistant, how many answers wrote your domain, gave only your name, cited you, or named a site under your name with another ending (whose mentions are not counted as yours); then the sites and pages cited most, each with its kind and what can honestly be done there, and the searches the assistants ran (AI Mode shows none).
-- **--rank**: each of those searches on Google and Bing (US, English, top 20). An assistant reads what its search returns, so a site missing from the results is rarely read at all, and one that ranks without being cited was passed over. The report says where you rank, and puts the sites on the first page of the most searches next to the answers that cited them.
+- **asked**: each question to ChatGPT (its own interface), Google's AI Mode, Perplexity, Claude and Gemini (with their web search). For each assistant, how many answers wrote your domain, gave only your name, cited you (`cited_you`, counted from `sources` only; `read_you` counts answers whose `search_results` included you without citing you, each with a 95% Wilson confidence interval `wilson_ci`), or named a site under your name with another ending (whose mentions are not counted as yours); then the sites and pages cited most, each with its kind and what can honestly be done there, and the searches the assistants ran (AI Mode shows none).
+- **--rank**: each of those searches on Google and Bing (US, English, top 20). An assistant reads what its search returns, so a site missing from the results is rarely read at all, and one that ranks without being cited was passed over. The report says where you rank, puts the sites on the first page of the most searches next to the answers that cited them, and scores each publisher and page across the fan-out query pool (`coverage_score = cite_weight × 2 + first_page_weight`).
 
 On 2026-10-26, for agentskillshub.top: 8 questions, 56 answers, 67 searches. No answer read or cited the site; it was in Google's top 20 for 3 of the 57 searches Google answered and in Bing's for none of 67. The work is in the search results first.
 
@@ -290,12 +290,13 @@ backlink-guard find "<keyword>" [more ...] [--site yoursite.com] [--skip competi
 backlink-guard vet <site> [more ...] [--from list.xlsx] [--skip yoursite.com] [--limit 30] [--topic "keyword"] [--referrals ga4.csv] [--deep] [--recent] [--newcomers] [--free] [--fresh] [--json]
 backlink-guard competitors <your-domain> --vs <competitor> [more ...] [--days 7] [--limit 100] [--max-usd 0.30] [--json]
 backlink-guard competitors <your-domain> --vs <competitor> [more ...] --early [--vet 10] [--max-usd 0.50] [--json]
-backlink-guard cited <your-domain> "<keyword>" [more ...] [--max-usd 0.10] [--json]
+backlink-guard cited <your-domain> "<keyword>" [more ...] [--samples 1] [--max-usd 0.10] [--json]
 backlink-guard questions "<what you make>" [--count 10] [--plain] [--json]
 backlink-guard asked <your-domain> ["<question>" ...] [--file questions.txt] [--name "Your Brand"] [--engines chatgpt,ai_mode,perplexity,claude,gemini] [--samples N] [--rank] [--max-usd 1.00] [--json]
 backlink-guard audit <your-domain> [--deep] [--sitewide 20] [--rows 1000] [--homes 300] [--json]
 backlink-guard lost <your-domain> [--sitewide 20] [--rows 1000] [--json]
-backlink-guard verify <page-url> --to <your-domain>
+backlink-guard verify <page-url> --to <your-domain> [--json]
+backlink-guard ai-access <site-or-url> [more ...] [--json]
 backlink-guard log add <site> --kind directory --anchor "Your Brand"
 backlink-guard log
 backlink-guard recheck [--to <your-domain>] [--deep] [--free] [--json]
@@ -306,13 +307,14 @@ From a clone, `python -m backlink_guard` runs the same. Your log, the paid answe
 - **find**: $0.005 a keyword and $0.012 for the search volumes; `--vet` adds the vet cost for the sites found. `--site` leaves your own site out, `--skip` competitors.
 - **vet**: about $0.01 a site, plus about $0.16 for the batch (spam scores and search history), the same for one site or thirty: check the sites you are considering in one run; `--topic` adds a column with where each site ranks for your keyword ($0.005 a keyword); `--free` reads the sites only. `--from` reads the sites out of a list (text, Markdown, CSV, JSON or an Excel sheet, as paid backlink lists usually come); `--skip` leaves out your own site, competitors or what you already have (sites or a list file); `--limit` caps a run at 30 sites unless raised. `--deep` adds about $0.19 a site: the site's own backlink profile ($0.024), its technology ($0.012), how often ChatGPT's answers mention it ($0.10) and its checkout links on inner pages (about $0.05, plus $0.02 a link found); with an AIsa key also Ahrefs' rating ($0.08) and Semrush's numbers ($0.001); `--recent` asks whether Google is taking in its new pages ($0.008 a site, and slow: GoAnyAPI's search calls take 10 to 120 seconds). Use both before paying for a placement. `--referrals` reads your analytics export (GA4's Traffic acquisition by Session source, as CSV) and adds what each site has sent you. A check that finds one operator's sites missing from the shared spam-link list ends with a link to a filled-in report for it.
 - **competitors**: about $0.025 a call, 2N + 2 calls for N competitors (three: about $0.20). `--days` sets what new means (7), `--limit` the referring domains read from each list (100, at most 1,000), `--max-usd` the cap on a run ($0.30); cached answers are free and what the cap left out is named. `--early`: about $0.06 a site, yours included, plus a call a competitor for linking pages (one competitor and you: about $0.08); `--vet` vets that many checklist sites free (10, 0 skips it); `--max-usd` is $0.50 unless set.
-- **cited**: $0.002 a keyword through AIsa, $0.004 when the overview loads late; through Glasser $0.004 and $0.006; `--max-usd` caps it ($0.10).
+- **cited**: $0.002 a keyword through AIsa, $0.004 when the overview loads late; through Glasser $0.004 and $0.006; `--samples N` samples each keyword `N` times for citation frequency; `--max-usd` caps it ($0.10).
 - **questions**: about $0.01 for the three writers; `--count` sets how many each writes (10), `--plain` prints the list for a file.
 - **asked**: ChatGPT and AI Mode $0.004 an answer, Perplexity about $0.006, Claude and Gemini about $0.045 (2026-10-21): about $0.12 a question, with ChatGPT and Perplexity asked twice. `--samples` asks every assistant that many times, `--engines` picks them, `--name` adds a name the answers may call you by. `--rank` adds $0.0035 a search on Google and on Bing (2026-10-26). `--max-usd` caps the run ($1.00): the most-run searches are looked up first, and the report names what the cap left out.
 - **audit**: about $0.12, with `--deep` (full anchor distribution) about $0.16. Of that, about $0.06 is the 1,000 backlinks read one by one (`--rows` asks for fewer: 100 cost $0.028 on 2026-10-18). Without a Glasser or AIsa key the 20 top linking pages from GoAnyAPI stand in. The home pages of up to 300 referring domains are read for shared accounts (free; `--homes` changes it, 0 skips it), with about $0.035 more when the backlinks read name fewer sites than that.
 - **lost**: the same backlinks, so nothing more after an `audit` of the same site in the last 7 days, else about $0.06; asking your pages (and following their redirects hop by hop) and reading your sitemaps is free.
-- **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. Only those three rel values hold back credit; `noopener` and `external` do not. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
-- **log**: your submissions in `ledger.jsonl`, with a warning past five a week or when one anchor is used over and over.
+- **verify**: free. Verdicts are `followed link`, `qualified link` (nofollow, sponsored or ugc, or page-level `nofollow` in `<meta name="robots">` / `X-Robots-Tag`), `redirect only` (through the site's own /go/ page, also when the target is base64-encoded), `not found`, `unreadable`. It also checks page-level `noindex` (`<meta name="robots">` and `X-Robots-Tag`) and `canonical_mismatch` (`<link rel="canonical">` pointing elsewhere), which keep a followed link on the page from passing credit. Each link also says where it sits, read from the elements around it: `body text`, `main area`, `header`, `navigation`, `sidebar`, `footer`, `comments` or `author box`. A followed link that is only in a footer, sidebar or navigation is called out: Google lists widely distributed footer, template and widget links among its link spam examples, and an editor's link in the text counts for more.
+- **ai-access**: free. Checks the three gates an AI crawler or answer engine passes through to read and cite a site or page: **Permission** (`robots.txt` rules separated by `training` bots such as `GPTBot`/`ClaudeBot`/`Google-Extended`, `search` bots such as `OAI-SearchBot`/`PerplexityBot`, and `user` fetchers such as `ChatGPT-User`/`Claude-User`, plus `/llms.txt`), **Edge** (whether the page answers 200 or blocks with a 403/WAF challenge, and how many pages Common Crawl's latest index holds via CDX), and **Rendering** (visible words in initial HTML vs a client-side CSR shell with `< 50` words and `>= 3` scripts, page-level `noindex`, and JSON-LD schema).
+- **log**: your submissions in `ledger.jsonl`, with a warning past five a week or when one keyword-stuffed anchor is used over and over (brand names, bare URLs and generic words are exempt).
 - **recheck**: the sites in your log (submitted or live) checked again and compared with the last look: a lower verdict, a new finding, and with `--to` a link of yours no longer found. Kept in `recheck.json`. A dozen sites cost a few cents; monthly is enough.
 
 `--max-usd` (competitors, cited, questions, asked) is checked against each call's estimated price before the call is made; cached answers are free. The estimates are the prices seen on the dates given, at or above what the calls cost then, not prices the providers guarantee: a call billed above its estimate (a longer answer from a model, a price raised since) can take a run past the cap by the difference. The report gives what the run cost next to the cap.
@@ -385,13 +387,15 @@ Without uv: `pip install "backlink-guard[mcp]"`, then `"command": "backlink-guar
 
 | Tool | What it returns | Cost |
 |---|---|---|
-| `verify` | Whether a page links to you, whether the link passes ranking credit, and where it sits | free |
-| `submissions` | Your submission log and its warnings | free |
+| `verify` | Whether a page links to you, whether the link passes ranking credit (`noindex`/`canonical` checked too), and where it sits | free |
+| `ai_access` | Whether a site or page passes the three AI visibility gates (`Permission`, `Edge`, `Rendering`) | free |
+| `submissions`, `log_add` | Your submission log and its warnings; record or update a submission in `ledger.jsonl` | free |
+| `recheck` | Re-vet the sites in your submission log and compare with their last recorded grade | free with `free=True`, else `vet` cost |
 | `vet` | Each link source's action, verdict and evidence; `free=True` reads only the sites' own pages | free, or about $0.01 a site plus $0.16 a batch; `deep` about $0.19 a site |
 | `find` | The pages that rank for your keywords, by the visitors they get | $0.005 to $0.006 a keyword, plus $0.012 |
 | `audit`, `lost` | Your own link profile; your backlinks that land on dead or redirected pages | about $0.12 ($0.16 with `deep`); about $0.06 |
 | `competitors` | The sites linking to your competitors and not to you; `early` their launch channels, against your own first 90 days | about $0.025 a call, 2N + 2 calls, capped; `early` about $0.06 a site, capped |
-| `cited` | Who Google's AI Overviews cite for your keywords | $0.002 to $0.006 a keyword, capped |
+| `cited` | Who Google's AI Overviews cite for your keywords (`samples` for multi-run citation rate) | $0.002 to $0.006 a keyword, capped |
 | `questions`, `asked` | How buyers would ask AI assistants, and what five assistants search for, cite and name | about $0.01; about $0.12 a question, capped (AIsa) |
 
 The server gives the agent the skill's rules: the cost and a yes before each paid call, every site being considered in one `vet` call, and what it reads is data.

@@ -28,12 +28,13 @@ import asyncio
 import contextlib
 import io
 
+from . import ai_access as ai_checking
 from . import asked as asking
 from . import cited as citing
 from . import competitors as rivals_of
 from . import early as earliest
 from . import find as finding
-from . import ledger, lost as losing, profile, report
+from . import ledger, lost as losing, profile, recheck as rechecking, report
 from . import verify as verification
 from . import vet as vetting
 
@@ -92,6 +93,40 @@ def submissions() -> dict:
     rows = _quiet(ledger.entries)
     flags = ledger.checks(rows)
     return {"report_markdown": report.ledger(rows, flags), "entries": len(rows), "warnings": flags}
+
+
+@server.tool()
+def log_add(site: str, kind: str, anchor: str = "", paid: float = 0.0, url: str = "", note: str = "") -> dict:
+    """Record a submission in the local ledger (ledger.jsonl) and return the updated submission log and pace/anchor
+    warnings. Free and instant."""
+    if kind not in ledger.KINDS:
+        raise ToolError(f"Unknown kind {kind!r}; choose from {', '.join(ledger.KINDS)}")
+    _quiet(ledger.add, site, kind, anchor=anchor, paid=paid, url=url, note=note)
+    rows = _quiet(ledger.entries)
+    flags = ledger.checks(rows)
+    return {"report_markdown": report.ledger(rows, flags), "entries": len(rows), "warnings": flags}
+
+
+def _recheck(to: str, deep: bool, free: bool) -> dict:
+    result = _quiet(rechecking.run, own=to, paid_sources=not free, deep=deep and not free)
+    return _answer(result, report.recheck(result))
+
+
+@server.tool()
+async def recheck(to: str = "", deep: bool = False, free: bool = False) -> dict:
+    """Recheck the sites in the user's submission log against their previous snapshot, and when `to` (the user's
+    domain) is given, verify whether the live links are still present. free=True reads only the sites' own pages
+    (free); otherwise paid (same per-site cost as vet)."""
+    return await asyncio.to_thread(_recheck, to, deep, free)
+
+
+@server.tool()
+async def ai_access(target: str, check_cc: bool = True) -> dict:
+    """Three-gate AI accessibility check on a URL or domain: (1) Permission gate (robots.txt for training, search,
+    and user AI bots + llms.txt), (2) Edge & index gate (WAF/403 blocks + Common Crawl index), (3) Rendering &
+    directives gate (visible words without JS vs empty CSR shell, meta robots, JSON-LD). Free."""
+    result = await asyncio.to_thread(_quiet, ai_checking.check, target, check_cc=check_cc)
+    return _answer(result, report.ai_access(result), verdict=result.get("verdict"), issues=result.get("issues"))
 
 
 def _vet(sites: list[str], deep: bool, free: bool, topics: list[str], newcomers: bool = False) -> dict:
@@ -188,18 +223,18 @@ async def competitors(domain: str, rivals: list[str], days: int = 7, limit: int 
     return await asyncio.to_thread(_competitors, domain, rivals, days, limit, max_usd, early, vetted)
 
 
-def _cited(domain: str, keywords: list[str], max_usd: float) -> dict:
-    result = _quiet(citing.cited, domain, keywords, max_usd=max_usd)
+def _cited(domain: str, keywords: list[str], max_usd: float, samples: int = 1) -> dict:
+    result = _quiet(citing.cited, domain, keywords, max_usd=max_usd, samples=samples)
     return _answer(result, report.cited(result))
 
 
 @server.tool()
-async def cited(domain: str, keywords: list[str], max_usd: float = 0.10) -> dict:
+async def cited(domain: str, keywords: list[str], max_usd: float = 0.10, samples: int = 1) -> dict:
     """Which sites Google's AI Overview cites for each keyword (US, English), whether the user's domain is among
     them and where it ranks, then the sites cited most: the places to be mentioned on. Paid: 0.002 USD a keyword
     through AIsa (0.004 when the overview loads late), 0.004 through Glasser (0.006); a call is made only while its
     estimated price fits under max_usd."""
-    return await asyncio.to_thread(_cited, domain, keywords, max_usd)
+    return await asyncio.to_thread(_cited, domain, keywords, max_usd, samples)
 
 
 def _questions(what: str, count: int, max_usd: float) -> dict:
@@ -215,20 +250,20 @@ async def questions(what: str, count: int = 10, max_usd: float = 0.05) -> dict:
     return await asyncio.to_thread(_questions, what, count, max_usd)
 
 
-def _asked(domain: str, asked: list[str], names: list[str], rank: bool, max_usd: float) -> dict:
-    result = _quiet(asking.asked, domain, asked, names=names, max_usd=max_usd, rank=rank)
+def _asked(domain: str, asked: list[str], names: list[str], rank: bool, max_usd: float, samples: int | None = None) -> dict:
+    result = _quiet(asking.asked, domain, asked, names=names, samples=samples, max_usd=max_usd, rank=rank)
     return _answer(result, report.asked(result))
 
 
 @server.tool()
 async def asked(domain: str, questions: list[str], names: list[str] | None = None, rank: bool = False,
-                max_usd: float = 1.00) -> dict:
+                max_usd: float = 1.00, samples: int | None = None) -> dict:
     """The user's questions put to ChatGPT, Google's AI Mode, Perplexity, Claude and Gemini: what each searched for,
     the pages it cited, the tools it named and whether it named or cited the user; then the sites and pages cited
     most. names: other names the answers may call the user by. rank: also look up each search they ran on Google
     and Bing. Paid (AIsa): about 0.12 USD a question, rank 0.0035 USD a search on each engine; a call is made only
     while its estimated price fits under max_usd."""
-    return await asyncio.to_thread(_asked, domain, questions, names or [], rank, max_usd)
+    return await asyncio.to_thread(_asked, domain, questions, names or [], rank, max_usd, samples)
 
 
 def main() -> None:

@@ -44,8 +44,8 @@
 <text x="220.0" y="282.0" fill="#185FA5" font-size="12">rivals' new sites · the link gap</text>
 <text x="220.0" y="298.5" fill="#993C1D" font-weight="500" font-size="12">--early: their links at launch</text>
 <text x="220.0" y="315.0" fill="#993C1D" font-weight="500" font-size="12">same age as you · launch checklist</text>
-<text x="220.0" y="331.5" fill="#185FA5" font-size="12">who Google's AI Overviews cite</text>
-<text x="220.0" y="348.0" fill="#185FA5" font-size="12">what 5 assistants search and cite</text>
+<text x="220.0" y="331.5" fill="#185FA5" font-size="12">who AI Overviews cite (--samples rate)</text>
+<text x="220.0" y="348.0" fill="#185FA5" font-size="12">5 assistants (Wilson CI · fan-out pool)</text>
 <text x="220.0" y="364.5" fill="#185FA5" font-size="12">questions: what buyers would ask</text>
 <rect x="315" y="223" width="33" height="18" rx="9" fill="#993C1D"/><text x="332" y="236" fill="#FFFFFF" font-weight="500" font-size="10.5">NEW</text>
 <rect x="400" y="248" width="330" height="138" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
@@ -124,17 +124,18 @@
 <rect x="30" y="1168" width="220" height="80" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
 <text x="140.0" y="1204.0" fill="#444441" font-weight="500" font-size="14">You submit</text>
 <text x="140.0" y="1223.0" fill="#5F5E5A" font-size="12">the tool never does</text>
-<rect x="280" y="1168" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="395.0" y="1195.0" fill="#0C447C" font-weight="500" font-size="14">verify: after it is live</text>
-<text x="395.0" y="1214.0" fill="#185FA5" font-size="12">there? passing credit?</text>
-<text x="395.0" y="1230.5" fill="#185FA5" font-size="12">in the text, or the footer?</text>
+<rect x="280" y="1168" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#993C1D" stroke-width="1.5"/>
+<text x="395.0" y="1195.0" fill="#0C447C" font-weight="500" font-size="14">verify · ai-access</text>
+<text x="395.0" y="1214.0" fill="#185FA5" font-size="12">credit · noindex · placement</text>
+<text x="395.0" y="1230.5" fill="#993C1D" font-weight="500" font-size="12">3 AI gates: robots · WAF · CSR</text>
+<rect x="465" y="1159" width="33" height="18" rx="9" fill="#993C1D"/><text x="482" y="1172" fill="#FFFFFF" font-weight="500" font-size="10.5">NEW</text>
 <rect x="540" y="1168" width="190" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
 <text x="635.0" y="1186.0" fill="#0C447C" font-weight="500" font-size="14">log: your submissions</text>
 <text x="635.0" y="1205.0" fill="#185FA5" font-size="12">over 5 a week: warned</text>
-<text x="635.0" y="1221.5" fill="#185FA5" font-size="12">same anchor again: warned</text>
+<text x="635.0" y="1221.5" fill="#185FA5" font-size="12">same keyword anchor: warned</text>
 <text x="635.0" y="1238.0" fill="#185FA5" font-size="12">recheck them monthly</text>
 </g>
-<text x="30" y="930" font-size="11" fill="#5F5E5A">Each finding carries its evidence and the Google spam policy line it stands next to</text><text x="30" y="946" font-size="11" fill="#5F5E5A">plus link policy and value columns · a check that failed: incomplete, run it again</text><path d="M30 1266 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1286" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Command line: backlink-guard  find · vet · verify · audit · lost · log · recheck</text><text x="380" y="1303" text-anchor="middle" font-size="11.5" fill="#5F5E5A">competitors · cited · questions · asked · an MCP server: backlink-guard mcp</text><text x="380" y="1320" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code plugin · Agent Skill: npx skills add zhuyansen/backlink-guard</text><text x="380" y="1337" text-anchor="middle" font-size="11.5" fill="#993C1D">orange text and the NEW tag: new in 0.11</text>
+<text x="30" y="930" font-size="11" fill="#5F5E5A">Each finding carries its evidence and the Google spam policy line it stands next to</text><text x="30" y="946" font-size="11" fill="#5F5E5A">plus link policy and value columns · a check that failed: incomplete, run it again</text><path d="M30 1266 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1286" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Command line: backlink-guard  find · vet · verify · ai-access · audit · lost · log · recheck</text><text x="380" y="1303" text-anchor="middle" font-size="11.5" fill="#5F5E5A">competitors · cited · questions · asked · an MCP server: backlink-guard mcp</text><text x="380" y="1320" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code plugin · Agent Skill: npx skills add zhuyansen/backlink-guard</text><text x="380" y="1337" text-anchor="middle" font-size="11.5" fill="#993C1D">orange text and the NEW tag: new in 0.11+</text>
 <rect x="30" y="1353" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text x="52" y="1365" font-size="12" fill="#444441">input</text><rect x="118" y="1353" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="140" y="1365" font-size="12" fill="#444441">checks</text><rect x="213" y="1353" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/><text x="235" y="1365" font-size="12" fill="#444441">data</text><rect x="294" y="1353" width="10" height="14" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="306" y="1353" width="10" height="14" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="318" y="1353" width="10" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/><text x="336" y="1365" font-size="12" fill="#444441">avoid / caution / ok</text><path d="M526 1360 H556" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" fill="none"/><text x="564" y="1365" font-size="12" fill="#444441">look back · report back</text>
 <circle r="4" fill="#888780"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.0s"><mpath href="#k"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="2.0s" repeatCount="indefinite" begin="0.4s"><mpath href="#l"/></animateMotion></circle>

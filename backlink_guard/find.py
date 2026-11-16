@@ -106,11 +106,14 @@ def volumes(keywords: list[str], fresh: bool) -> tuple[dict[str, dict], int]:
     if not missing:
         return out, 0
     result, cost = backend.call(VOLUME_TOOL, {"keywords": missing, "location_code": US, "language_code": EN})
+    by_low = {}
     for item in result.get("items") or []:
         info, props = item.get("keyword_info") or {}, item.get("keyword_properties") or {}
-        out[item["keyword"]] = {"volume": info.get("search_volume") or 0, "kd": props.get("keyword_difficulty")}
+        kw = (item.get("keyword") or "").lower()
+        if kw:
+            by_low[kw] = {"volume": info.get("search_volume") or 0, "kd": props.get("keyword_difficulty")}
     for k in missing:
-        out.setdefault(k, {"volume": 0, "kd": None})
+        out[k] = by_low.get(k.lower(), {"volume": 0, "kd": None})
         cache.put(f"aisa:volume:{US}:{k.lower()}", out[k])
     return out, cost
 

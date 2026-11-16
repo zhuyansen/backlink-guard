@@ -43,8 +43,8 @@
 <text x="220.0" y="282.0" fill="#185FA5" font-size="12">竞品新拿到的外链 · 链接交集</text>
 <text x="220.0" y="298.5" fill="#993C1D" font-weight="500" font-size="12">--early：竞品上线头 90 天拿到的外链</text>
 <text x="220.0" y="315.0" fill="#993C1D" font-weight="500" font-size="12">和你同龄时比 · 发布清单：它们有、你没有</text>
-<text x="220.0" y="331.5" fill="#185FA5" font-size="12">Google AI 概览引用了谁，有没有你</text>
-<text x="220.0" y="348.0" fill="#185FA5" font-size="12">五家 AI 助手搜了什么、引用了谁</text>
+<text x="220.0" y="331.5" fill="#185FA5" font-size="12">Google AI 概览（--samples 多轮频率）</text>
+<text x="220.0" y="348.0" fill="#185FA5" font-size="12">五家 AI 助手（Wilson CI · fan-out 覆盖分）</text>
 <text x="220.0" y="364.5" fill="#185FA5" font-size="12">questions：买家会怎么问 AI</text>
 <rect x="313" y="223" width="35" height="18" rx="9" fill="#993C1D"/><text x="330" y="236" fill="#FFFFFF" font-weight="500" font-size="10.5">新增</text>
 <rect x="400" y="248" width="330" height="138" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
@@ -123,17 +123,18 @@
 <rect x="30" y="1168" width="220" height="80" rx="4" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
 <text x="140.0" y="1204.0" fill="#444441" font-weight="500" font-size="14">你去提交</text>
 <text x="140.0" y="1223.0" fill="#5F5E5A" font-size="12">工具不代你提交</text>
-<rect x="280" y="1168" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
-<text x="395.0" y="1195.0" fill="#0C447C" font-weight="500" font-size="14">verify：上线后查链接</text>
-<text x="395.0" y="1214.0" fill="#185FA5" font-size="12">在不在 · 传不传权重</text>
-<text x="395.0" y="1230.5" fill="#185FA5" font-size="12">正文 / 页脚 / 侧栏 / 评论</text>
+<rect x="280" y="1168" width="230" height="80" rx="4" fill="#E6F1FB" stroke="#993C1D" stroke-width="1.5"/>
+<text x="395.0" y="1195.0" fill="#0C447C" font-weight="500" font-size="14">verify · ai-access</text>
+<text x="395.0" y="1214.0" fill="#185FA5" font-size="12">在不在 · 权重 · noindex/canonical</text>
+<text x="395.0" y="1230.5" fill="#993C1D" font-weight="500" font-size="12">AI 三闸门：robots · WAF · CSR</text>
+<rect x="463" y="1159" width="35" height="18" rx="9" fill="#993C1D"/><text x="480" y="1172" fill="#FFFFFF" font-weight="500" font-size="10.5">新增</text>
 <rect x="540" y="1168" width="190" height="80" rx="4" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
 <text x="635.0" y="1186.0" fill="#0C447C" font-weight="500" font-size="14">log：提交账本</text>
 <text x="635.0" y="1205.0" fill="#185FA5" font-size="12">一周超过 5 个提醒</text>
-<text x="635.0" y="1221.5" fill="#185FA5" font-size="12">同一锚文本反复用提醒</text>
+<text x="635.0" y="1221.5" fill="#185FA5" font-size="12">仅关键词锚文本重复提醒</text>
 <text x="635.0" y="1238.0" fill="#185FA5" font-size="12">recheck：每月重查已上的站</text>
 </g>
-<text x="30" y="930" font-size="11" fill="#5F5E5A">每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款</text><text x="30" y="946" font-size="11" fill="#5F5E5A">每行另附「政策风险」「价值」两栏 · 本可能查出问题的检查失败了：标「待定」，重跑</text><path d="M30 1266 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1286" text-anchor="middle" font-size="11.5" fill="#5F5E5A">命令行：backlink-guard  find · vet · verify · audit · lost · log · recheck</text><text x="380" y="1303" text-anchor="middle" font-size="11.5" fill="#5F5E5A">competitors · cited · questions · asked · MCP 服务器：backlink-guard mcp</text><text x="380" y="1320" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code 插件 · Agent Skill：npx skills add zhuyansen/backlink-guard</text><text x="380" y="1337" text-anchor="middle" font-size="11.5" fill="#993C1D">橙色字和「新增」标签 = 0.11 新增</text>
+<text x="30" y="930" font-size="11" fill="#5F5E5A">每条结论都附原文证据，和它对应的 Google 链接垃圾政策条款</text><text x="30" y="946" font-size="11" fill="#5F5E5A">每行另附「政策风险」「价值」两栏 · 本可能查出问题的检查失败了：标「待定」，重跑</text><path d="M30 1266 H730" stroke="#D3D1C7" stroke-width="0.5" fill="none"/><text x="380" y="1286" text-anchor="middle" font-size="11.5" fill="#5F5E5A">命令行：backlink-guard  find · vet · verify · ai-access · audit · lost · log · recheck</text><text x="380" y="1303" text-anchor="middle" font-size="11.5" fill="#5F5E5A">competitors · cited · questions · asked · MCP 服务器：backlink-guard mcp</text><text x="380" y="1320" text-anchor="middle" font-size="11.5" fill="#5F5E5A">Claude Code 插件 · Agent Skill：npx skills add zhuyansen/backlink-guard</text><text x="380" y="1337" text-anchor="middle" font-size="11.5" fill="#993C1D">橙色字和「新增」标签 = 0.11+ 新增</text>
 <rect x="30" y="1353" width="14" height="14" rx="3" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/><text x="52" y="1365" font-size="12" fill="#444441">你给的输入</text><rect x="146" y="1353" width="14" height="14" rx="3" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/><text x="168" y="1365" font-size="12" fill="#444441">检查</text><rect x="227" y="1353" width="14" height="14" rx="3" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/><text x="249" y="1365" font-size="12" fill="#444441">数据来源</text><rect x="331" y="1353" width="10" height="14" rx="2" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/><rect x="343" y="1353" width="10" height="14" rx="2" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/><rect x="355" y="1353" width="10" height="14" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/><text x="373" y="1365" font-size="12" fill="#444441">结论：别发 / 小心 / 可以</text><path d="M574 1360 H604" stroke="#888780" stroke-width="1" stroke-dasharray="4 3" fill="none"/><text x="612" y="1365" font-size="12" fill="#444441">定期回看 · 举报回流</text>
 <circle r="4" fill="#888780"><animateMotion dur="1.0s" repeatCount="indefinite" begin="0.0s"><mpath href="#k"/></animateMotion></circle>
 <circle r="4" fill="#888780"><animateMotion dur="2.0s" repeatCount="indefinite" begin="0.4s"><mpath href="#l"/></animateMotion></circle>

@@ -5,7 +5,7 @@ asks GoAnyAPI for its rating, a year of visits and whether Google still lists it
 Glasser or AIsa for the spam score of its own backlink profile. Each finding carries the
 text or the numbers it came from, so a person can check it.
 
-Cost with both keys: about $0.01 a target (GoAnyAPI) plus about $0.025 for the whole
+Cost with both keys: about $0.01 a target (GoAnyAPI) plus about $0.16 for the whole
 batch (Glasser or AIsa). Without keys the page checks still run.
 """
 from __future__ import annotations

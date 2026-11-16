@@ -7,11 +7,12 @@
   python -m backlink_guard lost <your-domain> [--sitewide 20] [--rows 1000] [--fresh] [--json]
   python -m backlink_guard competitors <your-domain> --vs <competitor> [more ...] [--days 7] [--limit 100] [--max-usd 0.30] [--fresh] [--json]
   python -m backlink_guard competitors <your-domain> --vs <competitor> [more ...] --early [--vet 10] [--max-usd 0.50] [--fresh] [--json]
-  python -m backlink_guard cited <your-domain> "<keyword>" [more ...] [--max-usd 0.10] [--fresh] [--json]
+  python -m backlink_guard cited <your-domain> "<keyword>" [more ...] [--samples 1] [--max-usd 0.10] [--fresh] [--json]
   python -m backlink_guard questions "<what you make>" [--count 10] [--plain] [--fresh] [--json]
   python -m backlink_guard asked <your-domain> ["<question>" ...] [--file questions.txt] [--name "Your Brand"]
                                  [--engines chatgpt,ai_mode,perplexity,claude,gemini] [--samples N] [--rank] [--max-usd 1.00] [--fresh] [--json]
   python -m backlink_guard verify <page-url> --to <your-domain> [--json]
+  python -m backlink_guard ai-access <url-or-domain> [--no-cc] [--fresh] [--json]
   python -m backlink_guard log                                  the record, with pace and anchor checks
   python -m backlink_guard log add <site> --kind directory [--anchor TEXT] [--paid USD] [--url URL] [--note TEXT]
   python -m backlink_guard log set <site> --status live [--url URL]
@@ -21,7 +22,7 @@ find    the pages that rank for your keywords (directories, lists, articles, vid
         threads), sorted by the visitors they get from those searches, with what can be done
         on each: $0.005 a keyword plus $0.012 for the search volumes. --vet then vets the sites.
 vet     reads each site, and with keys asks for its rating, a year of visits and its
-        spam score: about $0.01 a site plus $0.025 for the batch. --free reads the site only.
+        spam score: about $0.01 a site plus $0.16 for the batch. --free reads the site only.
         --from reads the sites out of a list file; --limit caps how many are checked.
         --topic adds where each site ranks for your keyword ($0.005 a keyword).
         --referrals reads your analytics export (GA4 Session source and Sessions) and shows
@@ -62,7 +63,7 @@ asked   your questions to ChatGPT, Google's AI Mode, Perplexity, Claude and Gemi
         --rank then looks up each of their searches on Google and Bing (top 20): where you rank,
         and which sites rank against which ones were cited. $0.0035 a search on each.
 verify  whether a page links to you and whether that link passes ranking credit. Free.
-log     kept in state/ledger.jsonl on this machine. Free.
+log     kept in ~/.backlink-guard/ledger.jsonl on this machine. Free.
 
 Keys: GOANYAPI_API_KEY (rating, visits, index, your backlinks), and GLASSER_API_KEY or
 AISA_API_KEY (spam scores, weekly new and lost domains, anchors, competitors' referring
@@ -78,7 +79,7 @@ import sys
 
 from pathlib import Path
 
-from . import find as finding
+from . import ai_access, find as finding
 from . import asked as asking
 from . import cited, competitors, early, ledger, links, lists, lost, owners, page, profile, recheck, report
 from . import verify as verification
@@ -209,7 +210,7 @@ def parser() -> argparse.ArgumentParser:
                    help="leave out these sites (your own, competitors, ones you already have); repeatable, or a list file")
     v.add_argument("--free", action="store_true", help="read the sites only; call no paid API")
     v.add_argument("--deep", action="store_true",
-                   help="also read each site's own backlink profile: badge networks, unproven sites (+$0.024 a site)")
+                   help="also read each site's own backlink profile: badge networks, unproven sites (+$0.19 a site, $0.27 with AIsa)")
     v.add_argument("--topic", action="append", default=[], metavar="KEYWORD",
                    help="your keyword: shows where each site ranks for it (+$0.005 a keyword); repeatable")
     v.add_argument("--recent", action="store_true",
@@ -220,7 +221,7 @@ def parser() -> argparse.ArgumentParser:
                    help="your analytics export of visitor sources (GA4 CSV: Session source, Sessions): shows what each site sent you")
     r = sub.add_parser("recheck", parents=[common])
     r.add_argument("--to", metavar="DOMAIN", default="", help="your domain: also check that your links are still there (free)")
-    r.add_argument("--deep", action="store_true", help="also the backlink profile of each site (+$0.024 a site)")
+    r.add_argument("--deep", action="store_true", help="also the backlink profile of each site (+$0.19 a site, $0.27 with AIsa)")
     r.add_argument("--free", action="store_true", help="read the sites only; call no paid API")
     a = sub.add_parser("audit", parents=[common])
     a.add_argument("domain")
@@ -260,6 +261,7 @@ def parser() -> argparse.ArgumentParser:
         "up to $0.006."))
     t.add_argument("domain", help="your own domain")
     t.add_argument("keywords", nargs="+", metavar="KEYWORD")
+    t.add_argument("--samples", type=int, default=1, help="ask each keyword this many times to measure citation frequency (default 1)")
     t.add_argument("--max-usd", type=float, default=cited.MAX_USD,
                    help="the run's cap, checked against each call's estimated price before the call; cached answers are "
                         f"free (default {cited.MAX_USD:.2f})")
@@ -267,6 +269,9 @@ def parser() -> argparse.ArgumentParser:
     c = sub.add_parser("verify", parents=[common])
     c.add_argument("page")
     c.add_argument("--to", required=True, metavar="DOMAIN")
+    acc = sub.add_parser("ai-access", parents=[common], description="Three-gate AI accessibility check (robots/llms.txt, edge/CC, rendering). Free.")
+    acc.add_argument("target", help="URL or domain to check")
+    acc.add_argument("--no-cc", action="store_true", help="skip the Common Crawl CDX index check")
     g = sub.add_parser("log", parents=[common])
     g.add_argument("action", nargs="?", choices=["add", "set"])
     g.add_argument("site", nargs="?")
@@ -315,13 +320,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "competitors":
         return cmd_competitors(args)
     if args.command == "cited":
-        result = cited.cited(args.domain, args.keywords, max_usd=args.max_usd, fresh=args.fresh)
+        result = cited.cited(args.domain, args.keywords, max_usd=args.max_usd, fresh=args.fresh, samples=args.samples)
         return _print(args, result, report.cited(result))
     if args.command in ("questions", "asked"):
         return cmd_asked(args)
     if args.command == "verify":
         result = verification.verify(args.page, args.to)
         return _print(args, result, report.verify(result))
+    if args.command == "ai-access":
+        result = ai_access.check(args.target, check_cc=not args.no_cc, fresh=args.fresh)
+        return _print(args, result, report.ai_access(result))
     return cmd_log(args)
 
 

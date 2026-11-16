@@ -163,6 +163,17 @@ def task(engine: str, question: str) -> dict:
     return body | ({"web_search": True} if e.get("web") else {})
 
 
+def wilson_ci(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval (lower, upper) in [0.0, 1.0] for binomial proportion."""
+    if total <= 0:
+        return 0.0, 0.0
+    p = successes / total
+    denom = 1.0 + (z * z) / total
+    center = (p + (z * z) / (2.0 * total)) / denom
+    half = (z * ((p * (1.0 - p) + (z * z) / (4.0 * total)) / total) ** 0.5) / denom
+    return round(max(0.0, center - half), 3), round(min(1.0, center + half), 3)
+
+
 def answer(job: tuple[str, str, int], own: str, names: list[str], budget: Budget, fresh: bool) -> dict:
     """One answer as a row; {"left_out": True} when the cap left it out, {"error"} when it failed."""
     engine, question, sample = job
@@ -176,9 +187,12 @@ def answer(job: tuple[str, str, int], own: str, names: list[str], budget: Budget
     except aisa.AisaError as exc:
         return row | {"error": str(exc)}
     got = READ[e["kind"]](data or {})
-    sites = {p["site"] for p in got["cited"] + got["read"]}
+    cited_sites = {p["site"] for p in got["cited"]}
+    read_sites = {p["site"] for p in got["read"]}
+    sites = cited_sites | read_sites
     others = lookalikes(own, sites, got["text"])
-    return row | got | {"named_you": named_how(got["text"], own, names, others), "cited_you": own in sites,
+    return row | got | {"named_you": named_how(got["text"], own, names, others),
+                        "cited_you": own in cited_sites, "read_you": own in read_sites,
                         "lookalikes": sorted(others)}
 
 
@@ -193,34 +207,74 @@ def by_engine(rows: list[dict], engines: list[str]) -> list[dict]:
     out = []
     for engine in engines:
         mine = [r for r in rows if r["engine"] == engine]
-        n = len(mine) or 1
-        out.append({"engine": engine, "answers": len(mine), "named_you": sum(r["named_you"] == "domain" for r in mine),
-                    "name_only": sum(r["named_you"] == "name" for r in mine), "cited_you": sum(r["cited_you"] for r in mine),
+        total = len(mine)
+        n = total or 1
+        cited_n = sum(r["cited_you"] for r in mine)
+        named_n = sum(r["named_you"] == "domain" for r in mine)
+        read_n = sum(r.get("read_you", False) for r in mine)
+        out.append({"engine": engine, "answers": total, "named_you": named_n,
+                    "name_only": sum(r["named_you"] == "name" for r in mine), "cited_you": cited_n,
+                    "read_you": read_n,
+                    "citation_rate": round(cited_n / n, 3) if total else 0.0,
+                    "citation_ci": list(wilson_ci(cited_n, total)),
+                    "named_rate": round(named_n / n, 3) if total else 0.0,
+                    "named_ci": list(wilson_ci(named_n, total)),
                     "lookalike": sum(bool(r["lookalikes"]) for r in mine),
                     "searches": round(sum(len(r["fan_out"]) for r in mine) / n, 1),
                     "cited": round(sum(len(r["cited"]) for r in mine) / n, 1)})
     return out
 
 
+def distribution_of(rows: list[dict], questions: list[str]) -> dict:
+    """Multi-run stability summary across all answers and per question."""
+    total = len(rows)
+    cited_n = sum(r.get("cited_you", False) for r in rows)
+    named_n = sum(bool(r.get("named_you")) for r in rows)
+    by_q = []
+    for q in questions:
+        q_rows = [r for r in rows if r["question"] == q]
+        qn = len(q_rows)
+        qc = sum(r.get("cited_you", False) for r in q_rows)
+        qm = sum(bool(r.get("named_you")) for r in q_rows)
+        by_q.append({"question": q, "answers": qn, "cited_you": qc, "named_you": qm,
+                     "citation_rate": round(qc / qn, 3) if qn else 0.0,
+                     "citation_ci": list(wilson_ci(qc, qn))})
+    return {
+        "answers": total,
+        "cited_you": cited_n,
+        "citation_rate": round(cited_n / total, 3) if total else 0.0,
+        "citation_ci": list(wilson_ci(cited_n, total)),
+        "named_you": named_n,
+        "named_rate": round(named_n / total, 3) if total else 0.0,
+        "named_ci": list(wilson_ci(named_n, total)),
+        "by_question": by_q,
+    }
+
+
 def site_tally(rows: list[dict], own: str) -> list[dict]:
     """Every site an answer cited, the most answers first, with a page cited and what can be done there."""
-    by: dict[str, dict] = defaultdict(lambda: {"answers": 0, "engines": set(), "questions": set(), "pages": {}})
+    by: dict[str, dict] = defaultdict(lambda: {"answers": 0, "engines": set(), "questions": set(), "pages": {}, "fan_out": set()})
     for r in rows:
         for site in dict.fromkeys(p["site"] for p in r["cited"]):
             t = by[site]
             t["answers"] += 1
             t["engines"].add(r["engine"])
             t["questions"].add(r["question"])
+            for q in r.get("fan_out") or []:
+                t["fan_out"].add(" ".join(str(q).lower().split()))
         for p in r["cited"]:
             by[p["site"]]["pages"].setdefault(p["url"] or f"https://{p['site']}/", p["title"])
     return sorted((site_row(site, t, own) for site, t in by.items()),
-                  key=lambda x: (-x["answers"], -len(x["engines"]), x["site"]))
+                  key=lambda x: (-x["answers"], -len(x["engines"]), -x["coverage_score"], x["site"]))
 
 
 def site_row(site: str, t: dict, own: str) -> dict:
     url, title = next(iter(t["pages"].items()))
     kind = find.kind_of(url, title)
+    fan_out = sorted(t.get("fan_out") or ())
+    coverage = len(t["questions"]) * len(t["engines"]) + len(fan_out)
     return {"site": site, "answers": t["answers"], "engines": sorted(t["engines"]), "questions": sorted(t["questions"]),
+            "fan_out_hits": len(fan_out), "coverage_score": coverage,
             "urls": list(t["pages"]), "title": title, "you": site == own, "lookalike": bool(lookalikes(own, [site])),
             "kind": kind, "action": find.ACTIONS[kind]}
 
@@ -231,10 +285,20 @@ def page_tally(rows: list[dict]) -> list[dict]:
     for r in rows:
         for p in r["cited"]:
             if p["url"]:
-                t = by.setdefault(p["url"], p | {"answers": 0, "engines": set()})
+                t = by.setdefault(p["url"], p | {"answers": 0, "engines": set(), "questions": set(), "fan_out": set()})
                 t["answers"] += 1
                 t["engines"].add(r["engine"])
-    return sorted(({**t, "engines": sorted(t["engines"])} for t in by.values()), key=lambda x: (-x["answers"], x["url"]))
+                t["questions"].add(r["question"])
+                for q in r.get("fan_out") or []:
+                    t["fan_out"].add(" ".join(str(q).lower().split()))
+    out = []
+    for t in by.values():
+        engines = sorted(t["engines"])
+        questions = sorted(t["questions"])
+        fan_out = sorted(t["fan_out"])
+        out.append({**t, "engines": engines, "questions": questions, "fan_out": fan_out,
+                    "fan_out_hits": len(fan_out), "coverage_score": len(questions) * len(engines) + len(fan_out)})
+    return sorted(out, key=lambda x: (-x["answers"], -x["coverage_score"], x["url"]))
 
 
 def search_tally(rows: list[dict]) -> list[dict]:
@@ -371,6 +435,8 @@ def ranked_pages(rows: list[dict], own: str, cited_pages: list[dict]) -> list[di
     a sample, the searches behind it are the pool)."""
     cited_in = {page_key(p["url"]): p["answers"] for p in cited_pages}
     by: dict[str, Counter] = defaultdict(Counter)
+    queries_by: dict[str, set[str]] = defaultdict(set)
+    assistants_by: dict[str, set[str]] = defaultdict(set)
     first_url: dict[str, str] = {}
     for r in rows:
         for engine in RANK_PATHS:
@@ -378,11 +444,22 @@ def ranked_pages(rows: list[dict], own: str, cited_pages: list[dict]) -> list[di
                 key = page_key(url)
                 first_url.setdefault(key, url)
                 by[key][engine] += 1
-    out = [{"url": first_url[k], "site": page.registrable(first_url[k]), **{e: n[e] for e in RANK_PATHS},
-            "searches": sum(n.values()), "cited": cited_in.get(k, 0), "you": page.registrable(first_url[k]) == own}
-           for k, n in by.items()]
+                if r.get("query"):
+                    queries_by[key].add(r["query"])
+                assistants_by[key].update(r.get("assistants") or ())
+    out = []
+    for k, n in by.items():
+        url = first_url[k]
+        searches = sum(n.values())
+        cited_n = cited_in.get(k, 0)
+        q_hits = len(queries_by[k])
+        assts = sorted(assistants_by[k])
+        coverage = searches * max(1, len(assts)) + cited_n
+        out.append({"url": url, "site": page.registrable(url), **{e: n[e] for e in RANK_PATHS},
+                    "searches": searches, "fan_out_queries": q_hits, "assistants": assts,
+                    "coverage_score": coverage, "cited": cited_n, "you": page.registrable(url) == own})
     # cited pages first: a page every search returns but no answer cites is often the engine's own (a login page)
-    return sorted(out, key=lambda x: (x["cited"] == 0, -x["searches"], -x["cited"], x["url"]))
+    return sorted(out, key=lambda x: (x["cited"] == 0, -x["searches"], -x["cited"], -x["coverage_score"], x["url"]))
 
 
 def ranks(searches: list[dict], own: str, cited_sites: list[dict], budget: Budget, fresh: bool,
@@ -399,15 +476,15 @@ def ranks(searches: list[dict], own: str, cited_sites: list[dict], budget: Budge
     sites = ranked_sites(rows, own, cited_sites)
     ranking = {s["site"] for s in sites}
     return {"depth": RANK_DEPTH, "searches": rows, "by_engine": rank_by_engine(rows), "sites": sites,
-            "pages": ranked_pages(rows, own, cited_pages)[:PAGES_KEPT],
+             "pages": ranked_pages(rows, own, cited_pages)[:PAGES_KEPT],
             "cited_elsewhere": [{"site": s["site"], "answers": s["answers"]} for s in cited_sites if s["site"] not in ranking],
             "left_out": budget.left_out[before:]}
 
 
 def asked(domain: str, questions: list[str], names: list[str] = (), engines: list[str] | None = None,
           samples: int | None = None, max_usd: float = MAX_USD, fresh: bool = False, rank: bool = False) -> dict:
-    """{"domain", "questions", "answers", "by_engine", "sites", "pages", "searches", "named", "cost", "max_usd",
-    "left_out", "errors"}, and "ranks" with rank."""
+    """{"domain", "questions", "answers", "by_engine", "distribution", "sites", "pages", "searches", "named", "cost",
+    "max_usd", "left_out", "errors"}, and "ranks" with rank."""
     own, budget, names = page.registrable(page.host(domain)), Budget(max_usd), [n for n in names if n.strip()]
     engines = [e for e in (engines or list(ENGINES)) if e in ENGINES]
     qs = list(dict.fromkeys(" ".join(q.split()) for q in questions if q.strip()))
@@ -415,7 +492,8 @@ def asked(domain: str, questions: list[str], names: list[str] = (), engines: lis
         rows = list(pool.map(lambda j: answer(j, own, names, budget, fresh), jobs_of(qs, engines, samples)))
     done = [r for r in rows if "cited" in r]
     out = {"domain": own, "names": names, "questions": qs, "engines": engines, "answers": done,
-           "by_engine": by_engine(done, engines), "sites": site_tally(done, own), "pages": page_tally(done),
+           "by_engine": by_engine(done, engines), "distribution": distribution_of(done, qs),
+           "sites": site_tally(done, own), "pages": page_tally(done),
            "searches": search_tally(done), "named": name_tally(done, own, names), "cost": budget.spent,
            "max_usd": max_usd, "left_out": list(budget.left_out),
            "errors": [f"{r['engine']} “{r['question']}”: {r['error']}" for r in rows if r.get("error")]}

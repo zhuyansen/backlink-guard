@@ -153,18 +153,21 @@ def _reason(exc: BaseException) -> str:
 
 
 def _get(url: str) -> dict:
-    out = {"url": url, "final": url, "status": 0, "html": "", "error": "", "blocked": False, "dead": False}
+    out = {"url": url, "final": url, "status": 0, "html": "", "error": "", "blocked": False, "dead": False, "headers": {}}
     try:
         with urllib.request.urlopen(_request(url), timeout=TIMEOUT) as res:
-            out.update(status=res.status, final=res.geturl())
+            hdrs = {k.lower(): v for k, v in res.headers.items()} if hasattr(res.headers, "items") else {}
+            out.update(status=res.status, final=res.geturl(), headers=hdrs)
             try:
                 raw = res.read(MAX_BYTES)
             except http.client.IncompleteRead as exc:       # the answer broke off: what came is still the page
                 raw, out["error"] = exc.partial, "the answer broke off"
-            out.update(html=_decode(raw, res.headers.get_content_charset()))
+            charset = res.headers.get_content_charset() if hasattr(res.headers, "get_content_charset") else None
+            out.update(html=_decode(raw, charset))
     except urllib.error.HTTPError as exc:
+        hdrs = {k.lower(): v for k, v in exc.headers.items()} if hasattr(getattr(exc, "headers", None), "items") else {}
         out.update(status=exc.code, final=exc.geturl() or url, error=f"HTTP {exc.code}", blocked=exc.code not in GONE,
-                   dead=exc.code in GONE)
+                   dead=exc.code in GONE, headers=hdrs)
     except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError,
             http.client.HTTPException) as exc:
         out.update(error=_reason(exc), dead=True)
@@ -195,7 +198,8 @@ def _step(url: str) -> dict:
         where = (exc.headers.get("Location") or "") if exc.headers else ""
         moved = exc.code in REDIRECTS and where.strip()
         return {"status": exc.code, "location": where.strip(), "error": "" if moved else f"HTTP {exc.code}"}
-    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError) as exc:
+    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError, ValueError,
+            http.client.HTTPException) as exc:
         return {"status": 0, "location": "", "error": _reason(exc)}
 
 
@@ -222,3 +226,56 @@ def external(links: list[dict], home: str) -> list[dict]:
     """Links that leave the site."""
     own = site(home)
     return [l for l in links if site(l["href"]) != own]
+
+
+META_TAG = re.compile(r"<meta\b([^>]+)>", re.I)
+LINK_TAG = re.compile(r"<link\b([^>]+)>", re.I)
+ATTR = re.compile(r"([a-zA-Z_-]+)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s\"'>]+))")
+SCRIPT_TAG = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.I | re.S)
+
+
+def _attrs(raw: str) -> dict[str, str]:
+    return {m.group(1).lower(): (m.group(2) or m.group(3) or m.group(4) or "").strip() for m in ATTR.finditer(raw)}
+
+
+def directives(html: str, base_url: str, headers: dict | None = None) -> dict:
+    """Page-level indexing directives and rendering signals: meta robots/googlebot, X-Robots-Tag, canonical,
+    visible word count, script count, and JSON-LD blocks."""
+    hdrs = {k.lower(): v for k, v in (headers or {}).items()}
+    robots_tokens: set[str] = set()
+    x_robots = hdrs.get("x-robots-tag") or ""
+    for part in re.split(r"[,;\s]+", x_robots.lower()):
+        if part in ("noindex", "nofollow", "none", "noarchive", "nosnippet"):
+            robots_tokens.add(part)
+    for m in META_TAG.finditer(html or ""):
+        at = _attrs(m.group(1))
+        if at.get("name", "").lower() in ("robots", "googlebot", "bingbot"):
+            for part in re.split(r"[,;\s]+", at.get("content", "").lower()):
+                if part:
+                    robots_tokens.add(part)
+    canonical = ""
+    for m in LINK_TAG.finditer(html or ""):
+        at = _attrs(m.group(1))
+        rels = {r.lower() for r in at.get("rel", "").split()}
+        if "canonical" in rels and at.get("href"):
+            canonical = urllib.parse.urljoin(base_url, at["href"])
+            break
+    scripts = SCRIPT_TAG.findall(html or "")
+    ld_json = sum("application/ld+json" in (a or "").lower() for a, _ in scripts)
+    parsed = parse(html or "", base_url)
+    words = len(parsed["text"].split())
+    noindex = bool(robots_tokens & {"noindex", "none"})
+    page_nofollow = bool(robots_tokens & {"nofollow", "none"})
+    canonical_mismatch = bool(canonical and base_url and canonical.rstrip("/") != base_url.rstrip("/"))
+    return {
+        "robots": sorted(robots_tokens),
+        "x_robots_tag": x_robots,
+        "noindex": noindex,
+        "nofollow": page_nofollow,
+        "canonical": canonical,
+        "canonical_mismatch": canonical_mismatch,
+        "words": words,
+        "scripts": len(scripts),
+        "json_ld": ld_json,
+        "csr_shell": words < 50 and len(scripts) >= 3,
+    }

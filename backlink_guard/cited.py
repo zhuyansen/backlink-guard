@@ -25,12 +25,13 @@ OVERVIEW = {"ai_overview", "knowledge_graph_ai_overview_item"}     # an overview
 CITING = {"references", "links"}                                    # where an overview names its sources
 
 
-def results(keyword: str, budget: Budget, fresh: bool) -> dict:
+def results(keyword: str, budget: Budget, fresh: bool, sample: int = 0) -> dict:
     """Google's first page for the keyword, with its AI Overview."""
     body = {"keyword": keyword, "location_code": US, "language_code": EN, "depth": DEPTH, "load_async_ai_overview": True}
     estimate = CALL[backend.name()]
-    data, _ = budget.ask(f"aisa:serp-aio:{US}:{DEPTH}:{keyword.lower()}", estimate, lambda: backend.call(TOOL, body), fresh,
-                         f"“{keyword}”")
+    suffix = f":{sample}" if sample > 0 else ""
+    data, _ = budget.ask(f"aisa:serp-aio:{US}:{DEPTH}{suffix}:{keyword.lower()}", estimate, lambda: backend.call(TOOL, body),
+                         fresh, f"“{keyword}”")
     return data or {}
 
 
@@ -68,13 +69,36 @@ def your_rank(data: dict, own: str) -> tuple[int | None, str]:
     return None, ""
 
 
-def keyword_row(keyword: str, data: dict, own: str) -> dict:
-    """{"keyword", "overview", "cited", "you", "rank", "your_page"} for one keyword's results."""
-    found = overviews(data.get("items") or [])
-    cited = list({c["url"]: c for o in found for c in citations(o)}.values())
-    rank, url = your_rank(data, own)
-    return {"keyword": keyword, "overview": bool(found), "cited": cited,
-            "you": [c["url"] for c in cited if c["site"] == own], "rank": rank, "your_page": url}
+def keyword_row(keyword: str, data: dict | list[dict], own: str) -> dict:
+    """{"keyword", "overview", "cited", "you", "rank", "your_page", ...} for one keyword's results (single or multi-run)."""
+    runs_list = data if isinstance(data, list) else [data]
+    total_runs = len(runs_list)
+    overview_runs = 0
+    you_runs = 0
+    url_counts: dict[str, int] = defaultdict(int)
+    by_url: dict[str, dict] = {}
+    best_rank: int | None = None
+    best_url = ""
+    for d in runs_list:
+        found = overviews(d.get("items") or [])
+        if found:
+            overview_runs += 1
+        run_cited = list({c["url"]: c for o in found for c in citations(o)}.values())
+        if any(c["site"] == own for c in run_cited):
+            you_runs += 1
+        for c in run_cited:
+            url_counts[c["url"]] += 1
+            by_url.setdefault(c["url"], c)
+        rank, url = your_rank(d, own)
+        if rank is not None and (best_rank is None or rank < best_rank):
+            best_rank, best_url = rank, url
+    cited = [({**c, "runs": url_counts[u]} if total_runs > 1 else c) for u, c in by_url.items()]
+    row = {"keyword": keyword, "overview": overview_runs > 0, "cited": cited,
+           "you": [c["url"] for c in cited if c["site"] == own], "rank": best_rank, "your_page": best_url}
+    if total_runs > 1:
+        row.update(runs=total_runs, overview_runs=overview_runs, you_runs=you_runs,
+                   citation_rate=round(you_runs / total_runs, 3))
+    return row
 
 
 def tally(rows: list[dict], own: str) -> list[dict]:
@@ -85,7 +109,7 @@ def tally(rows: list[dict], own: str) -> list[dict]:
         for c in r["cited"]:
             t = by[c["site"]]
             t["keywords"] += [] if r["keyword"] in t["keywords"] else [r["keyword"]]
-            t["citations"] += 1
+            t["citations"] += c.get("runs", 1)
             t["pages"].setdefault(c["url"], c["title"])
     out = []
     for site, t in by.items():
@@ -96,18 +120,24 @@ def tally(rows: list[dict], own: str) -> list[dict]:
     return sorted(out, key=lambda x: (-len(x["keywords"]), -x["citations"], x["site"]))
 
 
-def cited(domain: str, keywords: list[str], max_usd: float = MAX_USD, fresh: bool = False) -> dict:
+def cited(domain: str, keywords: list[str], max_usd: float = MAX_USD, fresh: bool = False, samples: int = 1) -> dict:
     """{"domain", "keywords": [keyword_row], "sites": tally, "cost", "max_usd", "left_out", "errors"}."""
     own, budget = page.registrable(page.host(domain)), Budget(max_usd)
+    n_samples = max(1, int(samples or 1))
     out = {"domain": own, "keywords": [], "sites": [], "cost": 0, "max_usd": max_usd, "left_out": [], "errors": []}
+    if n_samples > 1:
+        out["samples"] = n_samples
     for keyword in dict.fromkeys(" ".join(k.split()) for k in keywords if k.strip()):
-        try:
-            data = results(keyword, budget, fresh)
-        except OverBudget:
-            continue
-        except aisa.AisaError as exc:
-            out["errors"].append(f"“{keyword}”: {exc}")
-            continue
-        out["keywords"].append(keyword_row(keyword, data, own))
+        run_data = []
+        for s in range(n_samples):
+            try:
+                run_data.append(results(keyword, budget, fresh, sample=s))
+            except OverBudget:
+                break
+            except aisa.AisaError as exc:
+                out["errors"].append(f"“{keyword}”: {exc}")
+                break
+        if run_data:
+            out["keywords"].append(keyword_row(keyword, run_data[0] if n_samples == 1 else run_data, own))
     out.update(sites=tally(out["keywords"], own), cost=budget.spent, left_out=budget.left_out)
     return out

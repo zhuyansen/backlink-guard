@@ -1335,3 +1335,78 @@ def test_a_page_whose_answer_breaks_off_keeps_what_came(monkeypatch):
     monkeypatch.setattr(page.urllib.request, "urlopen", lambda req, timeout: Broken())
     got = page.fetch("https://cut.example/")
     assert (got["status"], got["dead"], got["html"], got["error"]) == (200, False, "<html><title>Cut</title>", "the answer broke off")
+
+
+def test_find_volumes_matches_uppercase_input_against_lowercase_api_response(monkeypatch):
+    from backlink_guard import cache, find
+    monkeypatch.setattr(find.backend, "call", lambda tool, body: (
+        {"items": [{"keyword": "mcp server", "keyword_info": {"search_volume": 2400}, "keyword_properties": {"keyword_difficulty": 18}}]},
+        12000,
+    ))
+    vols, cost = find.volumes(["MCP Server"], fresh=True)
+    assert vols["MCP Server"] == {"volume": 2400, "kd": 18} and cost == 12000
+    assert cache.get("aisa:volume:2840:mcp server") == {"volume": 2400, "kd": 18}
+
+
+def test_signals_entity_and_page_step_catch_http_exception(monkeypatch):
+    import http.client
+    from backlink_guard import signals
+
+    def bad_open(*args, **kwargs):
+        raise http.client.IncompleteRead(b"partial")
+
+    monkeypatch.setattr(signals.urllib.request, "urlopen", bad_open)
+    assert signals.entity("mine.example") == ""
+
+    def bad_step_open(*args, **kwargs):
+        raise http.client.RemoteDisconnected("closed")
+
+    monkeypatch.setattr(page, "_open", bad_step_open)
+    traced = page.trace("https://mine.example/x")
+    assert traced["status"] == 0 and "RemoteDisconnected" in traced["error"]
+
+
+def test_verify_flags_page_level_noindex_and_canonical_mismatch(monkeypatch):
+    html_noindex = '<html><head><meta name="robots" content="noindex, follow"></head><body><p><a href="https://mine.example/">Mine</a></p></body></html>'
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": html_noindex,
+                                                    "error": "", "blocked": False, "dead": False, "headers": {}})
+    v = verify.verify("https://dir.example/item", "mine.example")
+    assert v["verdict"] == "qualified link" and "noindex" in v["note"] and v["page_directives"]["noindex"]
+
+    html_canon = '<html><head><link rel="canonical" href="https://dir.example/root"></head><body><p><a href="https://mine.example/">Mine</a></p></body></html>'
+    monkeypatch.setattr(page, "fetch", lambda url: {"url": url, "final": url, "status": 200, "html": html_canon,
+                                                    "error": "", "blocked": False, "dead": False, "headers": {}})
+    vc = verify.verify("https://dir.example/item", "mine.example")
+    assert vc["verdict"] == "qualified link" and "canonical" in vc["note"] and vc["page_directives"]["canonical_mismatch"]
+
+
+def test_ledger_anchor_repeat_ignores_brand_url_and_generic_anchors():
+    rows = [{"date": TODAY.isoformat(), "target": f"dir{i}.example", "kind": "directory",
+             "anchor": "Agent Skills Hub", "domain": "agentskillshub.top"} for i in range(5)]
+    assert [f["flag"] for f in ledger.checks(rows, today=TODAY, domain="agentskillshub.top")] == []
+    url_rows = [{"date": TODAY.isoformat(), "target": f"dir{i}.example", "kind": "directory",
+                 "anchor": "https://agentskillshub.top/"} for i in range(5)]
+    assert [f["flag"] for f in ledger.checks(url_rows, today=TODAY)] == []
+
+
+def test_ai_access_three_gates(monkeypatch):
+    from backlink_guard import ai_access, report
+    robots = "User-agent: GPTBot\nDisallow: /\nUser-agent: OAI-SearchBot\nDisallow: /\nUser-agent: PerplexityBot\nAllow: /\n"
+    csr_html = "<html><head><script src='a.js'></script><script src='b.js'></script><script src='c.js'></script></head><body><div id='root'></div></body></html>"
+    pages = {
+        "https://app.example/": {"url": "https://app.example/", "final": "https://app.example/", "status": 200,
+                                 "html": csr_html, "error": "", "blocked": False, "dead": False, "headers": {}},
+        "https://app.example/robots.txt": {"url": "https://app.example/robots.txt", "final": "https://app.example/robots.txt",
+                                           "status": 200, "html": robots, "error": "", "blocked": False, "dead": False, "headers": {}},
+        "https://app.example/llms.txt": {"url": "https://app.example/llms.txt", "final": "https://app.example/llms.txt",
+                                         "status": 404, "html": "", "error": "HTTP 404", "blocked": False, "dead": True, "headers": {}},
+    }
+    monkeypatch.setattr(page, "fetch", lambda url: pages[url])
+    res = ai_access.check("app.example", check_cc=False)
+    assert res["verdict"] == "blocked"
+    assert res["permission"]["blocked"]["training"] == ["GPTBot"]
+    assert res["permission"]["blocked"]["search"] == ["OAI-SearchBot"]
+    assert res["rendering"]["csr_shell"] is True
+    md = report.ai_access(res)
+    assert "empty CSR shell" in md and "OAI-SearchBot" in md
+

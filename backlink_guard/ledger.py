@@ -11,7 +11,7 @@ from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 
-from . import state_dir
+from . import profile, state_dir
 from .policy import flag
 
 KINDS = ("directory", "awesome-list", "guest-post", "community", "registry", "other")
@@ -55,17 +55,19 @@ def update(target: str, **changes) -> dict | None:
     return None
 
 
-def checks(rows: list[dict], today: date | None = None, limit: int = WEEKLY_LIMIT) -> list[dict]:
-    """Flags on the record itself: too many this week, or one anchor used again and again."""
+def checks(rows: list[dict], today: date | None = None, limit: int = WEEKLY_LIMIT, domain: str = "") -> list[dict]:
+    """Flags on the record itself: too many this week, or one keyword anchor used again and again."""
     today, flags = today or date.today(), []
     week = [r for r in rows if r["date"] > (today - timedelta(days=7)).isoformat()]
     if len(week) > limit:
         flags.append(flag("pace", f"{len(week)} submissions in the last 7 days; your limit is {limit}"))
-    anchors = Counter(r["anchor"].strip().lower() for r in rows if r.get("anchor", "").strip())
-    if anchors and sum(anchors.values()) >= ANCHOR_MIN:
-        text, n = anchors.most_common(1)[0]
-        if n / sum(anchors.values()) >= ANCHOR_SHARE:
-            sites = len({r["target"] for r in rows if r.get("anchor", "").strip().lower() == text})
-            flags.append(flag("anchor_repeat", f"\"{text}\" used for {n} of {sum(anchors.values())} submissions, "
+    with_anchor = [r for r in rows if r.get("anchor", "").strip()]
+    kw_anchors = Counter(r["anchor"].strip().lower() for r in with_anchor
+                         if profile.kind_of(r["anchor"].strip(), domain or r.get("domain", "")) == "keyword")
+    if kw_anchors and len(with_anchor) >= ANCHOR_MIN:
+        text, n = kw_anchors.most_common(1)[0]
+        if n / len(with_anchor) >= ANCHOR_SHARE:
+            sites = len({r["target"] for r in with_anchor if r["anchor"].strip().lower() == text})
+            flags.append(flag("anchor_repeat", f"\"{text}\" used for {n} of {len(with_anchor)} submissions, "
                                                f"on {sites} site{'s' if sites != 1 else ''}"))
     return flags

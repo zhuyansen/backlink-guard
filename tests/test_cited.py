@@ -89,3 +89,13 @@ def test_a_failed_keyword_is_reported_and_the_rest_go_on(monkeypatch):
     monkeypatch.setattr(cited.aisa, "call", call)
     c = cited.cited(OWN, ["claude skills", "agent skills"])
     assert c["errors"] == ["“claude skills”: Internal SE Server Error."] and [r["keyword"] for r in c["keywords"]] == ["agent skills"]
+
+
+def test_cited_multi_run_samples_aggregates_citation_frequency(monkeypatch):
+    calls = world(monkeypatch)
+    c = cited.cited(OWN, ["agent skills"], samples=2, fresh=True)
+    assert len(calls) == 2 and c["samples"] == 2
+    row = c["keywords"][0]
+    assert row["runs"] == 2 and row["overview_runs"] == 2 and row["you_runs"] == 2 and row["citation_rate"] == 1.0
+    assert all(x["runs"] == 2 for x in row["cited"])
+

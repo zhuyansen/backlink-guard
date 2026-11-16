@@ -2,6 +2,38 @@
 
 ## Unreleased (local-0.8)
 
+- **`ai-access` (`backlink_guard/ai_access.py`, `ai_access` MCP tool)**: checks the three gates an AI crawler or answer
+  engine passes through to read and cite a site or page (free):
+  - **Gate 1 — Permission**: `robots.txt` rules grouped by bot role (`training`: `GPTBot`, `ClaudeBot`,
+    `Google-Extended`, `CCBot`, `Meta-ExternalAgent`, `Bytespider`, `Applebot-Extended`; `search`: `OAI-SearchBot`,
+    `PerplexityBot`, `Amzn-SearchBot`; `user`: `ChatGPT-User`, `Claude-User`, `Perplexity-User`) and `/llms.txt`.
+  - **Gate 2 — Edge**: whether the site answers 200 or blocks with a 403/WAF challenge, and how many pages Common
+    Crawl's latest index holds via its CDX API.
+  - **Gate 3 — Rendering**: visible words in initial HTML vs a client-side CSR shell (`< 50` words and `>= 3` scripts),
+    page-level `noindex` (`<meta name="robots">` / `X-Robots-Tag`), and JSON-LD schema.
+- **`verify` page-level directives (`page.directives()`)**: `verify` now reads `<meta name="robots">`,
+  `<meta name="googlebot">`, `X-Robots-Tag` response headers and `<link rel="canonical">`. A followed `<a>` tag on a
+  page with page-level `nofollow` becomes `qualified link (page nofollow)`, and page-level `noindex` or
+  `canonical_mismatch` is reported on the result and in the table so a link on a non-indexable page is never mistaken
+  for one passing ranking credit.
+- **`asked` and `cited` multi-run distribution & fan-out coverage**:
+  - `asked` separates `cited_you` (`sources` only) from `read_you` (`search_results` not cited), adds 95% Wilson
+    confidence intervals (`wilson_ci`) and per-engine frequency distributions (`distribution_of`), and computes a
+    publisher-first fan-out `coverage_score` (`cite_weight × 2 + first_page_weight`) across `sites`, `pages` and
+    `ranks.pages`.
+  - `cited` adds `--samples N` (`samples` in MCP) to sample each keyword multiple times and report `overview_runs`,
+    `you_runs` and per-site `citation_rate` (`cited_runs / runs`).
+- **MCP server (`log_add`, `recheck`, `ai_access`)**: added `log_add`, `recheck` and `ai_access` tools to
+  `backlink_guard/mcp_server.py`.
+- **Fixes**:
+  - `find.volumes()` normalizes API keyword keys to lowercase so uppercase input keywords match and no longer cache
+    `volume: 0`.
+  - `signals.entity()` and `page._step()` now catch `http.client.HTTPException` (including `IncompleteRead`,
+    `RemoteDisconnected`, `InvalidURL`).
+  - `ledger.checks()` only flags `anchor_repeat` on `keyword`-type anchors (`profile.anchor_kind`), exempting brand,
+    bare-URL and generic anchors; `profile.kind_of()` guards empty `domain` so `anchor` is never matched against `""`.
+  - Synced CLI help and docstrings for `vet` batch/deep prices (`$0.16` batch, `+$0.19`/`$0.27` deep) and the default
+    ledger location (`~/.backlink-guard/ledger.jsonl`).
 - `asked --rank` keeps the address of every page on each search's first page (`first_page_urls`) and ranks the
   pages several of the assistants' searches return (`ranks.pages`), with the answers that cited each; the report
   adds a table of the pages on the first page of two searches or more. One answer's citations are a sample; the

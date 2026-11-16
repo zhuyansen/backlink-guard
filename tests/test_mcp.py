@@ -36,6 +36,12 @@ def test_the_tools_answer_with_the_report_and_never_print(monkeypatch, capsys):
     assert linked["verdict"] == "followed link" and linked["cost_usd"] == 0
     log = mcp_server.submissions()
     assert log["entries"] == 0 and log["warnings"] == []
+    added = mcp_server.log_add("dir.example", "directory", anchor="Mine", url="https://dir.example/")
+    assert added["entries"] == 1 and "dir.example" in added["report_markdown"]
+    rechecked = asyncio.run(mcp_server.recheck(to="mine.example", free=True))
+    assert "dir.example" in rechecked["report_markdown"] and rechecked["cost_usd"] == 0
+    acc = asyncio.run(mcp_server.ai_access("dir.example", check_cc=False))
+    assert acc["verdict"] in ("ok", "caution") and "AI Accessibility Check" in acc["report_markdown"]
     assert capsys.readouterr().out == ""        # stdout is the protocol channel
 
 

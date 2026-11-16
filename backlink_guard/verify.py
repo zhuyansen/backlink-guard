@@ -59,22 +59,36 @@ def placement_note(links: list[dict]) -> str:
 
 
 def verify(page_url: str, domain: str) -> dict:
-    """{"page", "domain", "status", "links": [...], "verdict", "note"}"""
+    """{"page", "domain", "status", "links": [...], "verdict", "note", "page_directives"}"""
     domain, got = page.site(domain), page.fetch(page_url)
     out = {"page": page_url, "domain": domain, "status": got["status"], "links": [], "verdict": "", "note": ""}
     if got["dead"] or got["blocked"]:
         out.update(verdict="unreadable", note=f"The page could not be read ({got['error']}). Open it in a browser to check.")
         return out
     parsed = page.parse(got["html"], got["final"])
+    dirs = page.directives(got["html"], got["final"], got.get("headers"))
+    out["page_directives"] = dirs
     out["links"] = [c for c in (classify(l, domain, page.site(got["final"])) for l in parsed["links"]) if c]
+    dir_notes = []
+    if dirs["noindex"]:
+        dir_notes.append("The page carries noindex: Google will not index it or pass ranking credit.")
+    if dirs["nofollow"]:
+        dir_notes.append("The page carries a page-level nofollow directive: all links on it are held back.")
+    if dirs["canonical_mismatch"]:
+        dir_notes.append(f"The page's canonical points elsewhere ({dirs['canonical']}): credit consolidates there, not here.")
     if not out["links"]:
         mentioned = domain in got["html"].lower()
         out.update(verdict="not found", note="The domain appears in the page source but not as a link: a script may add it."
                    if mentioned else "No link to the domain in the page as served.")
-    elif any(l["passes_credit"] for l in out["links"]):
+    elif any(l["passes_credit"] for l in out["links"]) and not (dirs["noindex"] or dirs["nofollow"] or dirs["canonical_mismatch"]):
         out.update(verdict="followed link", note=placement_note([l for l in out["links"] if l["passes_credit"]]))
     elif any(l["how"] == "direct" for l in out["links"]):
-        out.update(verdict="qualified link", note="The link is there with rel=nofollow, sponsored or ugc: visitors, no ranking credit.")
+        note = "The link is there with rel=nofollow, sponsored or ugc: visitors, no ranking credit."
+        if dir_notes and any(l["passes_credit"] for l in out["links"]):
+            note = " ".join(dir_notes)
+        out.update(verdict="qualified link", note=note)
     else:
         out.update(verdict="redirect only", note="The link goes through the site's own redirect: visitors, no ranking credit.")
+    if dir_notes and out["verdict"] not in ("qualified link",):
+        out["note"] = (out["note"] + " " if out["note"] else "") + " ".join(dir_notes)
     return out

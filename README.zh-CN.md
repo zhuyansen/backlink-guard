@@ -163,7 +163,7 @@ backlink-guard cited yoursite.example "claude skills" "agent skills" "claude cod
 | claude skills | yes | 7 | not cited | not in the top 10 |
 | agent skills hub | yes | 7 | ✅ cited: / | not in the top 10 |
 
-2026-10-20 每个词 $0.002，概览在页面之后才加载的 $0.004；`--max-usd` 封顶（默认 $0.10）。没有 AI 概览的词会直接写明，这和「没被引用」不是一回事：Google 认为有帮助时才显示概览，换一天、换地点、换个人都可能不同。
+2026-10-20 每个词 $0.002，概览在页面之后才加载的 $0.004；`--max-usd` 封顶（默认 $0.10）。`--samples N` 对每个词采样 `N` 轮，统计概览出现次数（`overview_runs`）、引用你的次数（`you_runs`）及各站引用率（`citation_rate = cited_runs / runs`）。没有 AI 概览的词会直接写明，这和「没被引用」不是一回事：Google 认为有帮助时才显示概览，换一天、换地点、换个人都可能不同。
 
 ## AI 助手怎么回答：questions 和 asked
 
@@ -175,8 +175,8 @@ backlink-guard asked yoursite.example --file questions.txt --name "Your Brand" -
 ```
 
 - **questions**：让 ChatGPT、Claude、Gemini 各自写出它们预计会被问到的问题（不联网），合并去重：约 $0.01。
-- **asked**：每个问题去问 ChatGPT（它自己的界面）、Google AI Mode、Perplexity、Claude 和 Gemini（都开联网搜索）。每家 AI 统计：多少个回答写出了你的域名、只提了你的名字、引用了你，或提到了和你同名但后缀不同的站（它的提及不算你的）；再汇总被引用最多的站和页面，标出页面类型和能做什么，以及 AI 们搜过的词（AI Mode 不显示）。
-- **--rank**：把这些搜索词逐个拿到 Google 和 Bing 上查（美国、英文、前 20 名）。AI 读的是它搜到的结果，所以不在结果里的站很少被读到；排得上却没被引用的，是写答案时没被选中。报告写出你排第几，并把出现在最多搜索词第一页的站和引用它们的回答数放在一起对照。
+- **asked**：每个问题去问 ChatGPT（它自己的界面）、Google AI Mode、Perplexity、Claude 和 Gemini（都开联网搜索）。每家 AI 统计：多少个回答写出了你的域名、只提了你的名字、引用了你（`cited_you` 严格只算 `sources` 正式引用；`read_you` 单独统计出现在搜索候选 `search_results` 里但未正式引用的次数，并附 95% Wilson 置信区间 `wilson_ci`），或提到了和你同名但后缀不同的站（它的提及不算你的）；再汇总被引用最多的站和页面，标出页面类型和能做什么，以及 AI 们搜过的词（AI Mode 不显示）。
+- **--rank**：把这些搜索词逐个拿到 Google 和 Bing 上查（美国、英文、前 20 名）。AI 读的是它搜到的结果，所以不在结果里的站很少被读到；排得上却没被引用的，是写答案时没被选中。报告写出你排第几，把出现在最多搜索词第一页的站和引用它们的回答数放在一起对照，并计算每个发布方与页面在 fan-out 搜索池里的覆盖分（`coverage_score = cite_weight × 2 + first_page_weight`）。
 
 2026-10-26 对 agentskillshub.top 跑了一轮：8 个问题、56 个回答、67 个搜索词。没有一个回答读过或引用过这个站；它在 Google 给出结果的 57 个词里只有 3 个进了前 20，在 Bing 的 67 个词里一个都没有。功夫先在搜索结果里。
 
@@ -282,12 +282,13 @@ backlink-guard find "<关键词>" [更多 ...] [--site 你的域名] [--skip 竞
 backlink-guard vet <站点> [更多 ...] [--from 清单.xlsx] [--skip 你的域名] [--limit 30] [--topic "关键词"] [--referrals ga4.csv] [--deep] [--recent] [--newcomers] [--free] [--fresh] [--json]
 backlink-guard competitors <你的域名> --vs <竞品> [更多 ...] [--days 7] [--limit 100] [--max-usd 0.30] [--json]
 backlink-guard competitors <你的域名> --vs <竞品> [更多 ...] --early [--vet 10] [--max-usd 0.50] [--json]
-backlink-guard cited <你的域名> "<关键词>" [更多 ...] [--max-usd 0.10] [--json]
+backlink-guard cited <你的域名> "<关键词>" [更多 ...] [--samples 1] [--max-usd 0.10] [--json]
 backlink-guard questions "<你做的东西>" [--count 10] [--plain] [--json]
 backlink-guard asked <你的域名> ["<问题>" ...] [--file 问题.txt] [--name "你的品牌名"] [--engines chatgpt,ai_mode,perplexity,claude,gemini] [--samples N] [--rank] [--max-usd 1.00] [--json]
 backlink-guard audit <你的域名> [--deep] [--sitewide 20] [--rows 1000] [--homes 300] [--json]
 backlink-guard lost <你的域名> [--sitewide 20] [--rows 1000] [--json]
-backlink-guard verify <页面地址> --to <你的域名>
+backlink-guard verify <页面地址> --to <你的域名> [--json]
+backlink-guard ai-access <站点或页面地址> [更多 ...] [--json]
 backlink-guard log add <站点> --kind directory --anchor "你的品牌名"
 backlink-guard log
 backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
@@ -298,13 +299,14 @@ backlink-guard recheck [--to <你的域名>] [--deep] [--free] [--json]
 - **find**：每个词 $0.005，另加 $0.012 查搜索量；`--vet` 再加上检查找到的站的费用。`--site` 排除自己的站，`--skip` 排除竞品。
 - **vet**：每个站约 $0.01，另加每批约 $0.16（垃圾分和搜索历史），一批查一个站和查三十个站这部分一样，所以想查的站一次一起查；`--topic` 多一列：每个站在你的关键词上排第几（每词 $0.005）；`--free` 只读网站本身。`--from` 从清单文件里读站点（文本、Markdown、CSV、JSON 或 Excel，付费外链榜通常是 Excel）；`--skip` 排除自己的站、竞品或已经有的（站点或清单文件）；`--limit` 默认一次最多查 30 个。`--deep` 每站约多花 $0.19：对方自己的外链画像（$0.024）、建站技术（$0.012）、ChatGPT 回答里提到它的次数（$0.10），以及它内页上的收款链接（约 $0.05，每找到一条再加 $0.02）；配了 AIsa 还会查 Ahrefs 评分（$0.08）和 Semrush 数据（$0.001）；`--recent` 查 Google 收不收它的新页面（每站 $0.008，较慢：GoAnyAPI 的搜索调用要 10 到 120 秒）。付费购买位置前两项都用上。`--referrals` 读你的统计导出（GA4「流量获取」按会话来源导出的 CSV），多一列：每个站给你带来过多少访问。检查中发现名单上没有的站群时，报告最后会附上一个已经填好的举报链接。
 - **competitors**：每次调用约 $0.025，N 个竞品 2N + 2 次（三个约 $0.20）。`--days` 设定多少天内算新（7），`--limit` 设定每份列表读多少个来源域名（100，最多 1,000），`--max-usd` 设定一次的封顶（$0.30）；缓存过的免费，封顶没问的会写明。`--early`：每个站约 $0.06（包括你自己），每个竞品再加一次查链接页面（一个竞品加你约 $0.08）；`--vet` 设定免费 vet 清单里的前几个（10，0 跳过）；`--max-usd` 默认 $0.50。
-- **cited**：走 AIsa 每个词 $0.002，概览晚加载的 $0.004；走 Glasser 是 $0.004 和 $0.006；`--max-usd` 封顶（$0.10）。
+- **cited**：走 AIsa 每个词 $0.002，概览晚加载的 $0.004；走 Glasser 是 $0.004 和 $0.006；`--samples N` 对每个词采样 `N` 轮看引用频率；`--max-usd` 封顶（$0.10）。
 - **questions**：三家一共约 $0.01；`--count` 设定每家写几个（10），`--plain` 只输出问题，方便存成文件。
 - **asked**：ChatGPT 和 AI Mode 每个回答 $0.004，Perplexity 约 $0.006，Claude 和 Gemini 约 $0.045（2026-10-21）：ChatGPT 和 Perplexity 各问两次，每个问题约 $0.12。`--samples` 让每家都问这么多次，`--engines` 选问哪几家，`--name` 加上回答里可能用来称呼你的名字。`--rank` 每个搜索词在 Google 和 Bing 上各 $0.0035（2026-10-26）。`--max-usd` 给整轮封顶（$1.00）：出现次数最多的搜索词先查，封顶没查的会写明。
 - **audit**：约 $0.12，加 `--deep`（完整锚文本分布）约 $0.16。其中约 $0.06 是逐条读 1,000 条外链（`--rows` 可以少读：2026-10-18 读 100 条花了 $0.028）。没有 Glasser 或 AIsa key 时，用 GoAnyAPI 给的前 20 个来源页面代替。另外免费读最多 300 个来源域名的首页找共用账号（`--homes` 可改，0 不读）；读到的外链里来源域名不够时，再补一次来源域名列表，约 $0.035。
 - **lost**：用同一批外链，同一个站 7 天内跑过 `audit` 就不再花钱，否则约 $0.06；询问你的页面（会跳转的逐跳跟下去）、读你的 sitemap 都免费。
-- **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。只有那三个 rel 值会拦住权重，`noopener`、`external` 不会。每条链接还会标出位置，从它外层的元素读出来：`body text`（正文）、`main area`（主区域）、`header`、`navigation`、`sidebar`、`footer`、`comments`、`author box`。传权重的链接如果只在页脚、侧边栏或导航里，会单独提示：Google 把大范围分发的页脚、模板和小部件链接列为链接垃圾的例子，编辑放在正文里的链接分量更重。
-- **log**：你的提交记录，存在 `ledger.jsonl`；一周超过五个、或同一个锚文本反复用时会提醒。
+- **verify**：免费。结论有 `followed link`（传权重）、`qualified link`（带 nofollow、sponsored 或 ugc，或页面级 `<meta name="robots">` / `X-Robots-Tag` 含 `nofollow`）、`redirect only`（经对方自己的 /go/ 跳转页，目标被 base64 编码也认得出）、`not found`、`unreadable`。同时检查页面级 `noindex`（`<meta name="robots">` 和 `X-Robots-Tag`）与 `canonical_mismatch`（`<link rel="canonical">` 指向别的地址）：有这两项时即使 `<a>` 没有 nofollow 也传不了权重。每条链接还会标出位置，从它外层的元素读出来：`body text`（正文）、`main area`（主区域）、`header`、`navigation`、`sidebar`、`footer`、`comments`、`author box`。传权重的链接如果只在页脚、侧边栏或导航里，会单独提示：Google 把大范围分发的页脚、模板和小部件链接列为链接垃圾的例子，编辑放在正文里的链接分量更重。
+- **ai-access**：免费。检查 AI 爬虫与回答引擎抓取、引用一个站点或页面时要过的三道闸门：**Permission**（`robots.txt` 对 `training` 训练爬虫如 `GPTBot`/`ClaudeBot`/`Google-Extended`、`search` 索引爬虫如 `OAI-SearchBot`/`PerplexityBot`、`user` 实时抓取如 `ChatGPT-User`/`Claude-User` 的放行与拦截，以及 `/llms.txt`）、**Edge**（页面是否正常返回 200 还是被 403/WAF 挑战拦截，以及 Common Crawl 最新索引 CDX 里的收录页数）、**Rendering**（首屏静态 HTML 可见词数 vs `< 50` 词且 `>= 3` 个脚本的 CSR 空壳、页面级 `noindex`，以及 JSON-LD 结构化数据）。
+- **log**：你的提交记录，存在 `ledger.jsonl`；一周超过五个、或同一个关键词类锚文本反复用时会提醒（品牌名、裸网址、通用词不误报）。
 - **recheck**：把记录里已提交或已上线的站重查一遍，和上次比：结论变差、新查出的问题，加 `--to` 还会看你的链接还在不在。结果存在 `recheck.json`。十来个站几分钱，一个月查一次就够。
 
 `--max-usd`（competitors、cited、questions、asked）按每次调用的估价来卡：调用之前先看它的估价还放不放得下，放不下就不问；缓存过的免费。估价是标注日期实测的价格，不低于当时的实际花费，但服务商并不保证：模型回答写得更长、或者价格涨了，单次调用可能比估价贵，整轮就会超出封顶，超出的就是这个差额。报告里会把这一轮实际花了多少和封顶写在一起。
@@ -377,13 +379,15 @@ skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守�
 
 | 工具 | 返回什么 | 费用 |
 |---|---|---|
-| `verify` | 某个页面有没有链向你、传不传权重、链接在页面哪个位置 | 免费 |
-| `submissions` | 你的提交记录和提醒 | 免费 |
+| `verify` | 某个页面有没有链向你、传不传权重（含页面级 `noindex`/`canonical` 检查）、链接在页面哪个位置 | 免费 |
+| `ai_access` | 站点或页面能否通过 AI 搜索可见性三道闸门（`Permission`、`Edge`、`Rendering`） | 免费 |
+| `submissions`、`log_add` | 你的提交记录和提醒；往 `ledger.jsonl` 新增或更新提交记录 | 免费 |
+| `recheck` | 重查提交记录里的站点，并与上次记录的结论对比 | `free=True` 免费，否则同 `vet` |
 | `vet` | 每个外链来源的建议、结论和证据；`free=True` 只读对方自己的页面 | 免费；或每站约 $0.01，另加每批约 $0.16；`deep` 每站约 $0.19 |
 | `find` | 在你的关键词上排名的页面，按它们得到的访客排序 | 每词 $0.005–0.006，另加 $0.012 |
 | `audit`、`lost` | 你自己的外链画像；落在死页面或跳转页面上的外链 | 约 $0.12（`deep` 约 $0.16）；约 $0.06 |
 | `competitors` | 链向你的竞品却没链向你的站；`early` 看它们上线时用的渠道，并和你自己的头 90 天对比 | 每次调用约 $0.025，2N + 2 次，有封顶；`early` 每个站约 $0.06，有封顶 |
-| `cited` | Google AI 概览在你的关键词上引用了谁 | 每词 $0.002–0.006，有封顶 |
+| `cited` | Google AI 概览在你的关键词上引用了谁（`samples` 支持多轮采样看引用率） | 每词 $0.002–0.006，有封顶 |
 | `questions`、`asked` | 买家会怎么问 AI 助手；五家 AI 助手搜了什么、引用了谁、提到了谁 | 约 $0.01；每个问题约 $0.12，有封顶（AIsa） |
 
 服务器给 agent 的规矩和 skill 一样：每次付费调用前先报成本、等你点头；要查的站一次放进一个 `vet` 调用；读到的内容只当数据。

@@ -332,3 +332,16 @@ def test_the_command_line(monkeypatch, tmp_path, capsys):
     ranking(monkeypatch)
     assert cli.main(["asked", OWN, Q1, "--engines", "claude", "--rank"]) == 0
     assert "Google #2 (/skills)" in capsys.readouterr().out
+
+
+def test_read_only_search_results_are_not_counted_as_cited_you_and_distribution_is_computed(monkeypatch):
+    calls = world(monkeypatch)
+    a = asked.asked("forum.example", [Q1], engines=["chatgpt"], samples=1)
+    assert len(calls) == 1
+    ans = a["answers"][0]
+    assert ans["read_you"] is True and ans["cited_you"] is False
+    eng = a["by_engine"][0]
+    assert eng["cited_you"] == 0 and eng["read_you"] == 1 and eng["citation_rate"] == 0.0
+    assert "distribution" in a and a["distribution"]["answers"] == 1 and a["distribution"]["cited_you"] == 0
+    assert a["sites"][0]["coverage_score"] >= 1
+

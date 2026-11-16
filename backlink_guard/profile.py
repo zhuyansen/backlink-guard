@@ -71,14 +71,15 @@ def velocity(weeks: list[dict]) -> dict | None:
     return None
 
 
-def kind_of(anchor: str, domain: str) -> str:
+def kind_of(anchor: str, domain: str = "") -> str:
     """"brand", "url", "generic" or "keyword"."""
-    text, stem = anchor.lower().strip(), domain.split(".")[0].lower()
+    text, dom = anchor.lower().strip(), (domain or "").strip().lower()
+    stem = dom.split(".")[0] if dom else ""
     if not text or GENERIC.match(text):
         return "generic"
-    if domain.lower() in text or text.startswith(("http://", "https://", "www.")):
+    if (dom and dom in text) or text.startswith(("http://", "https://", "www.")) or re.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}(?:/\S*)?", text):
         return "url"
-    return "brand" if stem in re.sub(r"[\s\-_]+", "", text) else "keyword"
+    return "brand" if (stem and stem in re.sub(r"[\s\-_]+", "", text)) else "keyword"
 
 
 def from_domains(entry: tuple) -> str:

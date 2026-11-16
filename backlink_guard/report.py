@@ -750,3 +750,32 @@ def owner_lines(o: dict) -> list[str]:
                   "share an account honestly: read the sites before you act. Google ignores most such links; a disavow file "
                   "is for a manual action."]
     return lines + network_lines(o.get("networks") or [])
+
+
+def ai_access(r: dict) -> str:
+    """Three-gate AI accessibility report (Permission, Edge/Index, Rendering)."""
+    p, e, rnd = r["permission"], r["edge"], r["rendering"]
+    lines = [
+        f"# AI Accessibility Check: {r['domain']} ({r['verdict']})",
+        "",
+        "## 1. Permission Gate (`robots.txt` & `llms.txt`)",
+        f"- `robots.txt` status: {p['robots_status'] or 'unreachable'}",
+        f"- `llms.txt` present: {'yes' if p['llms_txt'] else 'no'}",
+        f"- Training bots blocked: {', '.join(p['blocked']['training']) or 'none'}",
+        f"- AI search bots blocked: {', '.join(p['blocked']['search']) or 'none'}",
+        f"- User-triggered AI bots blocked: {', '.join(p['blocked']['user']) or 'none'}",
+        "",
+        "## 2. Edge & Index Gate (HTTP/WAF & Common Crawl)",
+        f"- HTTP status: {e['status']} ({'blocked by WAF/CDN' if e['blocked'] else 'dead/unreachable' if e['dead'] else 'ok'})",
+        f"- Common Crawl CDX pages sampled: {e['common_crawl_pages'] if e['common_crawl_pages'] is not None else MISSING}",
+        "",
+        "## 3. Rendering & Directives Gate (Initial HTML)",
+        f"- Visible words without JS: {rnd['words']:,} ({rnd['scripts']} `<script>` tags)"
+        + (" — **empty CSR shell**" if rnd["csr_shell"] else ""),
+        f"- Indexing directives: {', '.join(rnd['robots']) or 'index, follow'}",
+        f"- JSON-LD blocks: {rnd['json_ld']}",
+    ]
+    if r["issues"]:
+        lines += ["", "## Issues"] + [f"- {x}" for x in r["issues"]]
+    return "\n".join(lines)
+
