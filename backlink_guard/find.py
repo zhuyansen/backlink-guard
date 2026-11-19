@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 
 from . import aisa, backend, cache
+from .budget import Budget, OverBudget
 from .page import host, site
 
 SERP_TOOL = "post_dataforseo_serp_google_organic_live_regular"
@@ -91,7 +92,19 @@ def serp(keyword: str, fresh: bool, depth: int = DEPTH) -> tuple[list[dict], int
     held = None if fresh else cache.get(key)
     if held is not None:
         return held, 0
-    result, cost = backend.call(SERP_TOOL, {"keyword": keyword, "location_code": US, "language_code": EN, "depth": depth})
+    from . import vet
+    budget = vet._active_budget()
+    if budget is not None:
+        try:
+            result, cost = budget.ask(
+                key, 5_000,
+                lambda: backend.call(SERP_TOOL, {"keyword": keyword, "location_code": US, "language_code": EN, "depth": depth}),
+                True, f"serp:{keyword}",
+            )
+        except OverBudget as exc:
+            raise aisa.AisaError(f"over --max-usd cap ({exc})") from None
+    else:
+        result, cost = backend.call(SERP_TOOL, {"keyword": keyword, "location_code": US, "language_code": EN, "depth": depth})
     rows = [{"url": i["url"], "title": i.get("title") or "", "position": i.get("rank_absolute") or i.get("rank_group")}
             for i in result.get("items") or [] if i.get("type") == "organic" and i.get("url")]
     cache.put(key, rows)
@@ -105,7 +118,19 @@ def volumes(keywords: list[str], fresh: bool) -> tuple[dict[str, dict], int]:
     missing = [k for k in keywords if k not in out]
     if not missing:
         return out, 0
-    result, cost = backend.call(VOLUME_TOOL, {"keywords": missing, "location_code": US, "language_code": EN})
+    from . import vet
+    budget = vet._active_budget()
+    if budget is not None:
+        try:
+            result, cost = budget.ask(
+                f"aisa:volume-batch:{US}:{','.join(k.lower() for k in missing)}", 12_000,
+                lambda: backend.call(VOLUME_TOOL, {"keywords": missing, "location_code": US, "language_code": EN}),
+                True, "volumes",
+            )
+        except OverBudget as exc:
+            raise aisa.AisaError(f"over --max-usd cap ({exc})") from None
+    else:
+        result, cost = backend.call(VOLUME_TOOL, {"keywords": missing, "location_code": US, "language_code": EN})
     by_low = {}
     for item in result.get("items") or []:
         info, props = item.get("keyword_info") or {}, item.get("keyword_properties") or {}
@@ -118,35 +143,51 @@ def volumes(keywords: list[str], fresh: bool) -> tuple[dict[str, dict], int]:
     return out, cost
 
 
-def find(keywords: list[str], own: str = "", skip: tuple[str, ...] = (), fresh: bool = False) -> dict:
+def find(keywords: list[str], own: str = "", skip: tuple[str, ...] = (), fresh: bool = False,
+         max_usd: float | None = None) -> dict:
     """{"keywords": {kw: {"volume", "kd"}}, "pages": [...], "cost", "errors"}, pages sorted by visitors."""
-    leave_out = {site(x) for x in (own, *skip) if x}
-    pages: dict[str, dict] = {}
-    cost, errors = 0, []
-    sizes, spent = volumes(keywords, fresh)
-    cost += spent
-    for kw in keywords:
+    from . import vet
+    budget = Budget(max_usd) if max_usd is not None else vet._active_budget()
+    prev_budget = vet._active_budget()
+    vet._BUDGET_CTX.budget = budget
+    try:
+        leave_out = {site(x) for x in (own, *skip) if x}
+        pages: dict[str, dict] = {}
+        cost, errors = 0, []
         try:
-            rows, spent = serp(kw, fresh)
+            sizes, spent = volumes(keywords, fresh)
+            cost += spent
         except aisa.AisaError as exc:
-            errors.append(f"{kw}: {exc}")
-            continue
-        cost += spent
-        for r in rows:
-            if site(r["url"]) in leave_out:
+            sizes = {k: {"volume": 0, "kd": None} for k in keywords}
+            errors.append(f"volumes: {exc}")
+        for kw in keywords:
+            try:
+                rows, spent = serp(kw, fresh)
+            except aisa.AisaError as exc:
+                errors.append(f"{kw}: {exc}")
                 continue
-            p = pages.setdefault(r["url"], {"url": r["url"], "domain": site(r["url"]), "title": r["title"][:110],
-                                            "kind": kind_of(r["url"], r["title"]), "ranks": [], "visitors": 0})
-            p["ranks"].append({"keyword": kw, "position": r["position"]})
-            p["visitors"] += round(sizes.get(kw, {}).get("volume", 0) * ctr(r["position"]))
-    for p in pages.values():
-        p["action"], p["platform"] = ACTIONS[p["kind"]], p["domain"] in PLATFORMS
-        topic = GITHUB_TOPIC.match(re.sub(r"^https?://[^/]+", "", p["url"])) if p["domain"] == "github.com" else None
-        if topic:
-            p["action"] = f"Add the `{topic.group(1)}` topic to your repository: GitHub lists it on this page"
-    ordered = sorted(pages.values(), key=lambda p: (ORDER.index(p["kind"]) >= ORDER.index("site"), -p["visitors"],
-                                                     min(x["position"] for x in p["ranks"])))
-    return {"keywords": sizes, "pages": ordered, "cost": cost, "errors": errors}
+            cost += spent
+            for r in rows:
+                if site(r["url"]) in leave_out:
+                    continue
+                p = pages.setdefault(r["url"], {"url": r["url"], "domain": site(r["url"]), "title": r["title"][:110],
+                                                "kind": kind_of(r["url"], r["title"]), "ranks": [], "visitors": 0})
+                p["ranks"].append({"keyword": kw, "position": r["position"]})
+                p["visitors"] += round(sizes.get(kw, {}).get("volume", 0) * ctr(r["position"]))
+        for p in pages.values():
+            p["action"], p["platform"] = ACTIONS[p["kind"]], p["domain"] in PLATFORMS
+            topic = GITHUB_TOPIC.match(re.sub(r"^https?://[^/]+", "", p["url"])) if p["domain"] == "github.com" else None
+            if topic:
+                p["action"] = f"Add the `{topic.group(1)}` topic to your repository: GitHub lists it on this page"
+        ordered = sorted(pages.values(), key=lambda p: (ORDER.index(p["kind"]) >= ORDER.index("site"), -p["visitors"],
+                                                         min(x["position"] for x in p["ranks"])))
+        out = {"keywords": sizes, "pages": ordered, "cost": cost, "errors": errors}
+        if max_usd is not None and budget is not None:
+            out["max_usd"] = max_usd
+            out["left_out"] = list(budget.left_out)
+        return out
+    finally:
+        vet._BUDGET_CTX.budget = prev_budget
 
 
 def to_vet(result: dict, limit: int) -> list[str]:

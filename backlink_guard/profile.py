@@ -21,6 +21,8 @@ from datetime import date, timedelta
 from statistics import median
 
 from . import aisa, backend, goanyapi, links, owners, page
+from . import vet
+from .budget import Budget
 from .policy import flag, ranked
 from .vet import SPAM_SCORE_HIGH, SPAM_WORDS, paid, spam_scores
 
@@ -131,12 +133,16 @@ def referrer_flag(top: list[dict], scores: dict[str, int]) -> tuple[dict | None,
 
 
 def audit(domain: str, deep: bool = False, today: date | None = None, fresh: bool = False,
-          sitewide: int = links.SITEWIDE_PAGES, rows: int = links.ROWS, homes: int = owners.HOMES) -> dict:
+          sitewide: int = links.SITEWIDE_PAGES, rows: int = links.ROWS, homes: int = owners.HOMES,
+          max_usd: float | None = None) -> dict:
     """{"domain", "totals", "top", "links", "weeks", "anchors", "worst_referrers", "owners", "flags", "cost", "errors"}.
     "links": the backlinks read one by one ({"read", "domains", "total", "source", "sitewide"}); "anchors":
     [(text, links, referring domains)], a site-wide source counted once; "owners": the referring domains one owner
     runs ({"read", "with_accounts", "groups", "networks"}), up to `homes` home pages read, none when it is 0."""
     today, domain = today or date.today(), page.site(domain)
+    budget = Budget(max_usd) if max_usd is not None else vet._active_budget()
+    prev_budget = vet._active_budget()
+    vet._BUDGET_CTX.budget = budget
     out = {"domain": domain, "totals": {}, "top": [], "links": {}, "weeks": [], "anchors": [], "worst_referrers": [],
            "owners": {}, "flags": [], "cost": 0, "errors": []}
     steps = []
@@ -159,6 +165,10 @@ def audit(domain: str, deep: bool = False, today: date | None = None, fresh: boo
         out["flags"] += [f for f in [anchor_flag(out["anchors"], domain), spam_anchor_flag(out["anchors"])] if f]
     out["links"].pop("rows", None)
     out["flags"] = ranked(out["flags"])
+    if max_usd is not None and budget is not None:
+        out["max_usd"] = max_usd
+        out["left_out"] = list(budget.left_out)
+    vet._BUDGET_CTX.budget = prev_budget
     return out
 
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import http.client
 import json
 import re
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -21,6 +22,7 @@ from datetime import date, datetime, timedelta
 from statistics import mean
 
 from . import UA, aisa, backend, blocklist, cache, checkout, find, glasser, goanyapi, history, page, seen, signals, updates
+from .budget import Budget, OverBudget
 from .policy import action, flag, grade, policy_risk, ranked, risk, value
 
 WORKERS = 4
@@ -233,7 +235,7 @@ def visit_trend(monthly: dict) -> dict:
     3%; 2026-10-15): one month of one estimate is not yet a fall."""
     months = sorted(monthly.items())
     series = [int(v or 0) for _, v in months]
-    out = {"now": round(mean(series[-3:])) if series else 0, "earlier": 0, "ratio": None, "cliff": None, "drop": None}
+    out = {"now": round(mean(series[-3:])) if series else None, "earlier": 0, "ratio": None, "cliff": None, "drop": None}
     if len(series) >= 6:
         out["earlier"] = round(max(mean(series[i:i + 3]) for i in range(len(series) - 5)))
         out["ratio"] = round(out["now"] / out["earlier"], 2) if out["earlier"] else None
@@ -254,16 +256,37 @@ def traffic_flags(trend: dict, dr, known: list[dict]) -> list[dict]:
                           + (f". Google updates around then: {'; '.join(near)}" if near else "")))
     elif trend["ratio"] is not None and trend["ratio"] < DECLINE and trend["earlier"] >= MIN_LEVEL:
         flags.append(flag("traffic_decline", f"{trend['now']:,} a month now, {trend['earlier']:,} earlier in the year"))
-    if trend["now"] < NO_AUDIENCE:
+    if trend["now"] is not None and trend["now"] < NO_AUDIENCE:
         flags.append(flag("no_audience", f"about {trend['now']:,} visits a month"))
-    if dr is not None and dr >= HOLLOW_DR and trend["now"] < HOLLOW_VISITS:
+    if trend["now"] is not None and dr is not None and dr >= HOLLOW_DR and trend["now"] < HOLLOW_VISITS:
         flags.append(flag("hollow_rating", f"rating {dr}, about {trend['now']:,} visits a month"))
     return flags
 
 
-def paid(source: str, question: str, ask, fresh: bool):
+_BUDGET_CTX = threading.local()
+PAID_ESTIMATES = {
+    "dr": 2_000, "traffic": 4_000, "guest": 2_000, "site": 4_000, "recent": 4_000,
+    "summary": 24_000, "backlink": 20_000, "backlinks": 60_000, "newlost": 25_000,
+    "anchors": 25_000, "refdomains": 35_000, "checkout": 24_000, "checkout-from": 24_000,
+    "ahrefs": 80_000, "technology": 12_000, "AI mentions": 101_000, "semrush": 1_000,
+}
+
+
+def _active_budget() -> Budget | None:
+    return getattr(_BUDGET_CTX, "budget", None)
+
+
+def paid(source: str, question: str, ask, fresh: bool, estimate: int | None = None):
     """(answer, cost): from the cache when it has one, else from `ask()`, which is then stored."""
     key = f"{source}:{question}"
+    budget = _active_budget()
+    if budget is not None:
+        est = estimate if estimate is not None else PAID_ESTIMATES.get(question.split(":", 1)[0], 10_000)
+        try:
+            return budget.ask(key, est, ask, fresh, question)
+        except OverBudget as exc:
+            err = goanyapi.GoAnyError if source == "goanyapi" else aisa.AisaError
+            raise err(f"over --max-usd cap ({exc})") from None
     held = None if fresh else cache.get(key)
     if held is not None:
         return held, 0
@@ -443,12 +466,14 @@ def market(domain: str, known: list[dict], fresh: bool, traffic: dict | None = N
         data, spent = (traffic, 0) if traffic else \
             paid("goanyapi", f"traffic:{domain}", lambda: goanyapi.call("traffic", domain=domain, month=12), fresh)
         trend = visit_trend(data.get("EstimatedMonthlyVisits") or {})
-        metrics.update(visits=trend["now"], visits_vs_earlier=trend["ratio"], **signals.audience(data))
+        if trend["now"] is not None:
+            metrics["visits"] = trend["now"]
+        metrics.update(visits_vs_earlier=trend["ratio"], **signals.audience(data))
         flags += traffic_flags(trend, metrics.get("dr"), known)
         cost += spent
     except goanyapi.GoAnyError as exc:
         errors.append(f"traffic: {exc}")
-    if metrics.get("visits", 0) >= MIN_LEVEL:
+    if (metrics.get("visits") or 0) >= MIN_LEVEL:
         return metrics, flags, cost, errors          # a site people reach is listed; the question is not worth asking
     try:
         metrics["indexed"], spent = index_check(domain, fresh)
@@ -485,7 +510,15 @@ def spam_scores(domains: list[str], fresh: bool) -> tuple[dict[str, int], int]:
     missing = [d for d in domains if d not in scores]
     if not missing:
         return scores, 0
-    result, cost = backend.call(SPAM_TOOL, {"targets": missing})
+    budget = _active_budget()
+    if budget is not None:
+        try:
+            result, cost = budget.ask(f"aisa:spam-batch:{','.join(missing)}", 25_000,
+                                      lambda: backend.call(SPAM_TOOL, {"targets": missing}), True, "spam score")
+        except OverBudget as exc:
+            raise aisa.AisaError(f"over --max-usd cap ({exc})") from None
+    else:
+        result, cost = backend.call(SPAM_TOOL, {"targets": missing})
     for item in result.get("items") or []:
         scores[item["target"]] = item.get("spam_score")
         cache.put(f"aisa:spam:{item['target']}", item.get("spam_score"))
@@ -649,7 +682,7 @@ def finalize(r: dict, batch_failed: tuple[str, ...] = ()) -> dict:
 
 def vet(targets: list[str], paid_sources: bool = True, today: date | None = None, fresh: bool = False,
         recent: bool = False, deep: bool = False, topics: tuple[str, ...] = (), referrals: dict[str, int] | None = None,
-        newcomers: bool = False) -> dict:
+        newcomers: bool = False, max_usd: float | None = None) -> dict:
     """{"rows": [...], "cost": micro-USD, "errors": [...], "sources": {...}}. Rows keep the order given.
     `referrals` ({site: visits} from your own analytics) adds what each site has sent you: a reach no estimate gives.
     `newcomers` adds each row's "newcomers" (newcomers.takes_new): whether its newest pages link to new sites. Free,
@@ -660,42 +693,60 @@ def vet(targets: list[str], paid_sources: bool = True, today: date | None = None
         listed, unread = blocklist.load(fresh), []
     except (OSError, ValueError) as exc:
         listed, unread = {}, [f"spam list: {exc}"]
-    with ThreadPoolExecutor(WORKERS) as pool:
-        rows = list(pool.map(lambda raw: vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics, listed), targets))
-    if newcomers:
-        add_newcomers(rows, today)
-    cost, errors = sum(r["cost"] for r in rows), unread + [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
-    live, scores, failed = [r for r in rows if not r.get("skipped")], {}, []
-    if paid_sources and backend.key() and live:
+    budget = Budget(max_usd) if max_usd is not None else None
+    prev_budget = _active_budget()
+    _BUDGET_CTX.budget = budget
+
+    def _run_one(raw: str) -> dict:
+        _BUDGET_CTX.budget = budget
         try:
-            scores, spent = spam_scores(sorted({r["domain"] for r in live}), fresh)
-            cost += spent
-        except aisa.AisaError as exc:
-            errors.append(f"spam score: {exc}")
-            failed.append("spam score")
-        try:
-            cost += history.check(live, today, known, fresh)
-        except aisa.AisaError as exc:
-            errors.append(f"search history: {exc}")
-            failed.append("search history")
-        if topics:
+            return vet_one(raw, paid_sources, today, known, fresh, recent, deep, topics, listed)
+        finally:
+            _BUDGET_CTX.budget = prev_budget
+
+    try:
+        with ThreadPoolExecutor(WORKERS) as pool:
+            rows = list(pool.map(_run_one, targets))
+        if newcomers:
+            add_newcomers(rows, today)
+        cost, errors = sum(r["cost"] for r in rows), unread + [f"{r['domain']}: {e}" for r in rows for e in r["errors"]]
+        live, scores, failed = [r for r in rows if not r.get("skipped")], {}, []
+        if paid_sources and backend.key() and live:
             try:
-                cost += find.fit(live, list(topics), fresh)
+                scores, spent = spam_scores(sorted({r["domain"] for r in live}), fresh)
+                cost += spent
             except aisa.AisaError as exc:
-                errors.append(f"fit: {exc}")
-    store = seen.load()
-    groups = shared_templates(rows, store["templates"]) + shared_owners(rows, store["ids"])
-    for r in rows:
-        r["metrics"]["spam_score"] = scores.get(r["domain"])
-        if r["metrics"]["spam_score"] is not None:
-            r["metrics"]["spam_by"] = backend.name()      # named in its finding; a saved row keeps who said it
-        if referrals is not None:
-            r["metrics"]["sent_you"] = referrals.get(r["domain"], 0)
-        finalize(r, () if r.get("skipped") else tuple(failed))
-    errors += remember(rows, store, today)
-    return {"rows": rows, "cost": cost, "errors": errors, "networks": blocklist.unlisted(groups, rows, None if unread else listed, today),
-            "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "glasser": bool(paid_sources and glasser.key()),
-                        "aisa": bool(paid_sources and aisa.key()), "deep": bool(paid_sources and deep), "free": not paid_sources}}
+                errors.append(f"spam score: {exc}")
+                failed.append("spam score")
+            try:
+                cost += history.check(live, today, known, fresh)
+            except aisa.AisaError as exc:
+                errors.append(f"search history: {exc}")
+                failed.append("search history")
+            if topics:
+                try:
+                    cost += find.fit(live, list(topics), fresh)
+                except aisa.AisaError as exc:
+                    errors.append(f"fit: {exc}")
+        store = seen.load()
+        groups = shared_templates(rows, store["templates"]) + shared_owners(rows, store["ids"])
+        for r in rows:
+            r["metrics"]["spam_score"] = scores.get(r["domain"])
+            if r["metrics"]["spam_score"] is not None:
+                r["metrics"]["spam_by"] = backend.name()      # named in its finding; a saved row keeps who said it
+            if referrals is not None:
+                r["metrics"]["sent_you"] = referrals.get(r["domain"], 0)
+            finalize(r, () if r.get("skipped") else tuple(failed))
+        errors += remember(rows, store, today)
+        out = {"rows": rows, "cost": cost, "errors": errors, "networks": blocklist.unlisted(groups, rows, None if unread else listed, today),
+               "sources": {"goanyapi": bool(paid_sources and goanyapi.key()), "glasser": bool(paid_sources and glasser.key()),
+                           "aisa": bool(paid_sources and aisa.key()), "deep": bool(paid_sources and deep), "free": not paid_sources}}
+        if budget is not None:
+            out["max_usd"] = max_usd
+            out["left_out"] = list(budget.left_out)
+        return out
+    finally:
+        _BUDGET_CTX.budget = prev_budget
 
 
 def add_newcomers(rows: list[dict], today: date) -> None:

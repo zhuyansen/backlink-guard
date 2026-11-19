@@ -622,7 +622,7 @@ def asked(a: dict) -> str:
     lines += ["", "\"Your name only\": the answer gave your name but not your domain, and no other site of that name was in "
                   "it. \"Same-name site\": the answer named or cited a site under your name with another ending; its "
                   "mentions are not counted as yours."]
-    lines += asked_site_lines(a) + asked_page_lines(a["pages"]) + asked_search_lines(a["searches"])
+    lines += asked_site_lines(a) + asked_incremental_reach_lines(a) + asked_page_lines(a["pages"]) + asked_search_lines(a["searches"])
     lines += asked_rank_lines(a.get("ranks"), a["domain"], a["max_usd"])
     if a["named"]:
         lines += ["", "## The tools they named", "",
@@ -644,6 +644,23 @@ def asked_site_lines(a: dict) -> list[str]:
               f"{', '.join(s['engines'])} | {len(s['questions'])} | "
               f"{linked((s['title'] or path_of(s['urls'][0]))[:60], s['urls'][0])} | {s['kind']} |" for s in shown]
     return lines + kinds_lines([s for s in a["sites"][:SHOWN] if not s["you"]])
+
+
+def asked_incremental_reach_lines(a: dict) -> list[str]:
+    reach = a.get("incremental_reach") or []
+    if not reach:
+        return []
+    lines = ["", "## Incremental Reach (Priority Outreach Order)", "",
+             "Ordered by Greedy Set Cover: each step picks the site that unlocks the most buyer questions not yet "
+             "covered by higher-priority targets.", "",
+             "| Step | Site | +New questions | Cumulative reach | Answers | Assistants | Kind |",
+             "|---|---|---|---|---|---|---|"]
+    for s in reach[:SHOWN]:
+        pct = f"{round(s['cumulative_share'] * 100)}%"
+        lines.append(f"| #{s['rank']} | {s['site']} | +{s['new_questions']} | "
+                     f"{s['cumulative_questions']}/{s['total_questions']} ({pct}) | {s['answers']} | "
+                     f"{', '.join(s['engines'])} | {s['kind']} |")
+    return lines
 
 
 def asked_page_lines(pages: list[dict]) -> list[str]:

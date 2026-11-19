@@ -26,7 +26,8 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from difflib import SequenceMatcher
 
-from . import links, page
+from . import links, page, vet
+from .budget import Budget
 from .policy import flag, ranked
 from .vet import LOC
 
@@ -213,12 +214,18 @@ def dead_flag(dead: list[dict]) -> dict | None:
 
 
 def lost(domain: str, fresh: bool = False, rows: int = links.ROWS, sitewide: int = links.SITEWIDE_PAGES,
-         check=status, sitemap=sitemap_urls) -> dict:
+         check=status, sitemap=sitemap_urls, max_usd: float | None = None) -> dict:
     """{"domain", "read", "total", "domains", "source", "strength", "pages", "checked", "dead", "redirected" (with
     "verdict", "why" and, when soft-lost, "suggest"; "broken" ones among them), "blocked", "unreachable", "sitemap",
     "flags", "cost", "errors"}"""
     domain = page.host(domain)
-    got = links.fetch(page.site(domain), fresh, rows)
+    budget = Budget(max_usd) if max_usd is not None else vet._active_budget()
+    prev_budget = vet._active_budget()
+    vet._BUDGET_CTX.budget = budget
+    try:
+        got = links.fetch(page.site(domain), fresh, rows)
+    finally:
+        vet._BUDGET_CTX.budget = prev_budget
     once = links.counted(got["rows"], links.sitewide(got["rows"], sitewide))
     found = targets(once, domain)
     by_state = asked_all(found[:CHECKED], check)
@@ -229,11 +236,15 @@ def lost(domain: str, fresh: bool = False, rows: int = links.ROWS, sitewide: int
     for d in gone:
         d["suggest"] = suggest(d["url"], candidates, check)
     flags = [f for f in [dead_flag(by_state["dead"])] if f] + redirect_flags(moved)
-    return {"domain": domain, "read": len(got["rows"]), "total": got["total"], "domains": links.domains(got["rows"]),
-            "source": got["source"], "strength": got["strength"], "pages": len(found), "checked": min(len(found), CHECKED),
-            "dead": by_state["dead"], "redirected": moved, "blocked": by_state["blocked"],
-            "unreachable": by_state["unreachable"], "sitemap": len(candidates), "flags": ranked(flags), "cost": got["cost"],
-            "errors": got["errors"]}
+    out = {"domain": domain, "read": len(got["rows"]), "total": got["total"], "domains": links.domains(got["rows"]),
+           "source": got["source"], "strength": got["strength"], "pages": len(found), "checked": min(len(found), CHECKED),
+           "dead": by_state["dead"], "redirected": moved, "blocked": by_state["blocked"],
+           "unreachable": by_state["unreachable"], "sitemap": len(candidates), "flags": ranked(flags), "cost": got["cost"],
+           "errors": got["errors"]}
+    if max_usd is not None and budget is not None:
+        out["max_usd"] = max_usd
+        out["left_out"] = list(budget.left_out)
+    return out
 
 
 def asked_all(asked: list[dict], check) -> dict[str, list[dict]]:

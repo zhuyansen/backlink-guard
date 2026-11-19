@@ -36,7 +36,7 @@ def classify(link: dict, domain: str, own: str) -> dict | None:
     href = link["href"]
     if page.site(href) == domain:
         how = "direct"
-    elif page.site(href) == own and domain in _decoded(href).lower():
+    elif page.site(href) == own and page.domain_in_text(domain, _decoded(href)):
         how = "redirect"
     else:
         return None
@@ -77,7 +77,7 @@ def verify(page_url: str, domain: str) -> dict:
     if dirs["canonical_mismatch"]:
         dir_notes.append(f"The page's canonical points elsewhere ({dirs['canonical']}): credit consolidates there, not here.")
     if not out["links"]:
-        mentioned = domain in got["html"].lower()
+        mentioned = page.domain_in_text(domain, got["html"])
         out.update(verdict="not found", note="The domain appears in the page source but not as a link: a script may add it."
                    if mentioned else "No link to the domain in the page as served.")
     elif any(l["passes_credit"] for l in out["links"]) and not (dirs["noindex"] or dirs["nofollow"] or dirs["canonical_mismatch"]):

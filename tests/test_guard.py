@@ -1410,3 +1410,24 @@ def test_ai_access_three_gates(monkeypatch):
     md = report.ai_access(res)
     assert "empty CSR shell" in md and "OAI-SearchBot" in md
 
+
+
+
+def test_domain_boundaries_empty_visits_and_budget_caps(monkeypatch):
+    # 1. signals.guest_posts and verify.classify respect domain boundaries
+    wrong_host = {"result": {"organic": [{"link": "https://openai.com/write-for-us", "title": "Write for Us"}]}}
+    assert signals.guest_posts("ai.com", lambda q, fn: (wrong_host, 2000)) == (None, 2000)
+    bad_redir = {"href": "https://dir.example/go?url=https://openai.com/tool", "rel": set(), "text": "Open"}
+    assert verify.classify(bad_redir, "ai.com", "dir.example") is None
+    good_redir = {"href": "https://dir.example/go?url=https://ai.com/tool", "rel": set(), "text": "Open"}
+    assert verify.classify(good_redir, "ai.com", "dir.example")["how"] == "redirect"
+
+    # 2. Empty EstimatedMonthlyVisits yields now=None and does not trigger false no_audience / hollow_rating
+    empty_trend = vet.visit_trend({})
+    assert empty_trend["now"] is None
+    assert vet.traffic_flags(empty_trend, 75, UPDATES) == []
+
+    # 3. Budget (--max-usd) caps paid calls in vet and find
+    paid_world(monkeypatch, months([300] * 12))
+    capped = vet.vet(["dir.example"], today=TODAY, fresh=True, max_usd=0.005)
+    assert capped["max_usd"] == 0.005 and len(capped["left_out"]) >= 1 and capped["cost"] <= 5000

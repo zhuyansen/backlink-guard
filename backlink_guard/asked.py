@@ -145,7 +145,7 @@ def named_how(text: str, own: str, names: list[str], others: set[str] = frozense
     """"domain" when the answer writes your domain; "name" when only your name (or your domain without its ending)
     and no site of the same name is in the answer, since "Agent Skills Hub" is also agentskillshub.dev's name; else ""."""
     low, label = text.lower(), label_of(own)
-    if own in low:
+    if page.domain_in_text(own, low):
         return "domain"
     if others:
         return ""
@@ -277,6 +277,54 @@ def site_row(site: str, t: dict, own: str) -> dict:
             "fan_out_hits": len(fan_out), "coverage_score": coverage,
             "urls": list(t["pages"]), "title": title, "you": site == own, "lookalike": bool(lookalikes(own, [site])),
             "kind": kind, "action": find.ACTIONS[kind]}
+
+
+def incremental_reach(rows: list[dict], own: str) -> list[dict]:
+    """Greedy Set Cover (Incremental Reach) ordering of cited third-party sites by how many *uncovered*
+    buyer questions each site newly covers (with answer citations and engine breadth as tie-breakers)."""
+    all_qs = list(dict.fromkeys(r["question"] for r in rows if r.get("question")))
+    total_q = len(all_qs)
+    sites = [s for s in site_tally(rows, own) if not s["you"] and not s["lookalike"]]
+    uncovered = set(all_qs)
+    remaining = list(sites)
+    ordered = []
+    covered: set[str] = set()
+    step = 0
+    while remaining:
+        best = max(
+            remaining,
+            key=lambda s: (
+                len(set(s["questions"]) & uncovered),
+                s["answers"],
+                len(s["engines"]),
+                s["coverage_score"],
+                - sites.index(s),
+            ),
+        )
+        new_qs = sorted(set(best["questions"]) & uncovered, key=all_qs.index)
+        if not new_qs:
+            break
+        step += 1
+        uncovered -= set(new_qs)
+        covered |= set(new_qs)
+        remaining.remove(best)
+        ordered.append({
+            "rank": step,
+            "site": best["site"],
+            "new_questions": len(new_qs),
+            "new_question_list": new_qs,
+            "total_questions_of_site": len(best["questions"]),
+            "cumulative_questions": len(covered),
+            "total_questions": total_q,
+            "cumulative_share": round(len(covered) / total_q, 3) if total_q else 0.0,
+            "answers": best["answers"],
+            "engines": best["engines"],
+            "urls": best["urls"],
+            "title": best["title"],
+            "kind": best["kind"],
+            "action": best["action"],
+        })
+    return ordered
 
 
 def page_tally(rows: list[dict]) -> list[dict]:
@@ -493,7 +541,7 @@ def asked(domain: str, questions: list[str], names: list[str] = (), engines: lis
     done = [r for r in rows if "cited" in r]
     out = {"domain": own, "names": names, "questions": qs, "engines": engines, "answers": done,
            "by_engine": by_engine(done, engines), "distribution": distribution_of(done, qs),
-           "sites": site_tally(done, own), "pages": page_tally(done),
+           "sites": site_tally(done, own), "incremental_reach": incremental_reach(done, own), "pages": page_tally(done),
            "searches": search_tally(done), "named": name_tally(done, own, names), "cost": budget.spent,
            "max_usd": max_usd, "left_out": list(budget.left_out),
            "errors": [f"{r['engine']} “{r['question']}”: {r['error']}" for r in rows if r.get("error")]}

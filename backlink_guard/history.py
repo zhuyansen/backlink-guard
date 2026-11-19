@@ -21,7 +21,8 @@ from __future__ import annotations
 from datetime import date
 from statistics import median
 
-from . import backend, cache, updates
+from . import aisa, backend, cache, updates
+from .budget import OverBudget
 from .policy import flag
 
 TOOL = "post_dataforseo_labs_google_historical_bulk_traffic_live"
@@ -52,8 +53,21 @@ def series(domains: list[str], fresh: bool) -> tuple[dict, int]:
     missing, cost = [d for d in wanted if d not in data], 0
     for i in range(0, len(missing), MAX_TARGETS):
         asked = missing[i:i + MAX_TARGETS]
-        result, spent = backend.call(TOOL, {"targets": asked, "location_code": US, "language_code": "en",
-                                         "date_from": START, "item_types": ["organic"]})
+        from . import vet
+        budget = vet._active_budget()
+        if budget is not None:
+            try:
+                result, spent = budget.ask(
+                    f"aisa:history-batch:{','.join(asked)}", 130_000,
+                    lambda asked=asked: backend.call(TOOL, {"targets": asked, "location_code": US, "language_code": "en",
+                                                            "date_from": START, "item_types": ["organic"]}),
+                    True, "search history",
+                )
+            except OverBudget as exc:
+                raise aisa.AisaError(f"over --max-usd cap ({exc})") from None
+        else:
+            result, spent = backend.call(TOOL, {"targets": asked, "location_code": US, "language_code": "en",
+                                             "date_from": START, "item_types": ["organic"]})
         cost += spent
         got = {item["target"]: months(item) for item in result.get("items") or []}
         for d in asked:

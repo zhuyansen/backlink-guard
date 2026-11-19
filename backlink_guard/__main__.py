@@ -98,11 +98,13 @@ def skipped(args) -> set[str]:
 
 
 def cmd_find(args) -> int:
-    result = finding.find(args.keywords, own=args.site or "", skip=tuple(skipped(args)), fresh=args.fresh)
+    max_usd = getattr(args, "max_usd", None)
+    result = finding.find(args.keywords, own=args.site or "", skip=tuple(skipped(args)), fresh=args.fresh, max_usd=max_usd)
     vetted = {}
     if args.vet:
         sites = finding.to_vet(result, args.limit)
-        checked = vetting.vet(sites, fresh=args.fresh, topics=tuple(args.keywords)) if sites else {"rows": [], "cost": 0, "errors": []}
+        rem_usd = max(0.0, max_usd - result["cost"] / 1_000_000) if max_usd is not None else None
+        checked = vetting.vet(sites, fresh=args.fresh, topics=tuple(args.keywords), max_usd=rem_usd) if sites else {"rows": [], "cost": 0, "errors": []}
         result["vet"], result["cost"] = checked, result["cost"] + checked["cost"]
         vetted = {r["domain"]: r["grade"] for r in checked["rows"]}
     text = report.find(result, vetted)
@@ -202,6 +204,7 @@ def parser() -> argparse.ArgumentParser:
                    help="leave out these sites (competitors, ones you already have); repeatable, or a list file")
     f.add_argument("--vet", action="store_true", help="also vet the directories and article sites found (about $0.01 a site)")
     f.add_argument("--limit", type=int, default=LIMIT, help=f"vet at most this many sites (default {LIMIT})")
+    f.add_argument("--max-usd", type=float, metavar="USD", help="the run's cap in USD; cached answers are free")
     v = sub.add_parser("vet", parents=[common])
     v.add_argument("targets", nargs="*")
     v.add_argument("--from", dest="from_file", metavar="FILE", help="a list to read sites from (.txt .md .csv .json .xlsx)")
@@ -219,6 +222,7 @@ def parser() -> argparse.ArgumentParser:
                    help="also read each site's newest sitemap pages: do they link to sites registered in the last half year? (free, slow)")
     v.add_argument("--referrals", metavar="FILE",
                    help="your analytics export of visitor sources (GA4 CSV: Session source, Sessions): shows what each site sent you")
+    v.add_argument("--max-usd", type=float, metavar="USD", help="the run's cap in USD; cached answers are free")
     r = sub.add_parser("recheck", parents=[common])
     r.add_argument("--to", metavar="DOMAIN", default="", help="your domain: also check that your links are still there (free)")
     r.add_argument("--deep", action="store_true", help="also the backlink profile of each site (+$0.19 a site, $0.27 with AIsa)")
@@ -237,6 +241,7 @@ def parser() -> argparse.ArgumentParser:
                        help=f"pages of one site linking to one page of yours that make a site-wide link (default {links.SITEWIDE_PAGES})")
         x.add_argument("--rows", type=int, default=links.ROWS, metavar="LINKS",
                        help=f"backlinks read one by one from Glasser or AIsa (default and most {links.ROWS}; about $0.06 for 1,000)")
+        x.add_argument("--max-usd", type=float, metavar="USD", help="the run's cap in USD; cached answers are free")
     k = sub.add_parser("competitors", parents=[common], description=(
         "The sites your competitors earned links from and you lack: each one's referring domains first seen in the last "
         "--days days, and the sites linking to two or more of them but not to you, each with a linking page and what to "
@@ -303,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
         targets = targets_of(args)
         result = vetting.vet(targets, paid_sources=not args.free, fresh=args.fresh, recent=args.recent, deep=args.deep,
                              topics=tuple(args.topic), referrals=lists.referrals(args.referrals) if args.referrals else None,
-                             newcomers=args.newcomers)
+                             newcomers=args.newcomers, max_usd=getattr(args, "max_usd", None))
         return _print(args, result, report.vet(result))
     if args.command == "recheck":
         result = recheck.run(own=args.to, paid_sources=not args.free, deep=args.deep, fresh=args.fresh)
@@ -312,10 +317,11 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_find(args)
     if args.command == "audit":
         result = profile.audit(args.domain, deep=args.deep, fresh=args.fresh, sitewide=args.sitewide, rows=args.rows,
-                               homes=args.homes)
+                               homes=args.homes, max_usd=getattr(args, "max_usd", None))
         return _print(args, result, report.audit(result))
     if args.command == "lost":
-        result = lost.lost(args.domain, fresh=args.fresh, rows=args.rows, sitewide=args.sitewide)
+        result = lost.lost(args.domain, fresh=args.fresh, rows=args.rows, sitewide=args.sitewide,
+                           max_usd=getattr(args, "max_usd", None))
         return _print(args, result, report.lost(result))
     if args.command == "competitors":
         return cmd_competitors(args)

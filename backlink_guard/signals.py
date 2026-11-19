@@ -29,6 +29,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 
 from . import UA, aisa, backend, goanyapi
+from . import page
 from .policy import flag
 
 REREGISTERED_GAP = 365          # days between the first archived copy and the current registration
@@ -89,7 +90,7 @@ def guest_posts(domain: str, ask) -> tuple[dict | None, int]:
     """(a note flag when Google holds pages of the site that ask for guest or sponsored posts, cost).
     `ask(question, fn)` is vet.paid bound to the cache."""
     data, cost = ask(f"guest:{domain}", lambda: goanyapi.call("serp", q=f"site:{domain} {GUEST}", gl="US", hl="en"))
-    hits = [o for o in (data.get("result") or {}).get("organic") or [] if domain in (o.get("link") or "")
+    hits = [o for o in (data.get("result") or {}).get("organic") or [] if page.site(o.get("link") or "") == page.site(domain)
             and (POLICY_PAGE.search(urllib.parse.urlsplit(o.get("link") or "").path.strip("/").split("/")[-1])
                  or POLICY_PAGE.search((o.get("title") or "").split(" - ")[0].split(" | ")[0]))]   # its own page, not a listing
     if not hits:

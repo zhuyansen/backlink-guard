@@ -59,6 +59,14 @@ def registrable(url: str) -> str:
     return ".".join(name.split(".")[-(hosted.count(".") + 2):]) if hosted else site(url)
 
 
+def domain_in_text(domain: str, text: str) -> bool:
+    """True when `domain` (or a subdomain of it) appears in `text` on a domain boundary,
+    so "ai.com" matches "https://ai.com/x" and "sub.ai.com" but never "openai.com"."""
+    if not domain or not text:
+        return False
+    return bool(re.search(rf"(?<![a-z0-9-]){re.escape(domain.lower())}(?![a-z0-9-]|\.[a-z0-9])", text.lower()))
+
+
 class _Reader(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)

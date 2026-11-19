@@ -345,3 +345,32 @@ def test_read_only_search_results_are_not_counted_as_cited_you_and_distribution_
     assert "distribution" in a and a["distribution"]["answers"] == 1 and a["distribution"]["cited_you"] == 0
     assert a["sites"][0]["coverage_score"] >= 1
 
+
+
+
+def test_incremental_reach_and_domain_boundary_matching():
+    # 1. Domain boundary matching: "ai.com" must not match "openai.com" or "xai.com.au"
+    assert asked.named_how("We use openai.com and xai.com.au daily.", "ai.com", []) == ""
+    assert asked.named_how("Visit ai.com or sub.ai.com.", "ai.com", []) == "domain"
+
+    # 2. Greedy Set Cover (incremental_reach) picks sites maximizing uncovered questions
+    rows = [
+        {"question": "q1", "engine": "chatgpt", "cited": [{"site": "big-overlap.com", "url": "https://big-overlap.com/1", "title": "Best Tools"}], "fan_out": []},
+        {"question": "q1", "engine": "perplexity", "cited": [{"site": "big-overlap.com", "url": "https://big-overlap.com/1", "title": "Best Tools"}], "fan_out": []},
+        {"question": "q1", "engine": "claude", "cited": [{"site": "big-overlap.com", "url": "https://big-overlap.com/1", "title": "Best Tools"}], "fan_out": []},
+        {"question": "q1", "engine": "gemini", "cited": [{"site": "cover-two.com", "url": "https://cover-two.com/a", "title": "Top List"}], "fan_out": []},
+        {"question": "q2", "engine": "chatgpt", "cited": [{"site": "cover-two.com", "url": "https://cover-two.com/a", "title": "Top List"}], "fan_out": []},
+        {"question": "q3", "engine": "chatgpt", "cited": [
+            {"site": "big-overlap.com", "url": "https://big-overlap.com/1", "title": "Best Tools"},
+            {"site": "niche-q3.com", "url": "https://niche-q3.com/x", "title": "Guide"},
+        ], "fan_out": []},
+    ]
+    inc = asked.incremental_reach(rows, "mine.example")
+    # cover-two.com covers {q1, q2} (2 questions); big-overlap.com covers {q1, q3} (2 questions, 4 answers -> wins #1)
+    assert inc[0]["site"] == "big-overlap.com" and inc[0]["new_questions"] == 2 and inc[0]["cumulative_questions"] == 2
+    # After {q1, q3} are covered, cover-two.com adds {q2} (+1 new question) whereas niche-q3.com adds 0
+    assert len(inc) == 2 and inc[1]["site"] == "cover-two.com" and inc[1]["new_questions"] == 1
+    assert inc[1]["cumulative_questions"] == 3 and inc[1]["cumulative_share"] == 1.0
+    rep = report.asked_incremental_reach_lines({"incremental_reach": inc})
+    assert any("Incremental Reach (Priority Outreach Order)" in line for line in rep)
+    assert any("| #1 | big-overlap.com | +2 | 2/3 (67%) |" in line for line in rep)
