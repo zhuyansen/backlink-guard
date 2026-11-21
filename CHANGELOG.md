@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased (local-0.8)
+## 0.12.0 (2026-11-21)
 
+- **`--max-usd` on `find`, `vet`, `competitors`, `audit` and `lost`**: a cap for the whole run, as `asked` and `cited`
+  already had; `find` passes what is left of it on to the sites it vets. Cached answers are free.
+- **`asked`: incremental reach.** The cited sites ordered by how many questions each one newly covers (a greedy set
+  cover, with answers and engines as tie-breakers): the shortest list of places that reaches every question asked.
+  Your domain counts as mentioned only when it stands as a domain in the text, not inside a longer one.
 - **`asked --engines gemini_app`**: Gemini's own app, through the same LLM scraper as ChatGPT's interface ($0.004 an
   answer against about $0.045 for the Gemini API with web search). Its sources are what it cited; it shows no searches,
   so the report prints `–` there as it does for AI Mode. Asked only when named: the default engines are unchanged
