@@ -7,7 +7,9 @@ The three steps of working on AI answers, as two commands:
   asked      each question to ChatGPT (its own interface, through AIsa's LLM scraper), Google's AI Mode, Perplexity
              (sonar), Claude and Gemini (both with their web search): what each one searched for (its fan-out
              queries; AI Mode shows none), the pages it read and cited with their titles, the tools it named, and
-             whether it named or cited you. Then the tally across the answers: the sites and pages cited most (the
+             whether it named or cited you. Gemini's own app (gemini_app, the same LLM scraper as ChatGPT's, $0.004
+             an answer) is asked only when named in --engines: its sources are what it cited, and it shows no
+             searches. Then the tally across the answers: the sites and pages cited most (the
              places to be mentioned on, each with what can honestly be done there), the searches the assistants ran
              (what a page of yours could answer and be titled for), and how often each one named you.
 
@@ -35,6 +37,7 @@ from .budget import Budget, OverBudget
 US, EN = 2840, "en"
 ENGINES = {
     "chatgpt": {"path": "ai_optimization/chat_gpt/llm_scraper/live/advanced", "kind": "scraper", "estimate": 4_000},
+    "gemini_app": {"path": "ai_optimization/gemini/llm_scraper/live/advanced", "kind": "scraper", "estimate": 4_000},
     "ai_mode": {"path": "serp/google/ai_mode/live/advanced", "kind": "serp", "estimate": 4_000},
     "perplexity": {"path": "ai_optimization/perplexity/llm_responses/live", "kind": "llm", "model": "sonar",
                    "estimate": 8_000},
@@ -43,6 +46,8 @@ ENGINES = {
     "gemini": {"path": "ai_optimization/gemini/llm_responses/live", "kind": "llm", "model": "gemini-3.8-flash",
                "web": True, "estimate": 60_000},
 }
+DEFAULT_ENGINES = ("chatgpt", "ai_mode", "perplexity", "claude", "gemini")     # gemini_app only when named
+NO_SEARCHES = {"ai_mode", "gemini_app"}        # these show the pages they cite, never the searches they ran
 SAMPLES = {"chatgpt": 2, "perplexity": 2}      # cheap, and their answers vary the most; the others are asked once
 MAX_USD = 1.00
 WORKERS = 4                     # answers asked at once; each takes 3 to 60 seconds
@@ -534,7 +539,7 @@ def asked(domain: str, questions: list[str], names: list[str] = (), engines: lis
     """{"domain", "questions", "answers", "by_engine", "distribution", "sites", "pages", "searches", "named", "cost",
     "max_usd", "left_out", "errors"}, and "ranks" with rank."""
     own, budget, names = page.registrable(page.host(domain)), Budget(max_usd), [n for n in names if n.strip()]
-    engines = [e for e in (engines or list(ENGINES)) if e in ENGINES]
+    engines = [e for e in (engines or DEFAULT_ENGINES) if e in ENGINES]
     qs = list(dict.fromkeys(" ".join(q.split()) for q in questions if q.strip()))
     with ThreadPoolExecutor(WORKERS) as pool:
         rows = list(pool.map(lambda j: answer(j, own, names, budget, fresh), jobs_of(qs, engines, samples)))

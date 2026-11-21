@@ -2,6 +2,11 @@
 
 ## Unreleased (local-0.8)
 
+- **`asked --engines gemini_app`**: Gemini's own app, through the same LLM scraper as ChatGPT's interface ($0.004 an
+  answer against about $0.045 for the Gemini API with web search). Its sources are what it cited; it shows no searches,
+  so the report prints `–` there as it does for AI Mode. Asked only when named: the default engines are unchanged
+  (`DEFAULT_ENGINES`). Read against 20 real answers from a 2026-11-17 panel: the same 5 that cited the site.
+
 - **`ai-access` (`backlink_guard/ai_access.py`, `ai_access` MCP tool)**: checks the three gates an AI crawler or answer
   engine passes through to read and cite a site or page (free):
   - **Gate 1 — Permission**: `robots.txt` rules grouped by bot role (`training`: `GPTBot`, `ClaudeBot`,

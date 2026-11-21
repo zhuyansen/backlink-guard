@@ -32,8 +32,11 @@ ANSWERS = {
     "claude": llm("Start with the official repo.", [("Skills docs", "https://docs.tool-a.example/skills")],
                   ["agent skills directory 2026", "claude skills marketplace"]),
     "gemini": llm("Several directories exist.", [("reddit.com", REDIRECT), ("list.example", REDIRECT)], ["where to find skills"]),
+    "gemini_app": {"markdown": "Start with [Mine](https://mine.example/skills), then the lists.",
+                   "sources": [{"type": "gemini_source", "url": "https://mine.example/skills", "title": "Mine skills", "domain": "mine.example"},
+                               {"type": "gemini_source", "url": "https://list.example/best-skills", "title": "The 12 best skills", "domain": "list.example"}]},
 }
-COST = {"chatgpt": 4000, "ai_mode": 4000, "perplexity": 5800, "claude": 47000, "gemini": 45000}
+COST = {"chatgpt": 4000, "ai_mode": 4000, "perplexity": 5800, "claude": 47000, "gemini": 45000, "gemini_app": 4000}
 
 
 def world(monkeypatch, delay=0.0):
@@ -91,6 +94,19 @@ def test_an_answer_per_engine_and_sample_and_the_tally(monkeypatch):
     assert a["sites"][0]["kind"] == "list" and a["sites"][1]["kind"] == "community" and a["sites"][2]["you"]
     assert a["pages"][0]["url"] == "https://list.example/best-skills" and a["pages"][0]["engines"] == ["ai_mode", "chatgpt", "perplexity"]
     assert a["searches"][0] == {"query": "agent skills directory 2026", "times": 10, "engines": ["chatgpt", "claude"]}
+
+
+def test_geminis_own_app_is_asked_only_when_named(monkeypatch):
+    # 2026-11-17: a panel's Gemini answers came from the app (the LLM scraper), not the API: its sources are what it cited
+    calls = world(monkeypatch)
+    a = asked.asked(OWN, [Q1], engines=["gemini_app"])
+    assert [e for e, _ in calls] == ["gemini_app"] and "web_search" not in calls[0][1] and a["cost"] == 4000
+    row = a["answers"][0]
+    assert row["cited_you"] and row["named_you"] == "domain" and row["fan_out"] == []
+    assert [p["url"] for p in row["cited"]] == ["https://mine.example/skills", "https://list.example/best-skills"]
+    assert "gemini_app" in asked.ENGINES and "gemini_app" not in asked.DEFAULT_ENGINES
+    assert asked.asked(OWN, [Q2])["engines"] == list(asked.DEFAULT_ENGINES)
+    assert "| gemini_app | 1 | 1 | 0 | 1 | 0 | – |" in report.asked(a)      # the app shows no searches
 
 
 def test_the_cap_leaves_out_whole_answers_and_says_so(monkeypatch):

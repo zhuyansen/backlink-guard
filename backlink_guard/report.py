@@ -4,6 +4,7 @@ from __future__ import annotations
 import urllib.parse
 from collections import Counter
 
+from .asked import NO_SEARCHES
 from .competitors import SHOWN
 from .find import ACTIONS
 from .links import clean
@@ -618,7 +619,7 @@ def asked(a: dict) -> str:
              "| Assistant | Answers | Wrote your domain | Your name only | Cited you | Same-name site | Searches an answer "
              "| Pages cited an answer |", "|---|---|---|---|---|---|---|---|"]
     lines += [f"| {e['engine']} | {e['answers']} | {e['named_you']} | {e['name_only']} | {e['cited_you']} | {e['lookalike']} | "
-              f"{e['searches'] if e['engine'] != 'ai_mode' else MISSING} | {e['cited']} |" for e in a["by_engine"]]
+              f"{e['searches'] if e['engine'] not in NO_SEARCHES else MISSING} | {e['cited']} |" for e in a["by_engine"]]
     lines += ["", "\"Your name only\": the answer gave your name but not your domain, and no other site of that name was in "
                   "it. \"Same-name site\": the answer named or cited a site under your name with another ending; its "
                   "mentions are not counted as yours."]

@@ -167,7 +167,9 @@ def asked_parsers(sub, common) -> None:
     q.add_argument("questions", nargs="*", metavar="QUESTION")
     q.add_argument("--file", metavar="FILE", help="questions, one a line (# comments), from `questions --plain`")
     q.add_argument("--name", action="append", default=[], metavar="NAME", help="a name the answers may call you by; repeatable")
-    q.add_argument("--engines", default=",".join(asking.ENGINES), help=f"comma-separated (default {','.join(asking.ENGINES)})")
+    q.add_argument("--engines", default=",".join(asking.DEFAULT_ENGINES),
+                   help=f"comma-separated (default {','.join(asking.DEFAULT_ENGINES)}); also gemini_app: Gemini's own "
+                        "app, $0.004 an answer")
     q.add_argument("--samples", type=int, help="ask every engine this many times (default: ChatGPT and Perplexity 2, others 1)")
     q.add_argument("--rank", action="store_true", help="look up each search they ran on Google and Bing (top 20, US): "
                    "$0.0035 a search on each, under the same cap; answers asked in the last 7 days come from the cache")
