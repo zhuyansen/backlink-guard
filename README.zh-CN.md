@@ -4,7 +4,7 @@
 
 # backlink-guard（外链检测）
 
-**提交之前查外链来源，上线之后查链接，再给自己的外链做垃圾外链体检。**
+**提交外链之前，先查一下那个站。**
 
 [![PyPI](https://img.shields.io/pypi/v/backlink-guard?color=0ea5e9&label=PyPI)](https://pypi.org/project/backlink-guard/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://pypi.org/project/backlink-guard/)
@@ -18,25 +18,69 @@
 [![Security-graded by Agent Skills Hub](https://agentskillshub.top/badge/zhuyansen/backlink-guard.svg)](https://agentskillshub.top/skill/zhuyansen/backlink-guard/)
 [![skills.sh](https://img.shields.io/badge/skills.sh-zhuyansen%2Fbacklink--guard-0f172a)](https://skills.sh/zhuyansen/backlink-guard)
 
-⭐ **在 100 个没见过的站上，Ahrefs 标为垃圾的 40 个里有 37 个没给「可以提交」** · 已上 PyPI、官方 MCP Registry、skills.sh
+一次测试，100 个站（2026-10-16）：用 0.6 版规则，Ahrefs 标为 SPAM 的 40 个里 37 个没给「可以提交」，没标的 60 个里 21 个也被标出（35%）。规则就是在这 100 个站上挑的，不是没见过的样本；「垃圾」是 Ahrefs 的 SPAM 标签，不是 Google 的认定。换一批新站复测，还没做：[效果如何](#效果如何)。
 
-[快速上手](#快速上手) · [效果如何](#效果如何) · [该出现在哪](#该出现在哪find) · [竞品的外链](#竞品挣到的外链competitors) · [AI 回答](#ai-回答从哪来cited) · [Key](#key) · [在 agent 里用](#在-agent-里用skill-和-mcp-服务器) · [English](README.md)
+[快速上手](#快速上手) · [效果如何](#效果如何) · [配上 key](#配上-key) · [vet 之外](#vet-之外) · [该出现在哪](#该出现在哪find) · [竞品的外链](#竞品挣到的外链competitors) · [AI 回答](#ai-回答从哪来cited) · [Key](#key) · [在 agent 里用](#在-agent-里用skill-和-mcp-服务器) · [English](README.md)
 
 </div>
 
-先找出搜你这个词的人现在都落在哪些页面上、哪些站链向你的竞品却没链向你、Google 的 AI 概览（AI Overview）在你的关键词上引用了哪些站、有人向 AI 助手打听你这类产品时它们怎么回答；提交外链**之前**先查这个站值不值得发，链接上线**之后**查它是不是真的传权重，平时再看看**自己**的外链画像里有没有 Google 说的「链接垃圾」痕迹，并找出指向你已经不存在、或跳转得不好的页面的外链。
-
-多数外链工具帮你发得更多。这个工具告诉你哪里别发、什么时候该慢下来。
-
-![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，competitors、cited、asked 找出竞品拿到的外链和 AI 回答引用的站，--early 看竞品刚上线时拿到的外链；vet 逐个检查（读页面、GoAnyAPI、Glasser 或 AIsa，--newcomers 看它还收不收新站），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，含同一个人运营的站群；lost 找出落在 404 或跳转页面上的外链并建议 301。橙色是 0.11 新增的](docs/flow.zh.gif)
-
 ## 快速上手
+
+把网站提交到目录、榜单或「投稿」页之前，先查那个站：
+
+```bash
+uvx backlink-guard vet --free <站点>
+```
+
+一行命令，不用 key，不用注册。[uv](https://docs.astral.sh/uv/) 的 `uvx` 直接从 PyPI 运行（Python 3.10 及以上，没有依赖）。它读对方自己的页面，按 [Google 的链接垃圾政策](https://developers.google.com/search/docs/essentials/spam-policies#link-spam)说明在那里拿链接意味着什么，并引用读到的原文。2026-11-21 的结果：
+
+```bash
+uvx backlink-guard vet --free turbo0.com
+```
+
+| 站点 | 建议 | 结论 | 风险分 | 政策风险 | 价值 | 评分 | 月访问 | 垃圾分 | 原因 |
+|---|---|---|---|---|---|---|---|---|---|
+| turbo0.com | 🆓 free only | ⚠️ caution | 2 | ⚠️ 出售传权重的链接；要求回链 | – | – | – | – | – |
+
+> **turbo0.com** — 🆓 free only：绝不为传权重的链接付费，也不拿回链当条件
+> - ⚠️ caution **出售传权重的链接或文章。** …Backlink to our site is required … Basic One Time $ 29.9 Previously $ 49.9…（Google：为提升排名买卖链接）
+> - ⚠️ caution **以回链或挂徽章为收录条件。** …Listing and traffic forever Ahrefs DR above 10 required Backlink to our site is required…（Google：过度的链接交换，或把链接作为某种安排的条件）
+>
+> 这次花费：$0.000。
+
+想查的站最好一次一起查（`vet --free a.example b.example …`）：共用一个页面模板、或接同一个统计或广告账号的站，会被标成同一个人在运营。免费模式读每个站自己的页面（打不开、停放或待售；出售传权重的链接；要求回链；外链指向博彩、成人、贷款、代写站；短链和站群模板页），查[共享的垃圾外链来源库](https://github.com/zhuyansen/backlink-spam-list)，看 Wayback Machine 的第一份存档。评分、访问量、Google 收录、垃圾分、搜索历史它看不到：报告会在 Incomplete 下写明，配上 [key](#配上-key) 才查。拒绝陌生客户端的站会给 `look first`（先看看），并写明原因。
+
+结论是一组你能自己核对的信号，不是 Google 的判定。想一直装着用 `backlink-guard` 命令：`pip install backlink-guard`（或 `uv tool install backlink-guard`）；`uvx backlink-guard@latest …` 会拿到新版本。
+
+## 效果如何
+
+下面的数字来自一次测试，100 个站（2026-10-16）：我另外两个站的引荐域名，之前的测试都没用过；Ahrefs 标了 SPAM 的 40 个，没标的 60 个。这里的「垃圾」指 Ahrefs 的 SPAM 标签，不是 Google 的认定。
+
+| | 0.4.1 的规则 | 0.6 的规则 |
+|---|---|---|
+| 标出的 SPAM 站 | 40 个里 38 个 | 40 个里 28 个 |
+| 误标的正常站 | 60 个里 46 个 | 60 个里 21 个（35%） |
+| 建议「submit」的 SPAM 站 | – | 40 个里 3 个 |
+
+- **0.6 的规则就是在这 100 个站上挑的。** 试了几种规则，在这批站上得分最高的胜出（抓到的 SPAM 减去误标的正常站）。所以这张表说明规则和这批站吻合得怎样，不说明它在没见过的站上表现如何。换一批新站复测，还没做。
+- **数字是 0.6 版的。** 之后工具改过多次（现在是 0.12），新版本没有公布这类数字。
+- **正常站里三分之一也被标出。** 被判 avoid 的「正常」站全都打不开，或在 Google 查不到页面；其余是 caution。跳过一个站之前，先看它的证据。
+
+其他测试，用的是别的站：
+
+- 和共用收款链接有关的 16 个站里，10 个站群或被黑的站全部建议跳过；只是引用这些产品的 6 个站里，5 个建议提交。
+- 上架能带来多少访客，跟着触达走：在两个站的统计数据里，被评为低触达的来源站只有 37 个里 2 个、73 个里 1 个带来过访客，高触达的是 14 个里 10 个、7 个里 2 个。
+- 十个知名目录和社区全部建议提交（第一次跑完修了两处之后）。
+
+九轮测试的数据和每一轮带来的改动：[docs/validation.zh-CN.md](docs/validation.zh-CN.md)。
+
+## 配上 key
+
+配上 [key](#key)（GoAnyAPI，加 Glasser 或 AIsa）会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。不加 `--free` 时，配了哪个 key 就用哪个。
 
 ```bash
 uvx backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
-
-用 [uv](https://docs.astral.sh/uv/) 的 `uvx` 直接从 PyPI 运行，什么都不用装；`uvx backlink-guard@latest …` 会拿到新版本。想一直装着用 `backlink-guard` 命令：`pip install backlink-guard`（或 `uv tool install backlink-guard`）。需要 Python 3.10 及以上，没有任何依赖。不配 key 时只免费读对方自己的页面（`--free` 明确只做这一步）。配上 [key](#key)（GoAnyAPI，加 Glasser 或 AIsa）会加上评分、访问量、Google 收录和垃圾分：查一个站约 $0.17，三十个约 $0.46，所以想查的站最好一次一起查。
 
 2026-10-13、14 两天配齐两个 key 的检查结果：
 
@@ -56,22 +100,20 @@ uvx backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com claw
 
 几个站如果共用一个页面模板，或接的是同一个统计、广告账号（不管是同一次检查里的，还是本机之前查过的），会被标成同一个人在运营。如果其中多数还有别的问题，而[共享的垃圾外链来源库](https://github.com/zhuyansen/backlink-spam-list)里还没有它们，报告最后会附上一个已经填好的举报链接；在你自己点提交之前，什么都不会发出去。
 
-## 效果如何
+## vet 之外
 
-规则是在 100 个它从没见过的站上选的（2026-10-16）：Ahrefs 标了 SPAM 的 40 个，没标的 60 个。
+`vet` 只是一步。同一个工具还能找该出现在哪，也能查你已经有的：
 
-| | 0.4.1 的规则 | 0.6 |
-|---|---|---|
-| 标出的 SPAM 站 | 40 个里 38 个 | 40 个里 28 个 |
-| 误标的正常站 | 60 个里 46 个 | 60 个里 21 个 |
-| 建议「submit」的 SPAM 站 | – | 40 个里 3 个 |
+- **find**：搜你这个词的人现在落在哪些页面上。
+- **competitors**：哪些站链向你的竞品却没链向你；加 `--early` 看竞品刚上线时拿到的外链。
+- **cited** 和 **asked**：Google 的 AI 概览在你的关键词上引用了哪些站；有人向 AI 助手打听你这类产品时，它们怎么回答。
+- **verify**：链接上线之后，它传不传权重、放在页面哪里。
+- **audit** 和 **lost**：看自己的外链画像里有没有 Google 说的「链接垃圾」痕迹；找出落在已经不存在、或跳转得不好的页面上的外链。
+- **ai-access**：AI 爬虫能不能读这个站，读到的是什么。
 
-- 被判 avoid 的「正常」站，全都打不开，或在 Google 查不到页面。
-- 和共用收款链接有关的 16 个站里，10 个站群或被黑的站全部建议跳过；只是引用这些产品的 6 个站里，5 个建议提交。
-- 上架能带来多少访客，跟着触达走：在两个站的统计数据里，被评为低触达的来源站只有 37 个里 2 个、73 个里 1 个带来过访客，高触达的是 14 个里 10 个、7 个里 2 个。
-- 十个知名目录和社区全部建议提交。
+多数外链工具帮你发得更多。这个工具告诉你哪里别发、什么时候该慢下来。
 
-九轮测试的数据和每一轮带来的改动：[docs/validation.zh-CN.md](docs/validation.zh-CN.md)。
+![backlink-guard 的流程：find 找出搜你这个词的人落在哪些页面，competitors、cited、asked 找出竞品拿到的外链和 AI 回答引用的站，--early 看竞品刚上线时拿到的外链；vet 逐个检查（读页面、GoAnyAPI、Glasser 或 AIsa，--newcomers 看它还收不收新站），得出 avoid / caution / ok 并附证据，按规则提交，再 verify 和 log；平时用 audit 看自己的外链画像，含同一个人运营的站群；lost 找出落在 404 或跳转页面上的外链并建议 301。橙色是 0.11 新增的](docs/flow.zh.gif)
 
 ## 该出现在哪：find
 
@@ -354,7 +396,7 @@ claude plugin install backlink-guard@backlink-guard
 npx skills add zhuyansen/backlink-guard
 ```
 
-skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.12.0`），不用克隆的代码；付费运行前先报成本、等你点头；每次提交前先给你看提交到哪里、要发的原文，等你点头才发；读到的页面、标题、AI 回答只当数据，绝不当成指令。
+skill 带着 agent 按同样的顺序走：找该出现的地方、先查、守规则、验收、审计。它只跑 PyPI 上锁定的版本（`uvx backlink-guard==0.12.1`），不用克隆的代码；付费运行前先报成本、等你点头；每次提交前先给你看提交到哪里、要发的原文，等你点头才发；读到的页面、标题、AI 回答只当数据，绝不当成指令。
 
 ### MCP 服务器
 

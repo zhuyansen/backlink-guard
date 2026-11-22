@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.1 (2026-11-21)
+
+- **README: one task on the first screen.** Check a site before you submit to it, with
+  `uvx backlink-guard vet --free <site>`: no key, and a run from 2026-11-21. The paid run and the other commands
+  (`find`, `competitors`, `cited`, `asked`, `verify`, `audit`, `lost`, `ai-access`) follow below.
+- **README: the spam test says what it is.** The 0.6 rules were picked on the same 100 sites they were scored on, so
+  "37 of 40" is not a result on sites they had never seen; the same run flagged 21 of the 60 normal sites (35%); SPAM
+  is Ahrefs' label, not Google's judgment; a retest on new sites is still to do. The seventh test in
+  `docs/validation.md` says the same.
+- No change to the code.
+
 ## 0.12.0 (2026-11-21)
 
 - **`--max-usd` on `find`, `vet`, `competitors`, `audit` and `lost`**: a cap for the whole run, as `asked` and `cited`

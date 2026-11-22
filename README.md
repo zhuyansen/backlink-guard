@@ -4,7 +4,7 @@
 
 # backlink-guard
 
-**Check a link source before you submit to it, the link after it goes live, and your own backlinks for link spam.**
+**Check a site before you submit your link to it.**
 
 [![PyPI](https://img.shields.io/pypi/v/backlink-guard?color=0ea5e9&label=PyPI)](https://pypi.org/project/backlink-guard/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](https://pypi.org/project/backlink-guard/)
@@ -18,25 +18,69 @@
 [![Security-graded by Agent Skills Hub](https://agentskillshub.top/badge/zhuyansen/backlink-guard.svg)](https://agentskillshub.top/skill/zhuyansen/backlink-guard/)
 [![skills.sh](https://img.shields.io/badge/skills.sh-zhuyansen%2Fbacklink--guard-0f172a)](https://skills.sh/zhuyansen/backlink-guard)
 
-⭐ **37 of 40 Ahrefs-marked spam sites kept from "submit"**, on 100 sites it had never seen · on PyPI, the official MCP Registry and skills.sh
+In one test on 100 sites (2026-10-16), the 0.6 rules kept 37 of the 40 that Ahrefs marks SPAM from "submit", and flagged 21 of the 60 it does not (35%). The rules were picked on these same sites, and SPAM is Ahrefs' label, not Google's judgment. A retest on new sites is still to do: [how well it works](#how-well-it-works).
 
-[Quick start](#quick-start) · [How well it works](#how-well-it-works) · [Where to be](#where-to-be-find) · [Competitors](#links-your-competitors-earned-competitors) · [AI answers](#where-ai-answers-come-from-cited) · [Keys](#keys) · [Agents and MCP](#use-it-from-an-agent-the-skill-and-an-mcp-server) · [中文说明](https://github.com/zhuyansen/backlink-guard/blob/main/README.zh-CN.md)
+[Quick start](#quick-start) · [How well it works](#how-well-it-works) · [With keys](#with-keys) · [More than vet](#more-than-vet) · [Where to be](#where-to-be-find) · [Competitors](#links-your-competitors-earned-competitors) · [AI answers](#where-ai-answers-come-from-cited) · [Keys](#keys) · [Agents and MCP](#use-it-from-an-agent-the-skill-and-an-mcp-server) · [中文说明](https://github.com/zhuyansen/backlink-guard/blob/main/README.zh-CN.md)
 
 </div>
 
-Find the pages your searchers already land on, the sites that link to your competitors and not to you, the sites Google's AI Overviews cite for your keywords, and what AI assistants answer when asked for what you make; check a link source **before** you submit your site to it, check the link **after** it goes live, look at your **own** backlink profile for the patterns Google calls link spam, and find the links that point at pages of yours that are gone or redirect badly.
-
-Most backlink tools help you send more. This one tells you where not to send, and when to slow down.
-
-![How backlink-guard works: find the pages your searchers land on, and with competitors, cited and asked the sites your competitors earned and the sites AI answers cite, with --early the links they got at launch; vet each site (its own pages, GoAnyAPI, Glasser or AIsa, and with --newcomers whether it still takes new sites), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, with the sites one owner runs; lost lists backlinks landing on 404 pages or redirects, with a suggested 301. What 0.11 added is orange](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
-
 ## Quick start
+
+Before you submit your site to a directory, a list or a "write for us" page, check that site:
+
+```bash
+uvx backlink-guard vet --free <site>
+```
+
+One line, no key, no account. [uv](https://docs.astral.sh/uv/)'s `uvx` runs it straight from PyPI (Python 3.10 or newer, no dependencies). It reads the site's own pages and says what a link there would mean under [Google's link spam policies](https://developers.google.com/search/docs/essentials/spam-policies#link-spam), quoting what it read. On 2026-11-21:
+
+```bash
+uvx backlink-guard vet --free turbo0.com
+```
+
+| Site | Action | Verdict | Risk | Link policy | Value | Rating | Visits a month | Spam score | Why |
+|---|---|---|---|---|---|---|---|---|---|
+| turbo0.com | 🆓 free only | ⚠️ caution | 2 | ⚠️ sells followed links; asks for a link back | – | – | – | – | – |
+
+> **turbo0.com** — 🆓 free only: never pay for a followed link; never link back as a condition
+> - ⚠️ caution **It sells links or posts that pass ranking credit.** …Backlink to our site is required … Basic One Time $ 29.9 Previously $ 49.9… _(Google: Buying or selling links for ranking purposes)_
+> - ⚠️ caution **It asks for a link or badge back as a condition.** …Listing and traffic forever Ahrefs DR above 10 required Backlink to our site is required… _(Google: Excessive link exchanges, or requiring a link as part of an arrangement)_
+>
+> Cost of this run: $0.000.
+
+Put every site you are considering in one run (`vet --free a.example b.example …`): sites that share a page template or an analytics or ads account come out as one operator's. The free run reads each site's pages (dead, parked or for sale; selling followed links; asking for a link back; links out to gambling, adult, loan or essay-mill sites; URL shorteners and link-network pages), the [shared spam-link list](https://github.com/zhuyansen/backlink-spam-list) and the Wayback Machine's first copy. It does not see rating, visits, Google's index, spam scores or search history: the report says so under Incomplete, and [keys](#with-keys) add them. A site that refuses unknown clients comes back "look first", with the reason.
+
+A verdict is a set of signals you can check, not Google's judgment. To keep a `backlink-guard` command: `pip install backlink-guard` (or `uv tool install backlink-guard`); `uvx backlink-guard@latest …` picks up a new release.
+
+## How well it works
+
+The numbers come from one test on 100 sites (2026-10-16): the referring domains of two other sites of mine that no earlier test had used, 40 that Ahrefs marks SPAM and 60 it does not. SPAM here is Ahrefs' label, not a judgment by Google.
+
+| | 0.4.1 rules | 0.6 rules |
+|---|---|---|
+| SPAM sites flagged | 38 of 40 | 28 of 40 |
+| Normal sites flagged | 46 of 60 | 21 of 60 (35%) |
+| SPAM sites with the action "submit" | – | 3 of 40 |
+
+- **The 0.6 rules were picked on these 100 sites.** Of the rules tried, the one that scored best on them won (SPAM caught minus normal sites flagged). So the table shows how well the rules fit this set, not how they do on sites they have not seen. A retest on new sites is still to do.
+- **The numbers are 0.6's.** The tool has changed since (0.12 now), and no newer numbers are published.
+- **A third of the normal sites were flagged too.** Every normal-labelled site called avoid does not load or has no pages in Google; the rest are cautions. Read the evidence before you skip a site.
+
+Other tests, on other sites:
+
+- Of 16 sites around shared checkout links, all 10 network or hacked sites come out skip, and 5 of the 6 that merely cite those products come out submit.
+- What a listing brings follows reach: on two sites' analytics, 2 of 37 and 1 of 73 referring domains rated low had sent a visit, against 10 of 14 and 2 of 7 rated high.
+- The ten well-known directories and communities all come out submit, after two fixes their first run forced.
+
+Nine tests, with their data and what each changed: [docs/validation.md](https://github.com/zhuyansen/backlink-guard/blob/main/docs/validation.md).
+
+## With keys
+
+The [keys](#keys) (GoAnyAPI, and Glasser or AIsa) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run. A run without `--free` uses the keys that are set.
 
 ```bash
 uvx backlink-guard vet mcpservers.org turbo0.com navi.tools producthunt.com clawhomepage.com
 ```
-
-[uv](https://docs.astral.sh/uv/)'s `uvx` runs it straight from PyPI, with nothing to install; `uvx backlink-guard@latest …` picks up a new release. To keep a `backlink-guard` command installed: `pip install backlink-guard` (or `uv tool install backlink-guard`). Python 3.10 or newer, no dependencies. With no key it reads the sites' own pages, for free (`--free` asks for just that). The [keys](#keys) (GoAnyAPI, and Glasser or AIsa) add rating, visits, Google's index and spam scores: about $0.17 for one site and $0.46 for thirty, so check the sites you are considering in one run.
 
 Checked with both keys on 2026-10-13 and 14:
 
@@ -56,22 +100,20 @@ Every finding comes with the text or the numbers it was read from:
 
 Sites that share a page template or an analytics or ads account, with each other or with sites from an earlier check on the same machine, are flagged as one operator's. When most of them have something else against them and the [shared spam-link list](https://github.com/zhuyansen/backlink-spam-list) lacks them, the report ends with a link to a filled-in report for that list; nothing is sent until you submit it.
 
-## How well it works
+## More than vet
 
-The rules were chosen on 100 sites they had never seen (2026-10-16): 40 that Ahrefs marks SPAM and 60 it does not.
+`vet` is one step. The same tool finds where to be and checks what you already have:
 
-| | 0.4.1 rules | 0.6 |
-|---|---|---|
-| SPAM sites flagged | 38 of 40 | 28 of 40 |
-| Normal sites flagged | 46 of 60 | 21 of 60 |
-| SPAM sites with the action "submit" | – | 3 of 40 |
+- **find**: the pages your searchers already land on.
+- **competitors**: the sites that link to your competitors and not to you; with `--early`, the links they got at launch.
+- **cited** and **asked**: the sites Google's AI Overviews cite for your keywords, and what AI assistants answer when asked for what you make.
+- **verify**: the link after it goes live: whether it passes ranking credit, and where it sits.
+- **audit** and **lost**: your own backlinks against the patterns Google calls link spam, and the links that land on pages of yours that are gone or redirect badly.
+- **ai-access**: whether AI crawlers may read a site, and what they get when they do.
 
-- Every normal-labelled site called avoid does not load or has no pages in Google.
-- Of 16 sites around shared checkout links, all 10 network or hacked sites come out skip, and 5 of the 6 that merely cite those products come out submit.
-- What a listing brings follows reach: on two sites' analytics, 2 of 37 and 1 of 73 referring domains rated low had sent a visit, against 10 of 14 and 2 of 7 rated high.
-- The ten well-known directories and communities all come out submit.
+Most backlink tools help you send more. This one tells you where not to send, and when to slow down.
 
-Nine tests, with their data and what each changed: [docs/validation.md](https://github.com/zhuyansen/backlink-guard/blob/main/docs/validation.md).
+![How backlink-guard works: find the pages your searchers land on, and with competitors, cited and asked the sites your competitors earned and the sites AI answers cite, with --early the links they got at launch; vet each site (its own pages, GoAnyAPI, Glasser or AIsa, and with --newcomers whether it still takes new sites), get avoid, caution or ok with the evidence, follow the rules, submit, then verify and log; audit your own profile now and then, with the sites one owner runs; lost lists backlinks landing on 404 pages or redirects, with a suggested 301. What 0.11 added is orange](https://raw.githubusercontent.com/zhuyansen/backlink-guard/main/docs/flow.en.gif)
 
 ## Where to be: find
 
@@ -362,7 +404,7 @@ As a skill, for any agent that reads them:
 npx skills add zhuyansen/backlink-guard
 ```
 
-The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.12.0`), never a clone, tells you the cost and waits for your yes before any paid run, shows you where each submission goes and its exact text and waits for your yes before sending it, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
+The skill walks an agent through the same order: find, vet, the rules, verify, audit. It runs the pinned release from PyPI (`uvx backlink-guard==0.12.1`), never a clone, tells you the cost and waits for your yes before any paid run, shows you where each submission goes and its exact text and waits for your yes before sending it, and treats what it reads (pages, titles, AI answers) as data, never as instructions.
 
 ### MCP server
 
