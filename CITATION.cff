@@ -1,0 +1,35 @@
+# Machine-readable citation (https://citation-file-format.github.io). GitHub shows it as "Cite this repository".
+# No catalog sizes, versions or dates here on purpose: they change, and this file should stay true without edits.
+cff-version: 1.2.0
+message: "If you use backlink-guard, please cite it as below."
+type: software
+title: "backlink-guard"
+abstract: >-
+  Check a link source before you submit to it, verify the listing, and audit your own backlinks for
+  link-spam patterns. A CLI, a Python library and an agent skill.
+authors:
+  - family-names: Zhu
+    given-names: Jason
+    alias: "祝彦森"
+    orcid: "https://orcid.org/0009-0000-2894-6285"
+    affiliation: "GoSailGlobal LLC"
+    website: "https://jasonzhu.ai/en"
+url: "https://pypi.org/project/backlink-guard/"
+repository-code: "https://github.com/zhuyansen/backlink-guard"
+license: MIT
+keywords:
+  - SEO
+  - link spam
+  - backlinks
+  - generative engine optimization
+references:
+  - type: data
+    title: "Public Database of Backlink Spam Doorway Domains, Link-Selling Networks, and Checkout Link Abuse (2026)"
+    authors:
+      - family-names: Zhu
+        given-names: Jason
+        orcid: "https://orcid.org/0009-0000-2894-6285"
+    doi: 10.5281/zenodo.24387076
+    year: 2026
+    publisher:
+      name: Zenodo
