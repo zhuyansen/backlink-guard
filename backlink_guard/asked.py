@@ -396,13 +396,26 @@ def unwrapped(item: dict) -> str:
     return plain
 
 
+def from_breadcrumb(item: dict) -> str:
+    """The result's address from its breadcrumb ("https://mine.example › docs › skills") when its url is a redirect that
+    carries none: since 2026-11-23 every Google result AIsa passes on is an opaque google.com/goto link, its domain field
+    says google.com too, and only the breadcrumb still names the site. A social profile's breadcrumb is a follower count
+    ("810+ followers"): nothing to read. Google shortens the path, so the site is right and the path approximate."""
+    crumb = str(item.get("breadcrumb") or "").strip()
+    if not crumb.startswith(("http://", "https://")):
+        return ""
+    head, *rest = [x.strip() for x in crumb.split("›")]
+    return head.rstrip("/") + "".join("/" + x for x in rest if x and x not in ("...", "…"))
+
+
 def organic(data: dict) -> list[dict]:
     """[{"url", "site", "position"}]: the organic results of a results page, in order. A redirect whose address cannot
-    be read keeps its place and is marked, so positions stay true and nothing counts it as the search engine's site."""
+    be read, from the link or from the breadcrumb, keeps its place and is marked, so positions stay true and nothing
+    counts it as the search engine's site."""
     found = [i for i in data.get("items") or [] if i.get("type") == "organic" and i.get("url")]
     out = []
     for n, i in enumerate(found, 1):
-        url = unwrapped(i)
+        url = unwrapped(i) or from_breadcrumb(i)
         out.append({"url": url or i["url"], "site": page.registrable(url) if url else "",
                     "position": i.get("rank_group") or n} | ({} if url else {"redirect": True}))
     return out
@@ -438,8 +451,13 @@ def placed(rows: list[dict], own: str) -> dict:
             "redirects": hidden}
 
 
+BING_NO_SITE = "Bing's results API does not take site:"
+
+
 def rank_one(job: tuple[str, str], own: str, budget: Budget, fresh: bool) -> dict:
     query, engine = job
+    if engine == "bing" and "site:" in query.lower():
+        return {"error": BING_NO_SITE}   # it answers an error, and the call is asked twice: don't pay for either
     try:
         return placed(results_for(engine, query, budget, fresh), own)
     except OverBudget:

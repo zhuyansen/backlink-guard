@@ -7,12 +7,12 @@
     "url": "https://github.com/zhuyansen/backlink-guard",
     "source": "github"
   },
-  "version": "0.12.1",
+  "version": "0.12.2",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "backlink-guard",
-      "version": "0.12.1",
+      "version": "0.12.2",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {

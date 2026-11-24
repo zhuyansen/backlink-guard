@@ -269,6 +269,31 @@ def test_a_redirect_link_without_its_address_counts_as_no_site():
     assert old["first_page"] == [] and old["redirects"] == 1
 
 
+def test_a_redirect_without_its_address_takes_the_site_from_its_breadcrumb():
+    # since 2026-11-23 AIsa passes every Google result as an opaque goto link, domain google.com
+    rows = asked.organic({"items": [
+        {"type": "organic", "url": "https://google.com/goto?url=CAES1", "domain": "google.com",
+         "breadcrumb": "https://www.mine.example › docs › skills", "rank_group": 1},
+        {"type": "organic", "url": "https://google.com/goto?url=CAES2", "domain": "google.com",
+         "breadcrumb": "810+ followers", "rank_group": 2},
+        {"type": "organic", "url": "https://google.com/goto?url=CAES3", "domain": "google.com",
+         "breadcrumb": "https://list.example › ...", "rank_group": 3}]})
+    assert rows[0] == {"url": "https://www.mine.example/docs/skills", "site": "mine.example", "position": 1}
+    assert rows[1]["redirect"] and rows[1]["site"] == ""
+    assert (rows[2]["url"], rows[2]["site"]) == ("https://list.example", "list.example")
+    p = asked.placed(rows, "mine.example")
+    assert p["you"] == 1 and p["first_page"] == ["mine.example", "list.example"] and p["redirects"] == 1
+
+
+def test_bing_is_not_asked_a_site_search_it_cannot_take(monkeypatch):
+    calls = []
+    monkeypatch.setattr(asked, "results_for", lambda *a: calls.append(a) or [])
+    assert asked.rank_one(("site:mine.example skills", "bing"), "mine.example", None, False) == {"error": asked.BING_NO_SITE}
+    assert calls == []
+    asked.rank_one(("site:mine.example skills", "google"), "mine.example", None, False)
+    assert len(calls) == 1
+
+
 def test_a_site_under_your_name_is_told_apart_in_the_results():
     rows = asked.organic({"items": [{"type": "paid", "url": "https://ad.example/"},
                                     {"type": "organic", "url": "https://skillshelf.dev/", "rank_group": 1},

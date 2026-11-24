@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.2 (2026-11-24)
+
+- **`asked --rank` reads Google again.** Since 2026-11-23 every Google result AIsa passes on is an opaque
+  `google.com/goto?url=CAES…` link and its domain field says google.com, so 0.12.1 counted every Google search as one
+  where you do not rank: a run on 2026-11-23 reported 0 of 336 searches with the site in Google's top 20, and 5 of 6
+  brand searches were in fact in the top 10. The site is now read from the result's breadcrumb
+  (`https://mine.example › docs`); the path there is Google's shortening, so it is approximate. A social profile whose
+  breadcrumb is only a follower count still counts as no site, as before.
+- **Bing is not asked a `site:` search.** Its results API answers an error for one, and the call was asked twice;
+  it is now marked failed without a call.
+
 ## 0.12.1 (2026-11-21)
 
 - **README: one task on the first screen.** Check a site before you submit to it, with
